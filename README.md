@@ -8,31 +8,6 @@
 
 - Redirects users to home page upon successful login.
 
-Course_Companion/
-│
-├── env/ ← Virtual environment (do NOT push to GitHub)
-├── requirements.txt ← Python dependencies
-├── frontend/ ← HTML, CSS, images
-│ ├── static/
-│ │ ├── css/ ← Your CSS files
-│ │ └── img/ ← Images
-│ └── templates/ ← HTML files (register.html, login.html, etc.)
-│
-├── backend/ ← Django project
-│ └── myproject/ ← Django project folder
-│ ├── init.py
-│ ├── asgi.py
-│ ├── settings.py
-│ ├── urls.py
-│ ├── wsgi.py
-│ ├── manage.py ← Run server & migrate from here
-│ └── myapp/ ← Your Django app
-│ ├── admin.py
-│ ├── apps.py
-│ ├── models.py
-│ ├── views.py
-│ ├── urls.py
-│ └── ...
 
 
 ---
