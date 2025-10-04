@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home - Logged In</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <div class="navbar">
+    <div class="nav-left">
+      <img src="https://img.icons8.com/ios-filled/50/ffffff/handshake.png" alt="logo" width="30">
+      <h1>S C P</h1>
+    </div>
+    <div class="search-bar">
+      <input type="text" placeholder="Search Platform">
+    </div>
+    <div class="nav-right">
+      <button class="create-btn">+ Create</button>
+      <span class="icon-btn" onclick="toggleDropdown()">🔔</span>
+      <span class="icon-btn" onclick="toggleDropdown()">👤</span>
+    </div>
+  </div>
+
+  <!-- Profile Dropdown -->
+  <div class="profile-dropdown" id="profileMenu">
+    <p>⚪ View Profile</p>
+    <p>u/Username</p>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-container">
+    <div class="posts">
+      <div class="post">
+        <p><b>c/Psychology</b> • 1 day ago</p>
+        <h3>Post Title</h3>
+        <img alt="Post Image">
+        <div class="actions">
+          <span>⬆️ 15</span>
+          <span>💬 22</span>
+          <span>🔗 Share</span>
+        </div>
+      </div>
+      <div class="post">
+        <p><b>c/Business</b> • 1 hr ago</p>
+        <h3>Post Title</h3>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit...</p>
+        <div class="actions">
+          <span>⬆️ 13</span>
+          <span>💬 9</span>
+          <span>🔗 Share</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <h4>Popular Courses</h4>
+      <ul>
+        <li>c/Psychology</li>
+        <li>c/Business</li>
+        <li>c/Computer Science</li>
+        <li>c/CivilEngineering</li>
+        <li>c/Education</li>
+        <li>c/ComputerEngineering</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    function toggleDropdown() {
+      document.getElementById("profileMenu").classList.toggle("show");
+    }
+    function logout() {
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+</html>

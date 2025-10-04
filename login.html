@@ -8,12 +8,9 @@
 </head>
 <body>
   <div class="container">
-    <!-- Icon (replace with your own image/icon if needed) -->
     <img src="https://img.icons8.com/ios-filled/100/000000/handshake.png" alt="logo">
-
     <h2>Log In</h2>
-
-    <form>
+    <form onsubmit="event.preventDefault(); window.location.href='home.html';">
       <input type="text" placeholder="Email or username *" required>
       <input type="password" placeholder="Password *" required>
       <div class="links">
