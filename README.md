@@ -33,7 +33,7 @@ pip install -r requirements.txt
 
 
 Navigate to Django project folder
-cd backend\myproject
+cd backend
 
 
 Apply database migrations
