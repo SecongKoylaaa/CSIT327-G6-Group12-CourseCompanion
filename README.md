@@ -31,8 +31,9 @@ Create and activate a virtual environment
 
 python -m venv env
 env\Scripts\activate          # Windows
+
 # OR for Mac/Linux
-# source env/bin/activate
+source env/bin/activate
 
 
 Install dependencies
@@ -63,6 +64,7 @@ Example pages: /register/, /login/
 
 👨‍💻 Team Members
 Name	Role	CIT-U Email
+
 Miguel Matheo C. Rivero	Product Owner	miguelmatheo.rivero@cit.edu
 
 Gia Meggie M. Quijano	Business Analyst	giameggie.quijano@cit.edu
@@ -74,6 +76,7 @@ Marc Benn B. Secong	Developer	marcbenn.secong@cit.edu
 John Edward L. Selma	Developer	johnedward.selma@cit.edu
 
 Edzel C. Señor	Developer	edzel.senor@cit.edu
+
 
 ## 🌍 Deployment Link
 
