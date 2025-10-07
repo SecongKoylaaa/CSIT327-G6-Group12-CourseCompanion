@@ -59,30 +59,21 @@ http://127.0.0.1:8000/
 Example pages: /register/, /login/
 
 ---
+```
 
-### 🔧 Backend Setup (Django)
-
-```bash
-cd backend
-python -m venv env
-source env/bin/activate  # On Windows: env\Scripts\activate
-pip install -r requirements.txt
-
-
----
 
 👨‍💻 Team Members
 Name	Role	CIT-U Email
-Miguel Matheo C. Rivero	Product Owner	miguelrivero@cit.edu
+Miguel Matheo C. Rivero	Product Owner	miguelmatheo.rivero@cit.edu
 
-Gia Meggie M. Quijano	Business Analyst	giaquijano@cit.edu
+Gia Meggie M. Quijano	Business Analyst	giameggie.quijano@cit.edu
 
-Ken Patrick R. Ranis	Scrum Master	kenranis@cit.edu
+Ken Patrick R. Ranis	Scrum Master	kenpatrick.ranis@cit.edu
 
-Edzel C. Señor	Developer	edzelsenor@cit.edu
+Marc Benn B. Secong	Developer	marcbenn.secong@cit.edu
 
-John Edward L. Selma	Developer	johnselma@cit.edu
+John Edward L. Selma	Developer	johnedward.selma@cit.edu
 
-Marc Benn B. Secong	Developer	marcsecong@cit.edu
+Edzel C. Señor	Developer	edzel.senor@cit.edu
 
 
