@@ -6,17 +6,16 @@
 
 ## 🛠️ Tech Stack Used
 
-| Category         | Technologies Used                       |
-|------------------|------------------------------------------|
-| **Frontend**     | React.js, HTML5, CSS3, JavaScript        |
-| **Backend**      | Django, Django REST Framework            |
-| **Real-Time**    | Django Channels, WebSockets              |
-| **Database**     | PostgreSQL (or SQLite for development)   |
-| **Authentication** | Django Auth, DRF Permissions          |
-| **Deployment**   | Render / Railway / Vercel / Heroku (choose one) |
-| **Version Control** | Git & GitHub                         |
+| Category           | Technologies Used                          |
+|--------------------|---------------------------------------------|
+| **Frontend**       | Django Templates (HTML, CSS, Python)        |
+| **Backend**        | Django (Python), Django REST Framework      |
+| **Real-Time**      | Django Channels, WebSockets *(if used)*     |
+| **Database**       | Supabase (PostgreSQL)                       |
+| **Authentication** | Django Auth, DRF Permissions                |
+| **Deployment**     | To be determined (TBD)                      |
+| **Version Control**| Git & GitHub                                |
 
-> ⚠️ *Update any of the above technologies to match your actual project stack.*
 
 ---
 
@@ -75,5 +74,11 @@ Marc Benn B. Secong	Developer	marcbenn.secong@cit.edu
 John Edward L. Selma	Developer	johnedward.selma@cit.edu
 
 Edzel C. Señor	Developer	edzel.senor@cit.edu
+
+## 🌍 Deployment Link
+
+🔗 **To be determined (TBD)**  
+_The application is not yet deployed. The link will be added once available._
+
 
 
