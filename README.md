@@ -1,18 +1,26 @@
-- Added Login Page (login.html) for user sign-in.
+# 🎓 CourseCompanion
 
-- Added Registration Page (register.html) for creating new accounts.
-
-- Integrated Supabase with Django backend for user data storage.
-
-- Implemented authentication: login checks Supabase to verify user credentials.
-
-- Redirects users to home page upon successful login.
-
-
+**CourseCompanion** is a web application designed to act as a centralized hub for academic resources shared by students. Inspired by platforms like Reddit, it allows users to post, discover, and rate useful materials—such as books, articles, and tutorials—organized by specific university courses. The goal is to foster collaboration and improve academic success within the university.
 
 ---
 
-## ⚡ Setup Instructions
+## 🛠️ Tech Stack Used
+
+| Category         | Technologies Used                       |
+|------------------|------------------------------------------|
+| **Frontend**     | React.js, HTML5, CSS3, JavaScript        |
+| **Backend**      | Django, Django REST Framework            |
+| **Real-Time**    | Django Channels, WebSockets              |
+| **Database**     | PostgreSQL (or SQLite for development)   |
+| **Authentication** | Django Auth, DRF Permissions          |
+| **Deployment**   | Render / Railway / Vercel / Heroku (choose one) |
+| **Version Control** | Git & GitHub                         |
+
+> ⚠️ *Update any of the above technologies to match your actual project stack.*
+
+---
+
+## 🚀 Setup & Run Instructions
 
 1. **Clone the repository**
 ```bash
@@ -49,3 +57,32 @@ http://127.0.0.1:8000/
 
 
 Example pages: /register/, /login/
+
+---
+
+### 🔧 Backend Setup (Django)
+
+```bash
+cd backend
+python -m venv env
+source env/bin/activate  # On Windows: env\Scripts\activate
+pip install -r requirements.txt
+
+
+---
+
+👨‍💻 Team Members
+Name	Role	CIT-U Email
+Miguel Matheo C. Rivero	Product Owner	miguelrivero@cit.edu
+
+Gia Meggie M. Quijano	Business Analyst	giaquijano@cit.edu
+
+Ken Patrick R. Ranis	Scrum Master	kenranis@cit.edu
+
+Edzel C. Señor	Developer	edzelsenor@cit.edu
+
+John Edward L. Selma	Developer	johnselma@cit.edu
+
+Marc Benn B. Secong	Developer	marcsecong@cit.edu
+
+
