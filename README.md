@@ -62,7 +62,13 @@ Example pages: /register/, /login/
 ---
 ```
 
+```
+cd backend
 
+python manage.py runserver
+
+
+```
 👨‍💻 Team Members
 Name	Role	CIT-U Email
 
