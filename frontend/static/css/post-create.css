@@ -1,3 +1,29 @@
+/* === Tag Dropdown === */
+/* === Tag Choices Horizontal === */
+.tag-choices-horizontal {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  background: transparent;
+  z-index: 201;
+}
+.tag-choice-btn {
+  background: #111;
+  color: #fff;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, border 0.2s;
+}
+.tag-choice-btn:hover {
+  background: #222;
+  border-color: #555;
+}
 /* === Reset and Base === */
 body {
   font-family: "Inter", sans-serif;

@@ -34,43 +34,70 @@
 
   </div>
 
-  <!-- Main Content -->
-  <div class="main-container">
-    <div class="posts">
-      <div class="post">
-        <p><b>c/Psychology</b> • 1 day ago</p>
-        <h3>Post Title</h3>
-        <img alt="Post Image">
-        <div class="actions">
-          <span>⬆️ 15</span>
-          <span>💬 22</span>
-          <span>🔗 Share</span>
-        </div>
-      </div>
-      <div class="post">
-        <p><b>c/Business</b> • 1 hr ago</p>
-        <h3>Post Title</h3>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit...</p>
-        <div class="actions">
-          <span>⬆️ 13</span>
-          <span>💬 9</span>
-          <span>🔗 Share</span>
-        </div>
+<!-- Main Content -->
+<div class="main-container">
+  <div class="posts">
+    <!-- Static Sample Posts -->
+    <div class="post">
+      <p><b>c/Psychology</b> • 1 day ago</p>
+      <h3>Post Title</h3>
+      <img alt="Post Image">
+      <div class="actions">
+        <span>⬆️ 15</span>
+        <span>💬 22</span>
+        <span>🔗 Share</span>
       </div>
     </div>
 
-    <div class="sidebar">
-      <h4>Popular Courses</h4>
-      <ul>
-        <li>c/Psychology</li>
-        <li>c/Business</li>
-        <li>c/Computer Science</li>
-        <li>c/CivilEngineering</li>
-        <li>c/Education</li>
-        <li>c/ComputerEngineering</li>
-      </ul>
+    <div class="post">
+      <p><b>c/Business</b> • 1 hr ago</p>
+      <h3>Post Title</h3>
+      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit...</p>
+      <div class="actions">
+        <span>⬆️ 13</span>
+        <span>💬 9</span>
+        <span>🔗 Share</span>
+      </div>
     </div>
+
+    <!-- Dynamic Posts from Supabase
+    {% for post in posts %}
+    <div class="post">
+      <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
+      <h3>{{ post.title }}</h3>
+
+      {% if post.is_image %}
+        <img src="{{ post.url }}" alt="Post Image">
+      {% elif post.is_video %}
+        <video class="post-media" src="{{ post.url }}" controls></video>
+      {% elif post.url %}
+        <a href="{{ post.url }}" target="_blank">{{ post.url }}</a>
+      {% endif %}
+
+      <div class="actions">
+        <span>⬆️ 15</span>
+        <span>💬 22</span>
+        <span>🔗 Share</span>
+      </div>
+    </div>
+    {% empty %}
+    <p>No posts yet. Be the first to create one!</p>
+    {% endfor %} -->
   </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h4>Popular Courses</h4>
+    <ul>
+      <li>c/Psychology</li>
+      <li>c/Business</li>
+      <li>c/Computer Science</li>
+      <li>c/CivilEngineering</li>
+      <li>c/Education</li>
+      <li>c/ComputerEngineering</li>
+    </ul>
+  </div>
+</div>
 
   <script>
     function toggleDropdown() {

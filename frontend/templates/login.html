@@ -13,8 +13,12 @@
 
     <form id="loginForm" method="POST" action="/login/">
       {% csrf_token %}
-      <input type="email" name="email" placeholder="Email *" required>
-      <input type="password" name="password" placeholder="Password *" required>
+      <input type="email" name="email" placeholder="Email *" required maxlength="50">
+
+      <div class="password-container">
+        <input type="password" name="password" id="password" placeholder="Password *" required maxlength="30">
+        <button type="button" id="togglePassword" class="show-password">&#128065;</button>
+      </div>
 
       <div class="links"> 
         <a href="/recover" >Forgot password?</a>
@@ -28,5 +32,15 @@
       <div class="error">{{ error }}</div>
     {% endif %}
   </div>
+  <script>
+    const togglePassword = document.getElementById("togglePassword");
+    const password = document.getElementById("password");
+
+    togglePassword.addEventListener("click", () => {
+      password.type = password.type === "password" ? "text" : "password";
+    });
+
+    
+  </script>
 </body>
 </html>

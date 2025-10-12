@@ -18,15 +18,14 @@
     </div>
     <div class="nav-right">
       <a href="/create-post-image/" class="create-btn">+ Create</a>
-      <span class="icon-btn" onclick="toggleDropdown()">🔔</span>
-      <span class="icon-btn" onclick="toggleDropdown()">👤</span>
+      <span class="icon-btn">🔔</span>
+      <span class="icon-btn">👤</span>
     </div>
-
   </div>
 
   <!-- Page Content -->
   <div class="container">
-    <h1>Create post</h1>
+    <h1>Create Post</h1>
     <div class="select-course">Select a course</div>
 
     <div class="tabs">
@@ -34,23 +33,112 @@
       <a href="{% url 'create-post-image' %}" class="{% if request.path == '/create-post-image/' %}active{% endif %}">Images & Video</a>
     </div>
 
+    <!-- ✅ Upload Form -->
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
 
-
-    <form>
       <label for="title">Title<span style="color:red">*</span></label>
-      <input id="title" type="text" maxlength="200" placeholder="Enter title">
-      <div class="error">Please fill out this field.</div>
+      <input id="title" name="title" type="text" maxlength="200" placeholder="Enter title" required>
       <div class="char-count">0/200</div>
 
-      <button type="button">Add tags</button>
-
-      <div class="upload-box" onclick="document.getElementById('fileUpload').click()">
-        <p>Drag and Drop or Upload Media</p>
-        <input type="file" id="fileUpload" accept="image/*,video/*">
+      <!-- ✅ Tag Selection -->
+      <input type="hidden" name="post_type" id="post_type" required>
+      <div style="display: flex; align-items: center; gap: 8px; position: relative;">
+        <button type="button" id="tag-btn">Add tags</button>
+        <div id="tag-choices" class="tag-choices-horizontal" style="display:none;">
+          <button type="button" class="tag-choice-btn" data-value="question">Question</button>
+          <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
+          <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
+        </div>
       </div>
 
+      <!-- ✅ File Upload -->
+      <div class="upload-box" onclick="document.getElementById('fileUpload').click()">
+        <p id="uploadText">Drag and Drop or Upload Media</p>
+        <img id="previewImage" style="max-width: 100%; max-height: 250px; display: none; border-radius: 10px; margin-top: 10px;">
+        <video id="previewVideo" controls style="max-width: 100%; max-height: 250px; display: none; border-radius: 10px; margin-top: 10px;"></video>
+        <input type="file" id="fileUpload" name="fileUpload" accept="image/*,video/*" style="display:none;">
+      </div>
+
+      {% if error %}
+        <div class="error" style="color: red; margin-top: 10px;">{{ error }}</div>
+      {% endif %}
+      {% if success %}
+        <div class="success" style="color: green; margin-top: 10px;">{{ success }}</div>
+      {% endif %}
       <button type="submit">Post</button>
     </form>
   </div>
+
+  <script>
+    // Character counter
+    const titleInput = document.getElementById('title');
+    const charCount = document.querySelector('.char-count');
+    titleInput.addEventListener('input', () => {
+      charCount.textContent = `${titleInput.value.length}/200`;
+    });
+
+    // ✅ Tag dropdown toggle
+    document.getElementById('tag-btn').onclick = function(event) {
+      event.stopPropagation();
+      var choices = document.getElementById('tag-choices');
+      choices.style.display = (choices.style.display === 'none' || choices.style.display === '') ? 'flex' : 'none';
+    };
+
+    // ✅ Tag selection behavior
+    document.querySelectorAll('.tag-choice-btn').forEach(function(btn) {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        var value = this.getAttribute('data-value');
+        var text = this.textContent;
+        document.getElementById('post_type').value = value;
+        document.getElementById('tag-btn').textContent = text;
+        document.getElementById('tag-choices').style.display = 'none';
+      };
+    });
+
+    // ✅ Close tag menu when clicking outside
+    document.addEventListener('click', function(event) {
+      var choices = document.getElementById('tag-choices');
+      if (choices) choices.style.display = 'none';
+    });
+
+    // ✅ Client-side validation before form submission
+    document.querySelector("form").addEventListener("submit", function(e) {
+      const postType = document.getElementById("post_type").value.trim();
+      if (!postType) {
+        alert("Please select a post type before submitting.");
+        e.preventDefault();
+      }
+    });
+
+        // Image preview inside upload box
+    const fileInput = document.getElementById('fileUpload');
+    const previewImage = document.getElementById('previewImage');
+    const uploadText = document.getElementById('uploadText');
+
+    fileInput.addEventListener('change', function() {
+      const file = this.files[0];
+      if (!file) return;
+
+      // Check if it's an image or video
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          previewImage.src = e.target.result;
+          previewImage.style.display = 'block';
+          uploadText.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type.startsWith('video/')) {
+        // Optional: show thumbnail or simple message for videos
+        previewImage.style.display = 'none';
+        uploadText.textContent = `Video selected: ${file.name}`;
+      } else {
+        alert("Please upload an image or video file.");
+        fileInput.value = ""; // Reset input
+      }
+    });
+  </script>
 </body>
 </html>

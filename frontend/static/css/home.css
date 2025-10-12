@@ -185,6 +185,42 @@ button:hover {
   font-size: 14px;
 }
 
+/* ===== POST MEDIA ===== */
+.post img,
+.post video {
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  border-radius: 6px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.post video {
+  width: 100%;           /* Fill container width */
+  height: auto;
+  max-height: 300px;     /* Prevent huge tall videos */
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+  .post img,
+  .post video {
+    max-height: 200px;
+  }
+}
+
+.post-media {
+  width: 70%;          /* make it fit post container width */
+  max-width: 400px;     /* optional, max width to mimic social media posts */
+  height: auto;         /* maintain aspect ratio */
+  border-radius: 6px;   /* same as images */
+  display: block;
+  margin-bottom: 10px;
+}
+
+
+
 /* ===== SIDEBAR ===== */
 .sidebar {
   flex: 1;

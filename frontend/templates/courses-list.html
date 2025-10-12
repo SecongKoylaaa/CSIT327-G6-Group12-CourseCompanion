@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Courses List</title>
+  <link rel="stylesheet" href="/static/css/post-create.css">
+</head>
+<body>
+  <div class="container">
+    <h1>All Courses</h1>
+    <table border="1" cellpadding="8" cellspacing="0" style="width:100%; background:#fff; color:#111;">
+      <thead>
+        <tr>
+          <th>Course ID</th>
+          <th>Course Code</th>
+          <th>Course Name</th>
+          <th>Description</th>
+          <th>Created At</th>
+          <th>Updated At</th>
+          <th>Category ID</th>
+          <th>Moderator ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for course in courses %}
+        <tr>
+          <td>{{ course.course_id }}</td>
+          <td>{{ course.course_code }}</td>
+          <td>{{ course.course_name }}</td>
+          <td>{{ course.description }}</td>
+          <td>{{ course.created_at }}</td>
+          <td>{{ course.updated_at }}</td>
+          <td>{{ course.category_id }}</td>
+          <td>{{ course.moderator_id }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not courses %}
+      <p>No courses found.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

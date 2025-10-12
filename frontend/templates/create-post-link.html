@@ -21,33 +21,83 @@
       <span class="icon-btn" onclick="toggleDropdown()">🔔</span>
       <span class="icon-btn" onclick="toggleDropdown()">👤</span>
     </div>
-
   </div>
 
   <!-- Page Content -->
   <div class="container">
     <h1>Create post</h1>
-    <div class="select-course">Select a course</div>
+    <form method="POST" action="">
+      {% csrf_token %}
+      <div class="select-course">Select a course</div>
 
-    <div class="tabs">
-      <a href="{% url 'create-post-link' %}" class="{% if request.path == '/create-post-link/' %}active{% endif %}">Text</a>
-      <a href="{% url 'create-post-image' %}" class="{% if request.path == '/create-post-image/' %}active{% endif %}">Images & Video</a>
-    </div>
+      <div class="tabs">
+        <a href="{% url 'create-post-link' %}" class="{% if request.path == '/create-post-link/' %}active{% endif %}">Text</a>
+        <a href="{% url 'create-post-image' %}" class="{% if request.path == '/create-post-image/' %}active{% endif %}">Images & Video</a>
+      </div>
 
-
-    <form>
       <label for="title">Title<span style="color:red">*</span></label>
-      <input id="title" type="text" maxlength="200" placeholder="Enter title">
+      <input id="title" name="title" type="text" maxlength="200" placeholder="Enter title" required>
       <div class="error">Please fill out this field.</div>
       <div class="char-count">0/200</div>
 
-      <button type="button">Add tags</button>
+      <input type="hidden" name="post_type" id="post_type" required>
+      <div style="display: flex; align-items: center; gap: 8px; position: relative;">
+        <button type="button" id="tag-btn">Add tags</button>
+        <div id="tag-choices" class="tag-choices-horizontal" style="display:none;">
+          <button type="button" class="tag-choice-btn" data-value="question">Question</button>
+          <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
+          <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
+        </div>
+      </div>
 
       <label for="url">Link URL<span style="color:red">*</span></label>
-      <input id="url" type="url" placeholder="https://example.com">
+      <input id="url" name="url" type="url" placeholder="https://example.com" required>
+
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+      {% if success %}
+        <div class="success">{{ success }}</div>
+      {% endif %}
 
       <button type="submit">Post</button>
     </form>
   </div>
 </body>
+
+<script>
+  // Tag dropdown toggle
+  document.getElementById('tag-btn').onclick = function(event) {
+    event.stopPropagation();
+    var choices = document.getElementById('tag-choices');
+    choices.style.display = (choices.style.display === 'none' || choices.style.display === '') ? 'flex' : 'none';
+  };
+
+  // Tag selection behavior
+  document.querySelectorAll('.tag-choice-btn').forEach(function(btn) {
+    btn.onclick = function(e) {
+      e.stopPropagation();
+      var value = this.getAttribute('data-value');
+      var text = this.textContent;
+      document.getElementById('post_type').value = value;
+      document.getElementById('tag-btn').textContent = text;
+      document.getElementById('tag-choices').style.display = 'none';
+    };
+  });
+
+  // Close tag menu when clicking outside
+  document.addEventListener('click', function(event) {
+    var choices = document.getElementById('tag-choices');
+    if (choices) choices.style.display = 'none';
+  });
+
+  // ✅ Client-side validation before form submission
+  document.querySelector("form").addEventListener("submit", function(e) {
+    const postType = document.getElementById("post_type").value.trim();
+    if (!postType) {
+      alert("Please select a post type before submitting.");
+      e.preventDefault();
+    }
+  });
+</script>
 </html>

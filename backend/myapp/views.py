@@ -1,9 +1,10 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
 from supabase import create_client
 from django.conf import settings
 from django.shortcuts import redirect
 from django.contrib.auth.hashers import make_password, check_password
+from datetime import datetime, timezone
+import uuid
 
 # Initialize Supabase client
 supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
@@ -19,14 +20,27 @@ def root_redirect(request):
 # --------------------------
 def register_page(request):
     if request.method == "POST":
+        MAX_EMAIL_LENGTH = 50
+        MAX_PASSWORD_LENGTH = 30
+
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "").strip()
+        confirm = request.POST.get("confirmPassword", "").strip()
         username = request.POST.get("username", "").strip()
         role = "student"
         profile_picture = None
         bio = None
         last_login = None
 
+        if len(email) > MAX_EMAIL_LENGTH:
+            return render(request, "register.html", {"error": f"Email cannot exceed {MAX_EMAIL_LENGTH} characters."})
+
+        if len(password) > MAX_PASSWORD_LENGTH:
+            return render(request, "register.html", {"error": f"Password cannot exceed {MAX_PASSWORD_LENGTH} characters."})
+
+        if len(confirm) > MAX_PASSWORD_LENGTH:
+            return render(request, "register.html", {"error": f"Password cannot exceed {MAX_PASSWORD_LENGTH} characters."})
+        
         if not email or not password:
             return render(request, "register.html", {"error": "Email and password are required."})
 
@@ -64,8 +78,17 @@ def register_page(request):
 # --------------------------
 def login_page(request):
     if request.method == "POST":
+        MAX_EMAIL_LENGTH = 50
+        MAX_PASSWORD_LENGTH = 30
+
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "").strip()
+
+        if len(email) > MAX_EMAIL_LENGTH:
+            return render(request, "login.html", {"error": f"Email cannot exceed {MAX_EMAIL_LENGTH} characters."})
+
+        if len(password) > MAX_PASSWORD_LENGTH:
+            return render(request, "login.html", {"error": f"Password cannot exceed {MAX_PASSWORD_LENGTH} characters."})
 
         if not email or not password:
             return render(request, "login.html", {"error": "Email and password are required."})
@@ -204,15 +227,78 @@ def reset_password_page(request, reset_token):
 # --------------------------
 # This view requires the user to be logged in.
 # If the user is not logged in, they will be redirected to the login page.
+
 def home_page(request):
     if "user_email" not in request.session:
         return redirect("/login/")
 
+    response = supabase.table("posts").select("*").order("created_at", desc=True).execute()
+    posts = response.data if response.data else []
+
+    formatted_posts = []
+    for post in posts:
+        content = post.get("content", "")
+        course_name = post.get("course_id") or "null"
+
+        # Split title and URL
+        if "\n" in content:
+            title, url = content.split("\n", 1)
+            url = url.rstrip("?")  # remove trailing '?'
+        else:
+            title = content
+            url = ""
+
+        # Determine if URL is an image or video
+        is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
+        is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+        formatted_posts.append({
+            "title": title or "(No Title)",
+            "url": url,
+            "created_at": time_since(post.get("created_at")),
+            "author": post.get("author", "Unknown"),
+            "course": f"c/{course_name}",
+            "is_image": is_image,
+            "is_video": is_video
+        })
+
     return render(request, "home.html", {
         "user_email": request.session.get("user_email"),
-        "role": request.session.get("role", "student")
+        "role": request.session.get("role", "student"),
+        "posts": formatted_posts,
     })
 
+
+
+# Utility to convert ISO timestamp to human-readable relative time
+def time_since(created_at_str):
+    """Converts ISO timestamp to human-readable relative time."""
+    if not created_at_str:
+        return "unknown time"
+
+    try:
+        created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+    except ValueError:
+        return created_at_str
+
+    now = datetime.now(timezone.utc)
+    diff = now - created_at
+    seconds = diff.total_seconds()
+
+    if seconds < 60:
+        return f"{int(seconds)}s ago"
+    elif seconds < 3600:
+        return f"{int(seconds // 60)}m ago"
+    elif seconds < 86400:
+        return f"{int(seconds // 3600)}h ago"
+    elif seconds < 604800:
+        return f"{int(seconds // 86400)}d ago"
+    elif seconds < 2419200:
+        return f"{int(seconds // 604800)}w ago"
+    elif seconds < 29030400:
+        return f"{int(seconds // 2419200)}mo ago"
+    else:
+        return f"{int(seconds // 29030400)}y ago"
 
 # --------------------------
 # Create Post (Link) - Protected
@@ -220,8 +306,54 @@ def home_page(request):
 # This view requires the user to be logged in.
 # If the user is not logged in, they will be redirected to the login page.
 def create_post_link(request):
+    # Require login
     if "user_email" not in request.session:
         return redirect("/login/")
+
+    # Get user info
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+
+    if not user_resp.data:
+        return render(request, "create-post-link.html", {
+            "error": "User not found."
+        })
+
+    user_id = user_resp.data[0]["id"]
+
+    # Handle POST request
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        url = request.POST.get("url", "").strip()
+        post_type = request.POST.get("post_type", "").strip()
+
+        # Validate required fields
+        if not title or not url or not post_type:
+            return render(request, "create-post-link.html", {
+                "error": "All fields are required."
+            })
+
+        # Combine title and URL into content
+        content = f"{title}\n{url}"
+
+        # Insert post record
+        try:
+            supabase.table("posts").insert({
+                "content": content,
+                "post_type": post_type,
+                "user_id": user_id
+            }).execute()
+
+            return render(request, "create-post-link.html", {
+                "success": "Post created successfully!"
+            })
+
+        except Exception as e:
+            return render(request, "create-post-link.html", {
+                "error": f"Error creating post: {str(e)}"
+            })
+
+    # Handle GET request
     return render(request, "create-post-link.html")
 
 
@@ -232,8 +364,8 @@ def create_post_link(request):
 # If you want to make this page protected again, re-add the session check:
 #     if "user_email" not in request.session:
 #         return redirect("/login/")
-def create_post_link(request):
-    return render(request, "create-post-link.html")
+# def create_post_link(request):
+#    return render(request, "create-post-link.html")
 
 
 # --------------------------
@@ -244,8 +376,62 @@ def create_post_link(request):
 #     if "user_email" not in request.session:
 #         return redirect("/login/")
 def create_post_image(request):
-    return render(request, "create-post-image.html")
+    # Require login
+    if "user_email" not in request.session:
+        return redirect("/login/")
 
+    # Get user info
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+
+    if not user_resp.data:
+        return render(request, "create-post-image.html", {
+            "error": "User not found."
+        })
+
+    user_id = user_resp.data[0]["id"]
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        post_type = request.POST.get("post_type", "").strip()
+        file = request.FILES.get("fileUpload")
+
+        if not title or not post_type or not file:
+            return render(request, "create-post-image.html", {
+                "error": "All fields are required."
+            })
+
+        try:
+            # Upload to Supabase Storage
+            file_path = f"{user_email}/{file.name}"
+            supabase.storage.from_(settings.SUPABASE_BUCKET).upload(file_path, file)
+            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).rstrip("?")  # strip trailing '?'
+
+        except Exception as e:
+            return render(request, "create-post-image.html", {
+                "error": f"File upload failed: {str(e)}"
+            })
+
+        # Combine title and file URL
+        content = f"{title}\n{file_url}"
+
+        try:
+            supabase.table("posts").insert({
+                "content": content,
+                "post_type": post_type,
+                "user_id": user_id
+            }).execute()
+
+            return render(request, "create-post-image.html", {
+                "success": "Post created successfully!"
+            })
+
+        except Exception as e:
+            return render(request, "create-post-image.html", {
+                "error": f"Error creating post: {str(e)}"
+            })
+
+    return render(request, "create-post-image.html")
 
 
 # --------------------------
