@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Post (Text/Link)</title>
+    <link rel="stylesheet" href="/static/css/post-create.css">
+</head>
+<body>
+<!-- Navbar -->
+<div class="navbar">
+    <div class="nav-left">
+        <a href="{% url 'home' %}" class="logo-link">
+            <img src="https://img.icons8.com/ios-filled/50/ffffff/handshake.png" alt="logo" width="30">
+        </a>
+        <h1>S C P</h1>
+    </div>
+
+    <div class="search-bar">
+        <input type="text" placeholder="Search Platform">
+    </div>
+
+    <div class="nav-right">
+        <!-- Notification dropdown -->
+        <div class="dropdown">
+            <input type="checkbox" id="notif-toggle">
+            <label for="notif-toggle" class="icon-btn">🔔</label>
+            <div class="dropdown-content">
+                <a href="#">No new notifications</a>
+            </div>
+        </div>
+
+        <!-- Profile dropdown -->
+        <div class="dropdown">
+            <input type="checkbox" id="profile-toggle">
+            <label for="profile-toggle" class="profile-icon">👤</label>
+            <div class="dropdown-content">
+                <a href="#">Profile</a>
+                <a href="{% url 'logout' %}" class="logout">Logout</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Page Content -->
+<div class="container">
+    <h1>Create Post</h1>
+
+    <label for="course">Select a Course</label>
+    <select id="course" name="course">
+        <option value="" disabled selected>Select a course</option>
+        <option>Computer Science 101</option>
+        <option>Information Technology 102</option>
+        <option>Software Engineering 103</option>
+        <option>Database Systems 104</option>
+    </select>
+
+    <div class="tabs">
+        <a href="{% url 'create-post-link' %}" class="active">Text</a>
+        <a href="{% url 'create-post-image' %}">Images & Video</a>
+    </div>
+
+    <form>
+        <label for="title">Title<span style="color:red">*</span></label>
+        <input id="title" type="text" maxlength="200" placeholder="Enter title">
+        <div class="char-count">(0/200)</div>
+
+        <label for="description">Description<span style="color:red">*</span></label>
+        <textarea id="description" maxlength="300" placeholder="Write your post description..."></textarea>
+        <div class="char-count">(0/300)</div>
+
+        <button type="button">Add tags</button>
+
+        <label for="url">Link URL<span style="color:red">*</span></label>
+        <input id="url" type="url" placeholder="https://example.com">
+
+        <button type="submit">Post</button>
+    </form>
+</div>
+</body>
+</html>

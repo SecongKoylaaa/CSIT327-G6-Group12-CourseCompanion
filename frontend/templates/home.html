@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Logged In</title>
+    <link rel="stylesheet" href="/static/css/home.css">
+</head>
+<body>
+<!-- Navbar -->
+<div class="navbar">
+    <div class="nav-left">
+        <a href="/home/" class="logo-link">
+            <img src="https://img.icons8.com/ios-filled/50/ffffff/handshake.png" alt="logo" width="30">
+        </a>
+        <h1>S C P</h1>
+    </div>
+
+    <div class="search-bar">
+        <input type="text" placeholder="Search Platform">
+    </div>
+
+    <div class="nav-right">
+        <a href="/create-post-link/" class="create-btn">+ Create</a>
+
+        <!-- Notification dropdown -->
+        <div class="dropdown">
+            <input type="checkbox" id="notif-toggle">
+            <label for="notif-toggle" class="icon-btn">🔔</label>
+            <div class="dropdown-content">
+                <a href="#">No new notifications</a>
+            </div>
+        </div>
+
+        <!-- Profile dropdown -->
+        <div class="dropdown">
+            <input type="checkbox" id="profile-toggle">
+            <label for="profile-toggle" class="profile-icon">👤</label>
+            <div class="dropdown-content">
+                <a href="#">View Profile</a>
+                <a href="/login/" class="logout">Logout</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-container">
+    <div class="posts">
+        <div class="post">
+            <p><b>c/Psychology</b> • 1 day ago</p>
+            <h3>Post Title</h3>
+            <img alt="Post Image">
+            <div class="actions">
+                <span>⬆️ 15</span>
+                <span>💬 22</span>
+                <span>🔗 Share</span>
+            </div>
+        </div>
+        <div class="post">
+            <p><b>c/Business</b> • 1 hr ago</p>
+            <h3>Post Title</h3>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit...</p>
+            <div class="actions">
+                <span>⬆️ 13</span>
+                <span>💬 9</span>
+                <span>🔗 Share</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <h4>Popular Courses</h4>
+        <ul>
+            <li>c/Psychology</li>
+            <li>c/Business</li>
+            <li>c/Computer Science</li>
+            <li>c/CivilEngineering</li>
+            <li>c/Education</li>
+            <li>c/ComputerEngineering</li>
+        </ul>
+    </div>
+</div>
+</body>
+</html>
