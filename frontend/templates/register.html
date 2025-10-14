@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        .error { color: red; font-size: 14px; margin-top: 4px; }
-        .success { color: green; font-size: 14px; margin-top: 4px; }
-    </style>
-</head>
+
 <body>
 <div class="container">
     <img src="https://img.icons8.com/ios-filled/100/000000/handshake.png" alt="logo">
@@ -25,6 +21,13 @@
 
         <input type="password" name="confirmPassword" id="confirmPassword" placeholder="Confirm Password *" maxlength="50" required>
         <div id="confirmPasswordError" class="error"></div>
+
+        <!-- 👇 Added Role Dropdown -->
+        <select name="role" id="role" required>
+            <option value="" disabled selected hidden>Select Role *</option>
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+        </select>
 
         <div class="links">Already a member? <a href="/login">Log In</a></div>
         <button type="submit">Continue</button>

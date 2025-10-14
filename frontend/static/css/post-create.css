@@ -1,7 +1,13 @@
 /* === Reset and Base === */
-body {
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
     font-family: "Inter", sans-serif;
-    background: #fff;
+}
+
+body {
+    background: #008080; /* teal background */
     color: #111;
     margin: 0;
     padding: 0;
@@ -37,6 +43,19 @@ body {
     opacity: 0.8;
 }
 
+.logo-name {
+    color: white;
+    text-decoration: none;
+}
+
+.logo-name:visited,
+.logo-name:hover,
+.logo-name:active,
+.logo-name:focus {
+    color: white;
+    text-decoration: none;
+}
+
 .nav-left h1 {
     font-size: 20px;
     font-weight: bold;
@@ -45,18 +64,21 @@ body {
     margin: 0;
 }
 
-.search-bar {
+/* ===== SEARCH INPUT (MATCH HOME.HTML EXACTLY) ===== */
+.navbar .search-bar {
     flex: 1;
     margin: 0 20px;
 }
 
-.search-bar input {
+.navbar .search-bar input {
     width: 100%;
-    padding: 10px;
-    border-radius: 20px;
-    border: none;
+    padding: 10px 16px; /* more padding for height */
+    border-radius: 20px; /* fully rounded like home.html */
+    border: 1px solid #333;
     font-size: 14px;
     outline: none;
+    background: #fff;
+    color: #111;
 }
 
 /* === Nav Right === */
@@ -85,7 +107,7 @@ body {
     padding: 4px;
 }
 
-/* === Dropdown Menu (like Home, no JS) === */
+/* === Dropdown Menu === */
 .dropdown {
     position: relative;
     display: inline-block;
@@ -136,11 +158,14 @@ body {
     background: #662222;
 }
 
-/* === Page Layout === */
+/* === Page Layout (Gray Card) === */
 .container {
     max-width: 800px;
     margin: 40px auto;
-    padding: 0 20px;
+    padding: 25px 35px; /* more padding for spacing */
+    background: #d9d9d9;
+    border-radius: 15px; /* rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 /* === Tabs === */
@@ -174,18 +199,21 @@ label {
     margin: 10px 0 5px;
 }
 
+/* === Inputs, Textareas, Selects (Full width & aligned) === */
 input[type="text"],
 input[type="url"],
 textarea,
 select {
     width: 100%;
-    padding: 10px 14px;
-    border-radius: 10px;
+    box-sizing: border-box;
+    padding: 12px 16px; /* increase height for consistency */
+    border-radius: 12px; /* more rounded */
     border: 1px solid #333;
     background: #111;
     color: #fff;
     outline: none;
     font-size: 15px;
+    margin-bottom: 10px;
 }
 
 textarea {
@@ -202,7 +230,7 @@ select:focus {
 /* === Upload Box === */
 .upload-box {
     border: 2px dashed #333;
-    border-radius: 10px;
+    border-radius: 12px; /* slightly more rounded */
     background: #111;
     color: #ccc;
     text-align: center;
@@ -222,7 +250,7 @@ button {
     color: #fff;
     border: none;
     border-radius: 15px;
-    padding: 8px 16px;
+    padding: 10px 18px; /* slightly bigger */
     font-size: 14px;
     cursor: pointer;
     transition: 0.2s;

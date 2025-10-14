@@ -1,9 +1,13 @@
 * { margin:0; padding:0; box-sizing:border-box; font-family:Arial, sans-serif; }
 
 body {
-    display:flex; justify-content:center; align-items:center;
-    height:100vh; background:#f9f9f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #008080; /* teal background */
 }
+
 
 .container {
     background:#d9d9d9; padding:40px; border-radius:8px;
@@ -25,3 +29,23 @@ button:hover { opacity:0.9; }
 
 .error { color:red; font-size:14px; margin-top:4px; }
 .success { color:green; font-size:14px; margin-top:4px; }
+
+select {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 12px;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 14px;
+    appearance: none; /* remove default arrow */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+}
+
+select:invalid {
+    color: #aaa; /* same as placeholder color */
+}
+

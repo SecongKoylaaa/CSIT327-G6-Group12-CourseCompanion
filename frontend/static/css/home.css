@@ -8,11 +8,12 @@
 
 /* ===== GLOBAL ===== */
 body {
-    background: #f9f9f9;
+    background: #008080; /* teal background */
     min-height: 100vh;
     display: flex;
     flex-direction: column;
 }
+
 
 /* ===== NAVIGATION BAR ===== */
 .navbar {
@@ -36,6 +37,19 @@ body {
 .logo-link img {
     cursor: pointer;
     filter: brightness(0) invert(1);
+}
+
+.logo-name {
+    color: white;
+    text-decoration: none;
+}
+
+.logo-name:visited,
+.logo-name:hover,
+.logo-name:active,
+.logo-name:focus {
+    color: white;
+    text-decoration: none;
 }
 
 .nav-left h1 {
