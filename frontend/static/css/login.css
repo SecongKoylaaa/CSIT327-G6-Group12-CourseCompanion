@@ -1,0 +1,22 @@
+/* ======== LOGIN PAGE SPECIFIC ======== */
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+.password-container input {
+    width: 100%;
+    padding-right: 40px; /* space for the show password button */
+}
+
+/* Show/Hide Password Button */
+.show-password {
+    position: absolute;
+    right: 12px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    font-size: 16px;
+}

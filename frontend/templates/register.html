@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register</title>
+
+  <!-- Base global style -->
+  <link rel="stylesheet" href="/static/css/style.css">
+
+  <!-- Register page specific style -->
+  <link rel="stylesheet" href="/static/css/register.css">
+</head>
+<body>
+  <div class="container">
+    <img src="https://img.icons8.com/ios-filled/100/000000/handshake.png" alt="logo">
+    <h2>Sign Up</h2>
+
+    <!-- ✅ Universal error container -->
+    <div id="universalError" class="error"></div>
+
+    <form id="registerForm" method="post" action="">
+      {% csrf_token %}
+      <input type="email" name="email" id="email" placeholder="Email *" maxlength="50" required>
+
+      <div class="password-container">
+        <input type="password" name="password" id="password" placeholder="Password *" maxlength="50" required>
+        <button type="button" id="togglePassword" class="show-password">&#128065;</button>
+      </div>
+
+      <div class="password-container">
+        <input type="password" name="confirmPassword" id="confirmPassword" placeholder="Confirm Password *" maxlength="50" required>
+        <button type="button" id="toggleConfirmPassword" class="show-password">&#128065;</button>
+      </div>
+
+      <select name="role" id="role" required>
+        <option value="" disabled selected hidden>Select Role *</option>
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+      </select>
+
+      <div class="links">Already a member? <a href="/login">Log In</a></div>
+      <button type="submit">Register</button>
+
+      {% if success_message %}
+      <div class="success">{{ success_message }}</div>
+      {% endif %}
+      {% if error_message %}
+      <div class="error">{{ error_message }}</div>
+      {% endif %}
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById("registerForm");
+    const universalError = document.getElementById("universalError");
+
+    form.addEventListener("submit", e => {
+      universalError.textContent = ""; // clear previous error
+
+      const email = form.email.value.trim();
+      const password = form.password.value.trim();
+      const confirm = form.confirmPassword.value.trim();
+      const role = form.role.value;
+
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      // EMAIL VALIDATION
+      if (!email) { universalError.textContent = "Email is required."; e.preventDefault(); return; }
+      if (!emailPattern.test(email)) { universalError.textContent = "Please enter a valid email address."; e.preventDefault(); return; }
+      if (email.length > 50) { universalError.textContent = "Email cannot exceed 50 characters."; e.preventDefault(); return; }
+
+      // PASSWORD VALIDATION
+      if (!password) { universalError.textContent = "Password is required."; e.preventDefault(); return; }
+      if (password.length < 8) { universalError.textContent = "Password must be at least 8 characters long."; e.preventDefault(); return; }
+      if (password.length > 50) { universalError.textContent = "Password cannot exceed 50 characters."; e.preventDefault(); return; }
+      if (!/[A-Z]/.test(password)) { universalError.textContent = "Password must contain an uppercase letter."; e.preventDefault(); return; }
+      if (!/[0-9]/.test(password)) { universalError.textContent = "Password must contain a number."; e.preventDefault(); return; }
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) { universalError.textContent = "Password must contain a special character."; e.preventDefault(); return; }
+
+      // CONFIRM PASSWORD
+      if (!confirm) { universalError.textContent = "Please confirm your password."; e.preventDefault(); return; }
+      if (password !== confirm) { universalError.textContent = "Passwords do not match."; e.preventDefault(); return; }
+
+      // ROLE VALIDATION
+      if (!role) { universalError.textContent = "Please select a role."; e.preventDefault(); return; }
+    });
+
+    // PASSWORD VISIBILITY TOGGLES
+    const togglePassword = document.getElementById("togglePassword");
+    const password = document.getElementById("password");
+    togglePassword.addEventListener("click", () => {
+      password.type = password.type === "password" ? "text" : "password";
+    });
+
+    const toggleConfirmPassword = document.getElementById("toggleConfirmPassword");
+    const confirmPassword = document.getElementById("confirmPassword");
+    toggleConfirmPassword.addEventListener("click", () => {
+      confirmPassword.type = confirmPassword.type === "password" ? "text" : "password";
+    });
+  </script>
+</body>
+</html>
