@@ -62,8 +62,21 @@ def register_page(request):
                 "date_joined": "now()"
             }).execute()
 
-            if response.status_code != 201:
-                return render(request, "register.html", {"error": f"Error registering: {response.error_message}"})
+            error_message = None
+           
+            if hasattr(response, "error") and response.error:
+                error_message = response.error
+            elif hasattr(response, "response") and hasattr(response.response, "json"):
+                # Extract JSON response safely
+                try:
+                    json_resp = response.response.json()
+                    if "error" in json_resp and json_resp["error"]:
+                        error_message = json_resp["error"]
+                except Exception:
+                    pass
+ 
+            if error_message:
+                return render(request, "register.html", {"error": f"Error registering: {error_message}"})
 
         except Exception as e:
             return render(request, "register.html", {"error": f"Error registering: {str(e)}"})
@@ -237,23 +250,16 @@ def home_page(request):
 
     formatted_posts = []
     for post in posts:
-        content = post.get("content", "")
+        title = post.get("title") or "(No Title)"
+        url = post.get("content", "").rstrip("?")  # content now holds the URL
         course_name = post.get("course_id") or "null"
-
-        # Split title and URL
-        if "\n" in content:
-            title, url = content.split("\n", 1)
-            url = url.rstrip("?")  # remove trailing '?'
-        else:
-            title = content
-            url = ""
 
         # Determine if URL is an image or video
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
         formatted_posts.append({
-            "title": title or "(No Title)",
+            "title": title,
             "url": url,
             "created_at": time_since(post.get("created_at")),
             "author": post.get("author", "Unknown"),
@@ -321,25 +327,21 @@ def create_post_link(request):
 
     user_id = user_resp.data[0]["id"]
 
-    # Handle POST request
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
-        url = request.POST.get("url", "").strip()
         post_type = request.POST.get("post_type", "").strip()
+        url = request.POST.get("url", "").strip()
 
-        # Validate required fields
-        if not title or not url or not post_type:
+        if not title or not post_type or not url:
             return render(request, "create-post-link.html", {
                 "error": "All fields are required."
             })
 
-        # Combine title and URL into content
-        content = f"{title}\n{url}"
-
-        # Insert post record
         try:
+            # ✅ Insert properly using new schema
             supabase.table("posts").insert({
-                "content": content,
+                "title": title,
+                "content": url,   # Store link inside content
                 "post_type": post_type,
                 "user_id": user_id
             }).execute()
@@ -353,7 +355,6 @@ def create_post_link(request):
                 "error": f"Error creating post: {str(e)}"
             })
 
-    # Handle GET request
     return render(request, "create-post-link.html")
 
 
@@ -396,28 +397,31 @@ def create_post_image(request):
         post_type = request.POST.get("post_type", "").strip()
         file = request.FILES.get("fileUpload")
 
+        # Validate required fields
         if not title or not post_type or not file:
             return render(request, "create-post-image.html", {
                 "error": "All fields are required."
             })
 
         try:
-            # Upload to Supabase Storage
+            # Upload file to Supabase Storage
             file_path = f"{user_email}/{file.name}"
-            supabase.storage.from_(settings.SUPABASE_BUCKET).upload(file_path, file)
-            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).rstrip("?")  # strip trailing '?'
+            file_bytes = file.read()  # Convert InMemoryUploadedFile to bytes
+            supabase.storage.from_(settings.SUPABASE_BUCKET).upload(file_path, file_bytes)
+
+            # Get public URL
+            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).rstrip("?")
 
         except Exception as e:
             return render(request, "create-post-image.html", {
                 "error": f"File upload failed: {str(e)}"
             })
 
-        # Combine title and file URL
-        content = f"{title}\n{file_url}"
-
         try:
+            # Insert post record with separate title and content fields
             supabase.table("posts").insert({
-                "content": content,
+                "title": title,
+                "content": file_url,
                 "post_type": post_type,
                 "user_id": user_id
             }).execute()
@@ -431,7 +435,9 @@ def create_post_image(request):
                 "error": f"Error creating post: {str(e)}"
             })
 
+    # GET request
     return render(request, "create-post-image.html")
+
 
 
 # --------------------------
