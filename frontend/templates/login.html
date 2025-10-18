@@ -4,20 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login</title>
-  <!-- Global Styles -->
   <link rel="stylesheet" href="/static/css/style.css">
-  <!-- Login Page Specific Styles -->
-  <link rel="stylesheet" href="/static/css/login.css">
 </head>
 <body>
   <div class="container">
     <img src="https://img.icons8.com/ios-filled/100/000000/lock-2.png" alt="logo">
     <h2>Login</h2>
-
-    <!-- Universal error message (if any) -->
-    {% if error %}
-      <div class="error">{{ error }}</div>
-    {% endif %}
 
     <form id="loginForm" method="POST" action="/login/">
       {% csrf_token %}
@@ -28,18 +20,18 @@
         <button type="button" id="togglePassword" class="show-password">&#128065;</button>
       </div>
 
-      <div class="links">
-        <a href="/recover">Forgot password?</a>
+      <div class="links"> 
+        <a href="/recover" >Forgot password?</a>
       </div>
-
-      <div class="links">
-        No account? <a href="/register">Register</a>
-      </div>
+      <div class="links">No account? <a href="/register">Register</a></div>
 
       <button type="submit">Login</button>
     </form>
-  </div>
 
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+  </div>
   <script>
     const togglePassword = document.getElementById("togglePassword");
     const password = document.getElementById("password");
@@ -47,6 +39,8 @@
     togglePassword.addEventListener("click", () => {
       password.type = password.type === "password" ? "text" : "password";
     });
+
+    
   </script>
 </body>
 </html>
