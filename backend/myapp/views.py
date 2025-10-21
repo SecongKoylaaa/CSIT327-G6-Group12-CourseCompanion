@@ -253,6 +253,7 @@ def home_page(request):
         title = post.get("title") or "(No Title)"
         url = post.get("content", "").rstrip("?")  # content now holds the URL
         course_name = post.get("course_id") or "null"
+        description = post.get("description", "")  # ✅ added description here
 
         # Determine if URL is an image or video
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
@@ -261,6 +262,7 @@ def home_page(request):
         formatted_posts.append({
             "title": title,
             "url": url,
+            "description": description,  # ✅ included in dict
             "created_at": time_since(post.get("created_at")),
             "author": post.get("author", "Unknown"),
             "course": f"c/{course_name}",
@@ -365,8 +367,55 @@ def create_post_link(request):
 # If you want to make this page protected again, re-add the session check:
 #     if "user_email" not in request.session:
 #         return redirect("/login/")
-# def create_post_link(request):
-#    return render(request, "create-post-link.html")
+def create_post_link(request):
+    # Require login
+    if "user_email" not in request.session:
+        return redirect("/login/")
+
+    # Get user info
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+
+    if not user_resp.data:
+        return render(request, "create-post-link.html", {
+            "error": "User not found."
+        })
+
+    user_id = user_resp.data[0]["id"]
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        post_type = request.POST.get("post_type", "").strip()
+        url = request.POST.get("url", "").strip()
+
+        # Validate
+        if not title or not description or not post_type or not url:
+            return render(request, "create-post-link.html", {
+                "error": "All fields are required."
+            })
+
+        try:
+            # ✅ Insert properly using new schema
+            supabase.table("posts").insert({
+                "title": title,
+                "description": description,
+                "content": url,   # Store link inside content
+                "post_type": post_type,
+                "user_id": user_id
+            }).execute()
+
+            return render(request, "create-post-link.html", {
+                "success": "Post created successfully!"
+            })
+
+        except Exception as e:
+            return render(request, "create-post-link.html", {
+                "error": f"Error creating post: {str(e)}"
+            })
+
+    return render(request, "create-post-link.html")
+
 
 
 # --------------------------
@@ -394,11 +443,12 @@ def create_post_image(request):
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
         file = request.FILES.get("fileUpload")
 
         # Validate required fields
-        if not title or not post_type or not file:
+        if not title or not description or not post_type or not file:
             return render(request, "create-post-image.html", {
                 "error": "All fields are required."
             })
@@ -418,9 +468,10 @@ def create_post_image(request):
             })
 
         try:
-            # Insert post record with separate title and content fields
+            # ✅ Insert post record with separate title, description, and content fields
             supabase.table("posts").insert({
                 "title": title,
+                "description": description,
                 "content": file_url,
                 "post_type": post_type,
                 "user_id": user_id
@@ -437,6 +488,7 @@ def create_post_image(request):
 
     # GET request
     return render(request, "create-post-image.html")
+
 
 
 

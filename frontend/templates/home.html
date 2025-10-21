@@ -66,6 +66,10 @@
       <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
       <h3>{{ post.title }}</h3>
 
+      {% if post.description %}
+        <p class="post-description">{{ post.description }}</p>
+      {% endif %}
+
       {% if post.is_image %}
         <img src="{{ post.url }}" alt="Post Image">
       {% elif post.is_video %}

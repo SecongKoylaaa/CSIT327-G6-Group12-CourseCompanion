@@ -160,10 +160,18 @@ button:hover {
 }
 
 .post {
+<<<<<<< HEAD
   background: #e5e5e5;
   padding: 15px;
   border-radius: 6px;
   margin-bottom: 15px;
+=======
+    background: #e5e5e5;
+    padding: 15px;
+    color: #000;
+    border-radius: 6px;
+    margin-bottom: 15px;
+>>>>>>> origin/main
 }
 
 .post h3 {
@@ -185,6 +193,17 @@ button:hover {
   font-size: 14px;
 }
 
+<<<<<<< HEAD
+=======
+.post-description {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+
+
+>>>>>>> origin/main
 /* ===== POST MEDIA ===== */
 .post img,
 .post video {
@@ -219,8 +238,11 @@ button:hover {
   margin-bottom: 10px;
 }
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> origin/main
 /* ===== SIDEBAR ===== */
 .sidebar {
   flex: 1;
