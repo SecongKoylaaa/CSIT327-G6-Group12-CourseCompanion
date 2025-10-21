@@ -40,6 +40,21 @@
   padding: 0;
 }
 
+.password-container .show-password {
+  position: absolute;
+  top: 15%;
+  right: 10px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: white;
+  font-size: 18px;
+  padding: 0;
+  width: auto;
+  z-index: 10;
+}
+
 /* optional hover effect */
 .show-password:hover {
   color: #fff;

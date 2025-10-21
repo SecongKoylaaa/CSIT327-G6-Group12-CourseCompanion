@@ -20,3 +20,18 @@
     color: #fff;
     font-size: 16px;
 }
+
+.password-container .show-password {
+    position: absolute;
+    top: 15%;
+    right: 10px;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    font-size: 18px;
+    padding: 0;
+    width: auto;
+    z-index: 10;
+}

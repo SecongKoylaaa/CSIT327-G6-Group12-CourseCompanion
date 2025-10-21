@@ -234,10 +234,69 @@ def home_page(request):
     if "user_email" not in request.session:
         return redirect("/login/")
 
+    response = supabase.table("posts").select("*").order("created_at", desc=True).execute()
+    posts = response.data if response.data else []
+
+    formatted_posts = []
+    for post in posts:
+        title = post.get("title") or "(No Title)"
+        url = post.get("content", "").rstrip("?")  # content now holds the URL
+        course_name = post.get("course_id") or "null"
+        description = post.get("description", "")  # ✅ added description here
+
+        # Determine if URL is an image or video
+        is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
+        is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+        formatted_posts.append({
+            "title": title,
+            "url": url,
+            "description": description,  # ✅ included in dict
+            "created_at": time_since(post.get("created_at")),
+            "author": post.get("author", "Unknown"),
+            "course": f"c/{course_name}",
+            "is_image": is_image,
+            "is_video": is_video
+        })
+
     return render(request, "home.html", {
         "user_email": request.session.get("user_email"),
-        "role": request.session.get("role", "student")
+        "role": request.session.get("role", "student"),
+        "posts": formatted_posts,
     })
+
+
+
+
+# Utility to convert ISO timestamp to human-readable relative time
+def time_since(created_at_str):
+    """Converts ISO timestamp to human-readable relative time."""
+    if not created_at_str:
+        return "unknown time"
+
+    try:
+        created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+    except ValueError:
+        return created_at_str
+
+    now = datetime.now(timezone.utc)
+    diff = now - created_at
+    seconds = diff.total_seconds()
+
+    if seconds < 60:
+        return f"{int(seconds)}s ago"
+    elif seconds < 3600:
+        return f"{int(seconds // 60)}m ago"
+    elif seconds < 86400:
+        return f"{int(seconds // 3600)}h ago"
+    elif seconds < 604800:
+        return f"{int(seconds // 86400)}d ago"
+    elif seconds < 2419200:
+        return f"{int(seconds // 604800)}w ago"
+    elif seconds < 29030400:
+        return f"{int(seconds // 2419200)}mo ago"
+    else:
+        return f"{int(seconds // 29030400)}y ago"
 
 
 # --------------------------
@@ -259,7 +318,54 @@ def create_post_link(request):
 #     if "user_email" not in request.session:
 #         return redirect("/login/")
 def create_post_link(request):
+    # Require login
+    if "user_email" not in request.session:
+        return redirect("/login/")
+
+    # Get user info
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+
+    if not user_resp.data:
+        return render(request, "create-post-link.html", {
+            "error": "User not found."
+        })
+
+    user_id = user_resp.data[0]["id"]
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        post_type = request.POST.get("post_type", "").strip()
+        url = request.POST.get("url", "").strip()
+
+        # Validate
+        if not title or not description or not post_type or not url:
+            return render(request, "create-post-link.html", {
+                "error": "All fields are required."
+            })
+
+        try:
+            # ✅ Insert properly using new schema
+            supabase.table("posts").insert({
+                "title": title,
+                "description": description,
+                "content": url,   # Store link inside content
+                "post_type": post_type,
+                "user_id": user_id
+            }).execute()
+
+            return render(request, "create-post-link.html", {
+                "success": "Post created successfully!"
+            })
+
+        except Exception as e:
+            return render(request, "create-post-link.html", {
+                "error": f"Error creating post: {str(e)}"
+            })
+
     return render(request, "create-post-link.html")
+
 
 
 # --------------------------
@@ -270,7 +376,69 @@ def create_post_link(request):
 #     if "user_email" not in request.session:
 #         return redirect("/login/")
 def create_post_image(request):
+    # Require login
+    if "user_email" not in request.session:
+        return redirect("/login/")
+
+    # Get user info
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+
+    if not user_resp.data:
+        return render(request, "create-post-image.html", {
+            "error": "User not found."
+        })
+
+    user_id = user_resp.data[0]["id"]
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        post_type = request.POST.get("post_type", "").strip()
+        file = request.FILES.get("fileUpload")
+
+        # Validate required fields
+        if not title or not description or not post_type or not file:
+            return render(request, "create-post-image.html", {
+                "error": "All fields are required."
+            })
+
+        try:
+            # Upload file to Supabase Storage
+            file_path = f"{user_email}/{file.name}"
+            file_bytes = file.read()  # Convert InMemoryUploadedFile to bytes
+            supabase.storage.from_(settings.SUPABASE_BUCKET).upload(file_path, file_bytes)
+
+            # Get public URL
+            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).rstrip("?")
+
+        except Exception as e:
+            return render(request, "create-post-image.html", {
+                "error": f"File upload failed: {str(e)}"
+            })
+
+        try:
+            # ✅ Insert post record with separate title, description, and content fields
+            supabase.table("posts").insert({
+                "title": title,
+                "description": description,
+                "content": file_url,
+                "post_type": post_type,
+                "user_id": user_id
+            }).execute()
+
+            return render(request, "create-post-image.html", {
+                "success": "Post created successfully!"
+            })
+
+        except Exception as e:
+            return render(request, "create-post-image.html", {
+                "error": f"Error creating post: {str(e)}"
+            })
+
+    # GET request
     return render(request, "create-post-image.html")
+
 
 
 
