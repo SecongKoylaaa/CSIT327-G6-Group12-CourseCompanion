@@ -281,7 +281,7 @@ def time_since(created_at_str):
 
     now = datetime.now(timezone.utc)
     diff = now - created_at
-    seconds = diff.total_seconds()
+    seconds = max(diff.total_seconds(), 0)
 
     if seconds < 60:
         return f"{int(seconds)}s ago"
