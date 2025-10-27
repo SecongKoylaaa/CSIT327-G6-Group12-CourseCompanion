@@ -33,6 +33,10 @@ Create and activate a virtual environment
 python -m venv env
 env\Scripts\activate          # Windows
 
+//to get the requriements
+pip freeze > requirements.txt
+
+
 # OR for Mac/Linux
 source env/bin/activate
 
