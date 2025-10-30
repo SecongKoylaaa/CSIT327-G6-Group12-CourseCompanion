@@ -1,9 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base, Course, Student, Note
+from myapp.models import Base, Course, Student, Note
 
 # Replace with your actual Supabase URI
-DATABASE_URL = "postgresql://postgres:282004@db.tkyztssepvewbmgsaaeq.supabase.co:5432/postgres"
+DATABASE_URL = "postgresql://postgres.tkyztssepvewbmgsaaeq:282004@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require"
 
 engine = create_engine(DATABASE_URL)
 

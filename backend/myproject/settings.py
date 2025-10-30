@@ -15,9 +15,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-load_dotenv()
-
-
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,7 +34,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "https://tkyztssepvewbmgsaaeq.supabase.
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRreXp0c3NlcHZld2JtZ3NhYWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODQ4NjMsImV4cCI6MjA3NDk2MDg2M30.uwxitzioVAWuNENFGnVwuXcQyvbXi6AdfjwYg-suoA8") #replace with your supabase URL
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "post_media")
 
-
+# Database connection string
+# postgresql://postgres:[YOUR_PASSWORD]@db.tkyztssepvewbmgsaaeq.supabase.co:5432/postgres
 
 # Application definition
 
@@ -90,10 +88,18 @@ WSGI_APPLICATION = 'myproject.wsgi.application' #this
 # Database
 import dj_database_url
 
-DATABASE_URL = "postgresql://postgres:282004@db.tkyztssepvewbmgsaaeq.supabase.co:5432/postgres?sslmode=require"
+# Load environment variables from .env
+load_dotenv()
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Database configuration using Supabase Session Pooler
 DATABASES = {
-    'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
+    'default': dj_database_url.config(
+        default="sqlite:///db.sqlite3",
+        conn_max_age=600,  # persistent connections
+        ssl_require=True   # enforce SSL
+    )
 }
 
 
