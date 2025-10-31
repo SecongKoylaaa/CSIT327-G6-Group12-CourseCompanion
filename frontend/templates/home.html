@@ -1,116 +1,110 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home - Logged In</title>
-    <link rel="stylesheet" href="/static/css/home.css">
+  <meta charset="UTF-8">
+  <title>Course Companion</title>
+  <link rel="stylesheet" href="{% static 'css/home.css' %}">
 </head>
 <body>
-<!-- Navbar -->
-<div class="navbar">
+  <!-- NAVBAR -->
+  <nav class="navbar">
     <div class="nav-left">
-        <a href="/home/" class="logo-link">
-            <img src="https://img.icons8.com/ios-filled/50/ffffff/handshake.png" alt="logo" width="30">
-        </a>
-        <h1><a href="/home/" class="logo-name">S C P</a></h1>
+      <h2>Course Companion</h2>
     </div>
 
-    <div class="search-bar">
-        <input type="text" placeholder="Search Platform">
+    <div class="nav-center">
+      <input type="text" placeholder="Search Course Companion..." class="search-bar">
     </div>
 
     <div class="nav-right">
-        <a href="/create-post-link/" class="create-btn">+ Create</a>
+      <button class="create-btn">+ Create</button>
+      <div class="profile-icon">👤</div>
+    </div>
+  </nav>
 
-        <!-- Notification dropdown -->
-        <div class="dropdown">
-            <input type="checkbox" id="notif-toggle">
-            <label for="notif-toggle" class="icon-btn">🔔</label>
-            <div class="dropdown-content">
-                <a href="#">No new notifications</a>
-            </div>
+  <div class="main-content">
+    <!-- LEFT: POSTS -->
+    <div class="posts-section">
+      {% for post in posts %}
+      <div class="post">
+        <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
+        <h3>{{ post.title }}</h3>
+
+        {% if post.description %}
+          <p class="post-description">{{ post.description }}</p>
+        {% endif %}
+
+        {% if post.is_image %}
+          <img src="{{ post.url }}" alt="Post Image" class="post-thumbnail">
+        {% elif post.is_video %}
+          <video class="post-thumbnail" src="{{ post.url }}" controls></video>
+        {% elif post.url %}
+          <a href="{{ post.url }}" target="_blank">{{ post.url }}</a>
+        {% endif %}
+
+        <div class="actions">
+          <span>⬆️ 15</span>
+          <span class="comment-toggle" onclick="toggleComments(this)">💬 22</span>
+          <span>🔗 Share</span>
         </div>
 
-        <!-- Profile dropdown -->
-        <div class="dropdown">
-            <input type="checkbox" id="profile-toggle">
-            <label for="profile-toggle" class="profile-icon">👤</label>
-            <div class="dropdown-content">
-                <a href="#">View Profile</a>
-                <a href="/login/" class="logout">Logout</a>
+        <!-- Expanded view (hidden by default) -->
+        <div class="expanded-section">
+          <div class="expanded-media">
+            {% if post.is_image %}
+              <img src="{{ post.url }}" alt="Expanded Post Image">
+            {% elif post.is_video %}
+              <video src="{{ post.url }}" controls></video>
+            {% endif %}
+          </div>
+
+          <div class="comments-area">
+            <h4>Comments</h4>
+
+            <div class="comment">
+              <strong>user123</strong> <span>• 2h ago</span>
+              <p>Nice post!</p>
             </div>
+
+            <div class="comment">
+              <strong>janedoe</strong> <span>• 1h ago</span>
+              <p>Can you share your notes?</p>
+            </div>
+
+            <form class="comment-form" method="POST">
+              {% csrf_token %}
+              <input type="text" name="comment" placeholder="Add a comment..." required>
+              <button type="submit">Post</button>
+            </form>
+          </div>
         </div>
-    </div>
-</div>
-
-<!-- Main Content -->
-<div class="main-container">
-  <div class="posts">
-    <!-- Static Sample Posts -->
-    <div class="post">
-      <p><b>c/Psychology</b> • 1 day ago</p>
-      <h3>Post Title</h3>
-      <img alt="Post Image">
-      <div class="actions">
-        <span>⬆️ 15</span>
-        <span>💬 22</span>
-        <span>🔗 Share</span>
       </div>
+      {% empty %}
+        <p>No posts available.</p>
+      {% endfor %}
     </div>
 
-    <div class="post">
-      <p><b>c/Business</b> • 1 hr ago</p>
-      <h3>Post Title</h3>
-      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit...</p>
-      <div class="actions">
-        <span>⬆️ 13</span>
-        <span>💬 9</span>
-        <span>🔗 Share</span>
-      </div>
+    <!-- RIGHT: GROUPS -->
+    <div class="groups-section">
+      <h3>Groups</h3>
+      <ul>
+        <li>r/Psychology</li>
+        <li>r/HowToProgramming</li>
+        <li>r/ThisIsATest</li>
+        <li>r/HelloWorld</li>
+        <li>r/Nursing</li>
+        <li>r/Engineering</li>
+      </ul>
     </div>
-
-    <!-- Dynamic Posts from Supabase -->
-    {% for post in posts %}
-    <div class="post">
-      <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
-      <h3>{{ post.title }}</h3>
-
-      {% if post.description %}
-        <p class="post-description">{{ post.description }}</p>
-      {% endif %}
-
-      {% if post.is_image %}
-        <img src="{{ post.url }}" alt="Post Image">
-      {% elif post.is_video %}
-        <video class="post-media" src="{{ post.url }}" controls></video>
-      {% elif post.url %}
-        <a href="{{ post.url }}" target="_blank">{{ post.url }}</a>
-      {% endif %}
-
-      <div class="actions">
-        <span>⬆️ 15</span>
-        <span>💬 22</span>
-        <span>🔗 Share</span>
-      </div>
-    </div>
-    {% empty %}
-    <p>No posts yet. Be the first to create one!</p>
-    {% endfor %}
   </div>
 
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <h4>Popular Courses</h4>
-    <ul>
-      <li>c/Psychology</li>
-      <li>c/Business</li>
-      <li>c/Computer Science</li>
-      <li>c/CivilEngineering</li>
-      <li>c/Education</li>
-      <li>c/ComputerEngineering</li>
-    </ul>
-  </div>
-</div>
+  <script>
+  function toggleComments(el) {
+    const post = el.closest(".post");
+    post.classList.toggle("show-expanded");
+  }
+  </script>
 </body>
 </html>
