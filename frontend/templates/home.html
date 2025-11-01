@@ -1,5 +1,4 @@
 {% load static %}
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +33,6 @@
 
   <!-- MAIN LAYOUT -->
   <div class="main-layout">
-    <!-- POSTS SECTION -->
     <div class="container">
       {% for post in posts %}
       <div class="post">
@@ -55,35 +53,39 @@
 
         <div class="actions">
           <span>⬆️ 15</span>
-          <span class="comment-toggle" onclick="toggleComments(this)">💬 22</span>
+          <span class="comment-toggle" onclick="toggleComments(this)">💬 {{ post.comment_count }}</span>
           <span>🔗 Share</span>
         </div>
 
-        <!-- EXPANDED COMMENT AREA -->
+        <!-- COMMENTS SECTION -->
         <div class="expanded-section">
-          <div class="expanded-media">
-            {% if post.is_image %}
-              <img src="{{ post.url }}" alt="Expanded Post Image">
-            {% elif post.is_video %}
-              <video src="{{ post.url }}" controls></video>
-            {% endif %}
-          </div>
-
           <div class="comments-area">
             <h4>Comments</h4>
 
+            <!-- ✅ Real comments -->
+            {% for comment in post.comments %}
+              <div class="comment">
+                <strong>{{ comment.author }}</strong> 
+                <span>• {{ comment.created_at }}</span>
+                <p>{{ comment.content }}</p>
+              </div>
+            {% empty %}
+              <p class="no-comments">No comments yet.</p>
+            {% endfor %}
+
+            <!-- ✅ Static test comments -->
             <div class="comment">
               <strong>user123</strong> <span>• 2h ago</span>
-              <p>Nice post!</p>
+              <p>Nice post! [static comment - test]</p>
             </div>
-
             <div class="comment">
               <strong>janedoe</strong> <span>• 1h ago</span>
-              <p>Can you share your notes?</p>
+              <p>Can you share your notes? [static comment - test]</p>
             </div>
 
-            <form class="comment-form" method="POST">
+            <form class="comment-form" method="POST" action="{% url 'home' %}">
               {% csrf_token %}
+              <input type="hidden" name="post_id" value="{{ post.id }}">
               <input type="text" name="comment" placeholder="Add a comment..." required>
               <button type="submit">Post</button>
             </form>
@@ -91,11 +93,10 @@
         </div>
       </div>
       {% empty %}
-      <p>No posts available.</p>
+        <p>No posts available.</p>
       {% endfor %}
     </div>
 
-    <!-- SIDEBAR -->
     <aside class="sidebar">
       <h3>Communities</h3>
       <ul>
@@ -115,7 +116,6 @@
     post.classList.toggle("show-expanded");
   }
 
-  // Profile dropdown toggle
   document.addEventListener('click', function(e) {
     const dropdown = document.querySelector('.dropdown-content');
     const button = document.querySelector('.profile-btn');
