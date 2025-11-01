@@ -1,53 +1,47 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Create Post (Text/Link)</title>
-  <link rel="stylesheet" href="/static/css/post-create.css">
+  <title>Create Post (Link)</title>
+  <link rel="stylesheet" href="{% static 'css/post-create.css' %}">
 </head>
 <body>
-  <!-- Navbar -->
-  <div class="navbar">
-    <div class="nav-left">
-      <a href="{% url 'home' %}" class="logo-link">
-        <img src="https://img.icons8.com/ios-filled/50/ffffff/handshake.png" alt="logo" width="30">
-      </a>
-      <h1><a href="/home/" class="logo-name">S C P</a></h1>
-    </div>
 
-    <div class="search-bar">
-      <input type="text" placeholder="Search Platform">
-    </div>
+<!-- ✅ NAVBAR (click logo/text to go home, layout intact) -->
+<nav class="navbar">
+  <div class="nav-left">
+    <a href="{% url 'home' %}" class="logo-link">
+      <img src="https://img.icons8.com/ios-filled/50/ff4500/handshake.png" alt="logo" class="logo">
+      <span class="logo-text">Course Companion</span>
+    </a>
+  </div>
 
-    <div class="nav-right">
-      <!-- Notification dropdown -->
-      <div class="dropdown">
-        <input type="checkbox" id="notif-toggle">
-        <label for="notif-toggle" class="icon-btn">🔔</label>
-        <div class="dropdown-content">
-          <a href="#">No new notifications</a>
-        </div>
-      </div>
+  <div class="nav-center">
+    <input type="text" class="search-bar" placeholder="Search Course Companion...">
+  </div>
 
-      <!-- Profile dropdown -->
-      <div class="dropdown">
-        <input type="checkbox" id="profile-toggle">
-        <label for="profile-toggle" class="profile-icon">👤</label>
-        <div class="dropdown-content">
-          <a href="#">Profile</a>
-          <a href="{% url 'logout' %}" class="logout">Logout</a>
-        </div>
+  <div class="nav-right">
+    <a href="{% url 'create-post-text' %}" class="create-btn">+ Create</a>
+
+    <div class="profile-dropdown">
+      <button class="profile-btn">👤</button>
+      <div class="dropdown-content">
+        <a href="#">View Profile</a>
+        <a href="{% url 'logout' %}">Logout</a>
       </div>
     </div>
   </div>
+</nav>
 
-  <!-- Page Content -->
-  <div class="container">
-    <h1>Create Post</h1>
+<!-- ✅ MAIN CREATE POST SECTION -->
+<div class="create-container">
+  <div class="create-card">
+    <h1>Create a Post</h1>
 
+    <!-- Course Selector -->
     <label for="course">Select a Course</label>
-    <select id="course" name="course">
+    <select id="course" name="course" required>
       <option value="" disabled selected>Select a course</option>
       <option>Computer Science 101</option>
       <option>Information Technology 102</option>
@@ -55,97 +49,88 @@
       <option>Database Systems 104</option>
     </select>
 
+    <!-- Tabs -->
     <div class="tabs">
-      <a href="{% url 'create-post-link' %}" class="active">Text</a>
-      <a href="{% url 'create-post-image' %}">Images & Video</a>
+      <a href="{% url 'create-post-text' %}">Text</a>
+      <a href="{% url 'create-post-image-video' %}">Images & Video</a>
+      <a href="{% url 'create-post-link' %}" class="active">Link</a>
     </div>
 
-    <!-- ✅ Form Section -->
-    <form method="POST" enctype="multipart/form-data">
+    <!-- Form -->
+    <form method="POST">
       {% csrf_token %}
 
-      <label for="title">Title<span style="color:red">*</span></label>
+      <label for="title">Title <span class="required">*</span></label>
       <input id="title" name="title" type="text" maxlength="200" placeholder="Enter title" required>
       <div class="char-count" id="title-count">0/200</div>
 
-      <label for="description">Description<span style="color:red">*</span></label>
-      <textarea id="description" name="description" maxlength="300" placeholder="Write your post description..." required></textarea>
-      <div class="char-count" id="desc-count">0/300</div>
-
-      <!-- ✅ Tag Selection -->
-      <input type="hidden" name="post_type" id="post_type" required>
-      <div style="display: flex; align-items: center; gap: 8px; position: relative;">
+      <!-- Tag Selector -->
+      <div class="tag-selector">
+        <label>Add Tag</label>
         <button type="button" id="tag-btn">Add tags</button>
         <div id="tag-choices" class="tag-choices-horizontal" style="display:none;">
           <button type="button" class="tag-choice-btn" data-value="question">Question</button>
           <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
           <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
         </div>
+        <input type="hidden" name="post_type" id="post_type" required>
       </div>
 
-      <!-- ✅ Link URL -->
-      <label for="url">Link URL<span style="color:red">*</span></label>
+      <!-- URL Input -->
+      <label for="url">Link URL <span class="required">*</span></label>
       <input id="url" name="url" type="url" placeholder="https://example.com" required>
 
       {% if error %}
-        <div class="error" style="color: red; margin-top: 10px;">{{ error }}</div>
+        <div class="error">{{ error }}</div>
       {% endif %}
       {% if success %}
-        <div class="success" style="color: green; margin-top: 10px;">{{ success }}</div>
+        <div class="success">{{ success }}</div>
       {% endif %}
 
-      <button type="submit">Post</button>
+      <button type="submit" class="post-btn">Post</button>
     </form>
   </div>
+</div>
 
-  <script>
-    // ✅ Character counters
-    const titleInput = document.getElementById('title');
-    const descInput = document.getElementById('description');
-    const titleCount = document.getElementById('title-count');
-    const descCount = document.getElementById('desc-count');
+<!-- JS -->
+<script>
+  // Character counter for title only
+  const titleInput = document.getElementById('title');
+  const titleCount = document.getElementById('title-count');
 
-    titleInput.addEventListener('input', () => {
-      titleCount.textContent = `${titleInput.value.length}/200`;
+  titleInput.addEventListener('input', () => {
+    titleCount.textContent = `${titleInput.value.length}/200`;
+  });
+
+  // Tag dropdown
+  const tagBtn = document.getElementById('tag-btn');
+  const tagChoices = document.getElementById('tag-choices');
+
+  tagBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    tagChoices.style.display = tagChoices.style.display === 'flex' ? 'none' : 'flex';
+  });
+
+  document.querySelectorAll('.tag-choice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tagBtn.textContent = btn.textContent;
+      document.getElementById('post_type').value = btn.getAttribute('data-value');
+      tagChoices.style.display = 'none';
     });
+  });
 
-    descInput.addEventListener('input', () => {
-      descCount.textContent = `${descInput.value.length}/300`;
-    });
+  document.addEventListener('click', () => tagChoices.style.display = 'none');
 
-    // ✅ Tag dropdown toggle
-    document.getElementById('tag-btn').onclick = function(event) {
-      event.stopPropagation();
-      var choices = document.getElementById('tag-choices');
-      choices.style.display = (choices.style.display === 'none' || choices.style.display === '') ? 'flex' : 'none';
-    };
-
-    // ✅ Tag selection behavior
-    document.querySelectorAll('.tag-choice-btn').forEach(function(btn) {
-      btn.onclick = function(e) {
-        e.stopPropagation();
-        var value = this.getAttribute('data-value');
-        var text = this.textContent;
-        document.getElementById('post_type').value = value;
-        document.getElementById('tag-btn').textContent = text;
-        document.getElementById('tag-choices').style.display = 'none';
-      };
-    });
-
-    // ✅ Close tag menu when clicking outside
-    document.addEventListener('click', function(event) {
-      var choices = document.getElementById('tag-choices');
-      if (choices) choices.style.display = 'none';
-    });
-
-    // ✅ Client-side validation before form submission
-    document.querySelector("form").addEventListener("submit", function(e) {
-      const postType = document.getElementById("post_type").value.trim();
-      if (!postType) {
-        alert("Please select a post type before submitting.");
-        e.preventDefault();
-      }
-    });
-  </script>
+  // Profile dropdown toggle
+  document.addEventListener('click', function(e) {
+    const dropdown = document.querySelector('.dropdown-content');
+    const button = document.querySelector('.profile-btn');
+    if (button.contains(e.target)) {
+      dropdown.classList.toggle('show');
+    } else {
+      dropdown.classList.remove('show');
+    }
+  });
+</script>
 </body>
 </html>
