@@ -234,29 +234,76 @@ def home_page(request):
     if "user_email" not in request.session:
         return redirect("/login/")
 
+    # ✅ Handle new comment submission
+    if request.method == "POST":
+        post_id = request.POST.get("post_id")
+        comment_text = request.POST.get("comment")
+        user_email = request.session.get("user_email")
+
+        # Get the user_id from Supabase (based on email)
+        user_resp = supabase.table("users").select("id").eq("email", user_email).single().execute()
+        user_id = user_resp.data["id"] if user_resp.data else None
+
+        if post_id and comment_text and user_id:
+            supabase.table("comments").insert({
+                "post_id": post_id,
+                "user_id": user_id,
+                "text": comment_text,  # ✅ matches your schema
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }).execute()
+
+        return redirect("/home/")
+
+    # ✅ Fetch posts
     response = supabase.table("posts").select("*").order("created_at", desc=True).execute()
     posts = response.data if response.data else []
 
     formatted_posts = []
+
     for post in posts:
         title = post.get("title") or "(No Title)"
-        url = post.get("content", "").rstrip("?")  # content now holds the URL
+        url = post.get("content", "").rstrip("?")
         course_name = post.get("course_id") or "null"
-        description = post.get("description", "")  # ✅ added description here
+        description = post.get("description", "")
+        post_id = post.get("post_id")
 
-        # Determine if URL is an image or video
+        # Determine media type
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
+        # ✅ Fetch comments for this post
+        comment_resp = (
+            supabase.table("comments")
+            .select("text, created_at, user_id")
+            .eq("post_id", post_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        comments = []
+        if comment_resp.data:
+            for c in comment_resp.data:
+                # Get commenter's email
+                user_resp = supabase.table("users").select("email").eq("id", c["user_id"]).single().execute()
+                email = user_resp.data["email"] if user_resp.data else "Anonymous"
+
+                comments.append({
+                    "author": email,
+                    "content": c["text"],  # ✅ use 'text' here
+                    "created_at": time_since(c["created_at"])
+                })
+
         formatted_posts.append({
+            "id": post_id,
             "title": title,
             "url": url,
-            "description": description,  # ✅ included in dict
+            "description": description,
             "created_at": time_since(post.get("created_at")),
             "author": post.get("author", "Unknown"),
             "course": f"c/{course_name}",
             "is_image": is_image,
-            "is_video": is_video
+            "is_video": is_video,
+            "comments": comments  # ✅ attach comments to post
         })
 
     return render(request, "home.html", {
