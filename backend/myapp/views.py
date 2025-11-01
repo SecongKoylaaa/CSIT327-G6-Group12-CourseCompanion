@@ -1,11 +1,10 @@
 from django.shortcuts import render, redirect
-from django.utils import timezone
+from django.http import HttpResponse
 from supabase import create_client
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
-from datetime import datetime, timedelta  # <-- add this line
-from myapp.models import *
-import secrets
+from datetime import datetime, timezone  # <-- add this line
+
 # Initialize Supabase client
 supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
@@ -25,8 +24,13 @@ def register_page(request):
         password = request.POST.get("password", "").strip()
         confirm_password = request.POST.get("confirmPassword", "").strip()
         username = request.POST.get("username", "").strip()
-        role = request.POST.get("role", "").strip().lower()
+        role = request.POST.get("role", "").strip().lower()  # normalize to lowercase
 
+        profile_picture = None
+        bio = None
+        last_login = None
+
+        # ---------- Validation ----------
         if not email or not password or not confirm_password or not role:
             return render(request, "register.html", {"error": "All fields are required."})
 
@@ -36,25 +40,40 @@ def register_page(request):
         if role not in ["student", "teacher"]:
             return render(request, "register.html", {"error": "Invalid role selected."})
 
-        # Check if user exists
-        if User.objects.filter(email=email).exists():
-            return render(request, "register.html", {"error": "Account already exists. Please login."})
+        # ---------- Password Hash ----------
+        password_hash = make_password(password)
 
-        # Create user
-        user = User(
-            email=email,
-            password_hash=make_password(password),
-            username=username if username else None,
-            role=role,
-            date_joined=timezone.now(),
-            last_login=None,
-            bio=None,
-            profile_picture=None,
-        )
-        user.save()
+        # ---------- Check if email exists ----------
+        try:
+            existing = supabase.table("users").select("*").eq("email", email).execute()
+            if existing.data:
+                return render(request, "register.html", {"error": "Account already exists. Please login."})
+        except Exception as e:
+            return render(request, "register.html", {"error": f"Database error: {str(e)}"})
 
+        # ---------- Insert User ----------
+        date_joined = datetime.now(timezone.utc).isoformat()
+        try:
+            response = supabase.table("users").insert({
+                "email": email,
+                "password_hash": password_hash,
+                "role": role,
+                "username": username if username else None,
+                "profile_picture": profile_picture,
+                "bio": bio,
+                "last_login": last_login,
+                "date_joined": date_joined
+            }).execute()
+
+            if getattr(response, "error", None):
+                return render(request, "register.html", {"error": f"Error registering: {response.error}"})
+        except Exception as e:
+            return render(request, "register.html", {"error": f"Error registering: {str(e)}"})
+
+        # ✅ Success → redirect to login page
         return redirect("/login/")
 
+    # GET request
     return render(request, "register.html")
 
 
@@ -70,23 +89,29 @@ def login_page(request):
             return render(request, "login.html", {"error": "Email and password are required."})
 
         try:
-            user = User.objects.filter(email=email).first()
+            response = supabase.table("users").select("*").eq("email", email).execute()
         except Exception as e:
-            return render(request, "login.html", {"error": f"Database error: {str(e)}"})
+            return render(request, "login.html", {"error": f"Error connecting to database: {str(e)}"})
 
-        if not user:
+        if not response.data:
             return render(request, "login.html", {"error": "No account found. Please register."})
 
-        if not check_password(password, user.password_hash):
+        user = response.data[0]
+
+        if not check_password(password, user["password_hash"]):
             return render(request, "login.html", {"error": "Invalid credentials!"})
 
-        # ✅ Save user session
-        request.session["user_email"] = user.email
-        request.session["role"] = user.role
+        # Save user session
+        request.session["user_email"] = email
+        request.session["role"] = user.get("role", "student")
 
-        # ✅ Update last_login timestamp
-        user.last_login = timezone.now()
-        user.save(update_fields=["last_login"])
+        # Update last_login timestamp
+        try:
+            supabase.table("users").update({
+                "last_login": datetime.now(timezone.utc).isoformat()
+            }).eq("id", user["id"]).execute()
+        except Exception as e:
+            print(f"Warning: failed to update last_login: {e}")
 
         return redirect("/home/")
 
@@ -94,125 +119,110 @@ def login_page(request):
 
 # --------------------------
 # Password Recovery View
-# --------------------------    
+# --------------------------
 def recover_password_page(request):
+    import secrets
+    from datetime import datetime, timedelta, timezone
     email = ""
-
     if request.method == "POST":
         email = request.POST.get("email", "").strip()
-
         if not email:
-            return render(request, "recover_password.html", {
-                "error": "Email is required.",
-                "email": email
-            })
-
-        # ✅ Check if user exists
+            return render(request, "recover_password.html", {"error": "Email is required.", "email": email})
+        # Check if user exists
         try:
-            user = User.objects.filter(email=email).first()
+            response = supabase.table("users").select("*").eq("email", email).execute()
         except Exception as e:
-            return render(request, "recover_password.html", {
-                "error": f"Database error: {str(e)}",
-                "email": email
-            })
-
-        if not user:
-            return render(request, "recover_password.html", {
-                "error": "No account found with that email.",
-                "email": email
-            })
-
-        # ✅ Generate token and expiration
+            return render(request, "recover_password.html", {"error": f"Error connecting to database: {str(e)}", "email": email})
+        if not response.data:
+            return render(request, "recover_password.html", {"error": "No account found with that email.", "email": email})
+        user = response.data[0]
+        user_id = user.get("id")
+        if not user_id:
+            return render(request, "recover_password.html", {"error": "User ID not found.", "email": email})
+        # Generate secure token and expiration
         reset_token = secrets.token_urlsafe(32)
-        expiration_time = timezone.now() + timedelta(hours=1)
-
-        # ✅ Store in PasswordRecovery table
+        expiration_time = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        created_at = datetime.now(timezone.utc).isoformat()
+        # Store in password_recovery
         try:
-            PasswordRecovery.objects.create(
-                reset_token=reset_token,
-                expiration_time=expiration_time,
-                user=user,
-                created_at=timezone.now()
-            )
+            supabase.table("password_recovery").insert({
+                "reset_token": reset_token,
+                "expiration_time": expiration_time,
+                "user_id": user_id,
+                "created_at": created_at
+            }).execute()
         except Exception as e:
-            return render(request, "recover_password.html", {
-                "error": f"Error saving reset token: {str(e)}",
-                "email": email
-            })
-
-        # ✅ Show test link (in production, you'd send email instead)
+            return render(request, "recover_password.html", {"error": f"Error saving reset token: {str(e)}", "email": email})
+        # For testing, show the reset link directly
         reset_link = f"/reset-password/{reset_token}/"
-
-        return render(request, "recover_password.html", {
-            "message": "If this email exists, a recovery link has been generated.",
-            "email": email,
-            "reset_link": reset_link
-        })
-
+        return render(request, "recover_password.html", {"error": None, "message": "If this email exists, a recovery link has been generated.", "email": email, "reset_link": reset_link})
     return render(request, "recover_password.html", {"email": email})
 
 # --------------------------
 # Password Reset View
 # --------------------------
+from django.contrib.auth.hashers import make_password
+
 def reset_password_page(request, reset_token):
-    # ✅ Look up the token in PasswordRecovery
+    from datetime import datetime, timezone
+    # Look up the token in password_recovery
     try:
-        token_entry = PasswordRecovery.objects.select_related(None).filter(reset_token=reset_token).first()
+        token_resp = supabase.table("password_recovery").select("*", count="exact").eq("reset_token", reset_token).execute()
     except Exception as e:
         return render(request, "reset_password.html", {"error": f"Error looking up token: {str(e)}"})
-
-    if not token_entry:
+    if not token_resp.data:
         return render(request, "reset_password.html", {"error": "Invalid or expired reset token."})
-
-    # ✅ Check expiration
-    expiration_time = token_entry.expiration_time
+    token_row = token_resp.data[0]
+    # Check expiration
+    expiration_time = token_row.get("expiration_time")
     if not expiration_time:
         return render(request, "reset_password.html", {"error": "Token missing expiration."})
-
-    if expiration_time < timezone.now():
+    try:
+        expires = datetime.fromisoformat(expiration_time.replace('Z', '+00:00'))
+    except Exception:
+        expires = None
+    if not expires or expires < datetime.now(timezone.utc):
         return render(request, "reset_password.html", {"error": "Reset token has expired."})
-
-    # ✅ Handle password reset form
+    # If POST, handle password reset (step 3 will complete this)
     if request.method == "POST":
         new_password = request.POST.get("new_password", "").strip()
         confirm_password = request.POST.get("confirm_password", "").strip()
-
         if not new_password or not confirm_password:
-            return render(request, "reset_password.html", {
-                "error": "All fields are required.",
-                "reset_token": reset_token
-            })
-
+            return render(request, "reset_password.html", {"error": "All fields are required.", "reset_token": reset_token})
+        if new_password.strip() == "" or confirm_password.strip() == "":
+            return render(request, "reset_password.html", {"error": "Password cannot be blank.", "reset_token": reset_token})
         if new_password != confirm_password:
-            return render(request, "reset_password.html", {
-                "error": "Passwords do not match.",
-                "reset_token": reset_token
-            })
-
-        user = getattr(token_entry, "user", None)
-        if not user:
+            return render(request, "reset_password.html", {"error": "Passwords do not match.", "reset_token": reset_token})
+        user_id = token_row.get("user_id") or token_row.get("id")
+        if not user_id:
             return render(request, "reset_password.html", {"error": "User not found for this token.", "reset_token": reset_token})
-
-        # ✅ Prevent using same password
-        if check_password(new_password, user.password_hash):
-            return render(request, "reset_password.html", {"error": "You cannot use your old password.", "reset_token": reset_token})
-
-        # ✅ Update password
+        # Fetch current user password hash
         try:
-            user.password_hash = make_password(new_password)
-            user.save(update_fields=["password_hash"])
+            user_resp = supabase.table("users").select("password_hash").eq("id", user_id).execute()
+            if not user_resp.data:
+                return render(request, "reset_password.html", {"error": "User not found.", "reset_token": reset_token})
+            current_hash = user_resp.data[0]["password_hash"]
+        except Exception as e:
+            return render(request, "reset_password.html", {"error": f"Error fetching user: {str(e)}", "reset_token": reset_token})
+        # Prevent using the same password
+        if check_password(new_password, current_hash):
+            return render(request, "reset_password.html", {"error": "You cannot use your old password.", "reset_token": reset_token})
+        password_hash = make_password(new_password)
+        # Update user's password
+        try:
+            update_resp = supabase.table("users").update({"password_hash": password_hash}).eq("id", user_id).execute()
+            if getattr(update_resp, 'error', None):
+                return render(request, "reset_password.html", {"error": f"Failed to reset password: {update_resp.error}", "reset_token": reset_token})
         except Exception as e:
             return render(request, "reset_password.html", {"error": f"Error updating password: {str(e)}", "reset_token": reset_token})
-
-        # ✅ Delete used token
+        # Delete the used token
         try:
-            token_entry.delete()
+            supabase.table("password_recovery").delete().eq("reset_token", reset_token).execute()
         except Exception as e:
             return render(request, "reset_password.html", {"error": f"Password changed, but failed to clean up token: {str(e)}", "reset_token": reset_token})
-
         return render(request, "reset_password.html", {"message": "Password reset successful! You can now log in."})
-
     return render(request, "reset_password.html", {"reset_token": reset_token})
+
 
 
 # --------------------------
@@ -224,23 +234,29 @@ def home_page(request):
     if "user_email" not in request.session:
         return redirect("/login/")
 
-    posts = Post.objects.select_related("course", "user").order_by("-created_at")
+    response = supabase.table("posts").select("*").order("created_at", desc=True).execute()
+    posts = response.data if response.data else []
 
     formatted_posts = []
     for post in posts:
-        url = (post.content or "").rstrip("?")
+        title = post.get("title") or "(No Title)"
+        url = post.get("content", "").rstrip("?")  # content now holds the URL
+        course_name = post.get("course_id") or "null"
+        description = post.get("description", "")  # ✅ added description here
+
+        # Determine if URL is an image or video
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
         formatted_posts.append({
-            "title": post.title or "(No Title)",
+            "title": title,
             "url": url,
-            "description": post.description or "",
-            "created_at": time_since(post.created_at),
-            "author": post.user.username if post.user else "Unknown",
-            "course": f"c/{post.course.course_name}" if post.course else "null",
+            "description": description,  # ✅ included in dict
+            "created_at": time_since(post.get("created_at")),
+            "author": post.get("author", "Unknown"),
+            "course": f"c/{course_name}",
             "is_image": is_image,
-            "is_video": is_video,
+            "is_video": is_video
         })
 
     return render(request, "home.html", {
@@ -250,76 +266,72 @@ def home_page(request):
     })
 
 
+
+
 # Utility to convert ISO timestamp to human-readable relative time
-def time_since(created_at):
-    """Returns a compact, social-style timestamp like '3m ago' or 'Just now'."""
-    if not created_at:
+def time_since(created_at_str):
+    """Converts ISO timestamp to human-readable relative time."""
+    if not created_at_str:
         return "unknown time"
 
-    # Convert ISO string → datetime if needed
-    if isinstance(created_at, str):
-        try:
-            created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-        except Exception:
-            return created_at
+    try:
+        created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+    except ValueError:
+        return created_at_str
 
-    # Ensure timezone awareness
-    if timezone.is_naive(created_at):
-        created_at = timezone.make_aware(created_at, timezone=timezone.utc)
-
-    now = timezone.now()
+    now = datetime.now(timezone.utc)
     diff = now - created_at
-    seconds = int(diff.total_seconds())
+    seconds = max(diff.total_seconds(), 0)
 
-    if seconds < 10:
-        return "Just now"
-    elif seconds < 60:
-        return f"{seconds}s ago"
+    if seconds < 60:
+        return f"{int(seconds)}s ago"
     elif seconds < 3600:
-        return f"{seconds // 60}m ago"
+        return f"{int(seconds // 60)}m ago"
     elif seconds < 86400:
-        return f"{seconds // 3600}h ago"
+        return f"{int(seconds // 3600)}h ago"
     elif seconds < 604800:
-        return f"{seconds // 86400}d ago"
+        return f"{int(seconds // 86400)}d ago"
     elif seconds < 2419200:
-        return f"{seconds // 604800}w ago"
+        return f"{int(seconds // 604800)}w ago"
     elif seconds < 29030400:
-        return f"{seconds // 2419200}mo ago"
+        return f"{int(seconds // 2419200)}mo ago"
     else:
-        return f"{seconds // 29030400}y ago"
+        return f"{int(seconds // 29030400)}y ago"
 
 
 # --------------------------
-# Create Post (Link) - Protected
+# Create Post (Text) - Protected
 # --------------------------
 # This view requires the user to be logged in.
 # If the user is not logged in, they will be redirected to the login page.
-def create_post_link(request):
+def create_post_text(request):
     if "user_email" not in request.session:
         return redirect("/login/")
-    return render(request, "create-post-link.html")
+    return render(request, "create-post-text.html")
 
 
 # --------------------------
-# Create Post (Link) - Unprotected
+# Create Post (Text) - Unprotected
 # --------------------------
 # This view allows direct access to the page without requiring the user to log in.
 # If you want to make this page protected again, re-add the session check:
 #     if "user_email" not in request.session:
 #         return redirect("/login/")
-def create_post_link(request):
+def create_post_text(request):
     # Require login
     if "user_email" not in request.session:
         return redirect("/login/")
 
     # Get user info
     user_email = request.session.get("user_email")
-    try:
-        user = User.objects.get(email=user_email)
-    except User.DoesNotExist:
-        return render(request, "create-post-link.html", {
+    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+
+    if not user_resp.data:
+        return render(request, "create-post-text.html", {
             "error": "User not found."
         })
+
+    user_id = user_resp.data[0]["id"]
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -329,31 +341,30 @@ def create_post_link(request):
 
         # Validate
         if not title or not description or not post_type or not url:
-            return render(request, "create-post-link.html", {
+            return render(request, "create-post-text.html", {
                 "error": "All fields are required."
             })
 
         try:
-            # Insert using Django ORM
-            Post.objects.create(
-                title=title,
-                description=description,
-                post_type=post_type,
-                content=url,
-                user=user,
-                created_at=timezone.now()
-            )
+            # ✅ Insert properly using new schema
+            supabase.table("posts").insert({
+                "title": title,
+                "description": description,
+                "content": url,   # Store link inside content
+                "post_type": post_type,
+                "user_id": user_id
+            }).execute()
 
-            return render(request, "create-post-link.html", {
+            return render(request, "create-post-text.html", {
                 "success": "Post created successfully!"
             })
 
         except Exception as e:
-            return render(request, "create-post-link.html", {
+            return render(request, "create-post-text.html", {
                 "error": f"Error creating post: {str(e)}"
             })
 
-    return render(request, "create-post-link.html")
+    return render(request, "create-post-text.html")
 
 
 
@@ -371,12 +382,14 @@ def create_post_image(request):
 
     # Get user info
     user_email = request.session.get("user_email")
-    try:
-        user = User.objects.get(email=user_email)
-    except User.DoesNotExist:
-        return render(request, "create-post-image.html", {
+    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+
+    if not user_resp.data:
+        return render(request, "create-post-image-video.html", {
             "error": "User not found."
         })
+
+    user_id = user_resp.data[0]["id"]
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -386,7 +399,7 @@ def create_post_image(request):
 
         # Validate required fields
         if not title or not description or not post_type or not file:
-            return render(request, "create-post-image.html", {
+            return render(request, "create-post-image-video.html", {
                 "error": "All fields are required."
             })
 
@@ -400,32 +413,66 @@ def create_post_image(request):
             file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).rstrip("?")
 
         except Exception as e:
-            return render(request, "create-post-image.html", {
+            return render(request, "create-post-image-video.html", {
                 "error": f"File upload failed: {str(e)}"
             })
 
         try:
-            # Insert post record using Django ORM
-            Post.objects.create(
-                title=title,
-                description=description,
-                content=file_url,
-                post_type=post_type,
-                user=user,
-                created_at=timezone.now()
-            )
+            # ✅ Insert post record with separate title, description, and content fields
+            supabase.table("posts").insert({
+                "title": title,
+                "description": description,
+                "content": file_url,
+                "post_type": post_type,
+                "user_id": user_id
+            }).execute()
 
-            return render(request, "create-post-image.html", {
+            return render(request, "create-post-image-video.html", {
                 "success": "Post created successfully!"
             })
 
         except Exception as e:
-            return render(request, "create-post-image.html", {
+            return render(request, "create-post-image-video.html", {
                 "error": f"Error creating post: {str(e)}"
             })
 
     # GET request
-    return render(request, "create-post-image.html")
+    return render(request, "create-post-image-video.html")
+
+
+def create_post_link(request):
+    if "user_email" not in request.session:
+        return redirect("/login/")
+
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+    if not user_resp.data:
+        return render(request, "create-post-link.html", {"error": "User not found."})
+
+    user_id = user_resp.data[0]["id"]
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        post_type = request.POST.get("post_type", "").strip()
+        url = request.POST.get("url", "").strip()
+
+        if not title or not post_type or not url:
+            return render(request, "create-post-link.html", {"error": "All fields are required."})
+
+        try:
+            supabase.table("posts").insert({
+                "title": title,
+                "description": description,
+                "content": url,  # store the link
+                "post_type": post_type,
+                "user_id": user_id
+            }).execute()
+            return render(request, "create-post-link.html", {"success": "Link post created successfully!"})
+        except Exception as e:
+            return render(request, "create-post-link.html", {"error": f"Error creating post: {str(e)}"})
+
+    return render(request, "create-post-link.html")
 
 
 
