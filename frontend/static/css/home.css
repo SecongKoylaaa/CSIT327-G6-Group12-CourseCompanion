@@ -1,115 +1,171 @@
-/* ====== GENERAL STYLING ====== */
-body {
-  font-family: Arial, sans-serif;
-  background: #f3f3f3;
+/* RESET */
+* {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
 }
 
-/* ====== NAVBAR ====== */
+/* BODY */
+body {
+  background: #f3f3f3;
+  color: #111;
+}
+
+/* ===== NAVBAR ===== */
 .navbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  background: #ffffff;
-  padding: 10px 20px;
-  border-bottom: 1px solid #ddd;
+  justify-content: space-between;
+  background: #fff;
+  padding: 15px 20px;
+  border-bottom: solid #ddd;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 1000;
 }
 
-.nav-left h2 {
-  margin: 0;
-  color: #ff4500; /* Reddit-style orange accent */
+/* LEFT SIDE */
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo {
+  width: 35px;
+  height: 35px;
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: bold;
+  color: #ff4500;
+}
+
+/* CENTER SEARCH */
+.nav-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
 }
 
 .search-bar {
-  width: 400px;
-  padding: 8px 12px;
+  width: 90%;
+  padding: 15px 14px;
   border-radius: 20px;
   border: 1px solid #ccc;
   outline: none;
+  background: #f9f9f9;
+}
+
+.search-bar:focus {
+  border-color: #ff4500;
+}
+
+
+
+/* RIGHT SIDE */
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .create-btn {
   background: #ff4500;
-  color: white;
+  color: #fff;
   border: none;
-  border-radius: 20px;
   padding: 8px 16px;
-  cursor: pointer;
+  border-radius: 20px;
+  text-decoration: none;
   font-weight: bold;
 }
 
 .create-btn:hover {
-  background: #e03d00;
+  background: #e03e00;
 }
 
-.profile-icon {
-  background: #f0f0f0;
+.profile-btn {
+  font-size: 20px;
+  border: none;
+  background: #eee;
   border-radius: 50%;
-  padding: 8px 10px;
-  margin-left: 10px;
+  width: 40px;
+  height: 40px;
   cursor: pointer;
 }
 
-/* ====== LAYOUT ====== */
-.main-content {
+/* DROPDOWN */
+.profile-dropdown {
+  position: relative;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 45px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 140px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.dropdown-content a {
+  display: block;
+  padding: 10px;
+  color: #333;
+  text-decoration: none;
+}
+
+.dropdown-content a:hover {
+  background: #f3f3f3;
+}
+
+.dropdown-content.show {
+  display: block;
+}
+
+/* ===== MAIN LAYOUT ===== */
+.main-layout {
   display: flex;
-  width: 90%;
-  margin: 30px auto;
+  justify-content: center;
   gap: 20px;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* Left: Posts section */
-.posts-section {
+/* ===== POSTS CONTAINER ===== */
+.container {
   flex: 2;
+  max-width: 750px; /* Keeps posts consistent and centered */
 }
 
-/* Right: Groups section */
-.groups-section {
+/* ===== SIDEBAR ===== */
+.sidebar {
   flex: 1;
+  max-width: 350px;
   background: #fff;
   border-radius: 10px;
   padding: 15px;
   height: fit-content;
   border: 1px solid #ddd;
+  position: sticky;
+  top: 80px; /* so it stays visible while scrolling */
 }
 
-.groups-section h3 {
-  margin-bottom: 10px;
-}
-
-.groups-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.groups-section li {
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
-  color: #0079d3;
-  cursor: pointer;
-}
-
-.groups-section li:hover {
-  text-decoration: underline;
-}
-
-/* ====== POST STYLING ====== */
+/* ===== POST ===== */
 .post {
+  background: #fff;
   border: 1px solid #ddd;
   border-radius: 10px;
   padding: 15px;
   margin-bottom: 20px;
-  background: #fafafa;
   transition: all 0.3s ease;
-}
-
-.post h3 {
-  margin-top: 5px;
 }
 
 .post-thumbnail {
@@ -130,14 +186,13 @@ body {
 
 .comment-toggle {
   cursor: pointer;
-  transition: color 0.2s ease;
 }
 
 .comment-toggle:hover {
-  color: #007bff;
+  color: #ff4500;
 }
 
-/* ====== EXPANDED COMMENT AREA ====== */
+/* EXPANDED SECTION */
 .expanded-section {
   max-height: 0;
   overflow: hidden;
@@ -154,13 +209,7 @@ body {
   border: 1px solid #ccc;
 }
 
-.expanded-media img,
-.expanded-media video {
-  width: 100%;
-  max-width: 700px;
-  border-radius: 8px;
-}
-
+/* COMMENTS */
 .comment {
   background: #fff;
   padding: 10px;
@@ -169,6 +218,7 @@ body {
   margin-bottom: 8px;
 }
 
+/* COMMENT FORM */
 .comment-form {
   display: flex;
   gap: 8px;
@@ -185,7 +235,7 @@ body {
 
 .comment-form button {
   border: none;
-  background: #2b2b2b;
+  background: #ff4500;
   color: white;
   border-radius: 20px;
   padding: 8px 14px;
@@ -193,5 +243,25 @@ body {
 }
 
 .comment-form button:hover {
-  background: #444;
+  background: #e03e00;
+}
+
+/* ===== SIDEBAR CONTENT ===== */
+.sidebar h3 {
+  margin-bottom: 10px;
+  color: #111;
+}
+
+.sidebar ul {
+  list-style: none;
+}
+
+.sidebar li {
+  margin-bottom: 8px;
+  color: #0079d3;
+  cursor: pointer;
+}
+
+.sidebar li:hover {
+  text-decoration: underline;
 }

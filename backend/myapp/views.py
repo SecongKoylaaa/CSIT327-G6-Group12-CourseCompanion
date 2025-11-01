@@ -300,24 +300,24 @@ def time_since(created_at_str):
 
 
 # --------------------------
-# Create Post (Link) - Protected
+# Create Post (Text) - Protected
 # --------------------------
 # This view requires the user to be logged in.
 # If the user is not logged in, they will be redirected to the login page.
-def create_post_link(request):
+def create_post_text(request):
     if "user_email" not in request.session:
         return redirect("/login/")
-    return render(request, "create-post-link.html")
+    return render(request, "create-post-text.html")
 
 
 # --------------------------
-# Create Post (Link) - Unprotected
+# Create Post (Text) - Unprotected
 # --------------------------
 # This view allows direct access to the page without requiring the user to log in.
 # If you want to make this page protected again, re-add the session check:
 #     if "user_email" not in request.session:
 #         return redirect("/login/")
-def create_post_link(request):
+def create_post_text(request):
     # Require login
     if "user_email" not in request.session:
         return redirect("/login/")
@@ -327,7 +327,7 @@ def create_post_link(request):
     user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
 
     if not user_resp.data:
-        return render(request, "create-post-link.html", {
+        return render(request, "create-post-text.html", {
             "error": "User not found."
         })
 
@@ -341,7 +341,7 @@ def create_post_link(request):
 
         # Validate
         if not title or not description or not post_type or not url:
-            return render(request, "create-post-link.html", {
+            return render(request, "create-post-text.html", {
                 "error": "All fields are required."
             })
 
@@ -355,16 +355,16 @@ def create_post_link(request):
                 "user_id": user_id
             }).execute()
 
-            return render(request, "create-post-link.html", {
+            return render(request, "create-post-text.html", {
                 "success": "Post created successfully!"
             })
 
         except Exception as e:
-            return render(request, "create-post-link.html", {
+            return render(request, "create-post-text.html", {
                 "error": f"Error creating post: {str(e)}"
             })
 
-    return render(request, "create-post-link.html")
+    return render(request, "create-post-text.html")
 
 
 
@@ -385,7 +385,7 @@ def create_post_image(request):
     user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
 
     if not user_resp.data:
-        return render(request, "create-post-image.html", {
+        return render(request, "create-post-image-video.html", {
             "error": "User not found."
         })
 
@@ -399,7 +399,7 @@ def create_post_image(request):
 
         # Validate required fields
         if not title or not description or not post_type or not file:
-            return render(request, "create-post-image.html", {
+            return render(request, "create-post-image-video.html", {
                 "error": "All fields are required."
             })
 
@@ -413,7 +413,7 @@ def create_post_image(request):
             file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).rstrip("?")
 
         except Exception as e:
-            return render(request, "create-post-image.html", {
+            return render(request, "create-post-image-video.html", {
                 "error": f"File upload failed: {str(e)}"
             })
 
@@ -427,17 +427,52 @@ def create_post_image(request):
                 "user_id": user_id
             }).execute()
 
-            return render(request, "create-post-image.html", {
+            return render(request, "create-post-image-video.html", {
                 "success": "Post created successfully!"
             })
 
         except Exception as e:
-            return render(request, "create-post-image.html", {
+            return render(request, "create-post-image-video.html", {
                 "error": f"Error creating post: {str(e)}"
             })
 
     # GET request
-    return render(request, "create-post-image.html")
+    return render(request, "create-post-image-video.html")
+
+
+def create_post_link(request):
+    if "user_email" not in request.session:
+        return redirect("/login/")
+
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+    if not user_resp.data:
+        return render(request, "create-post-link.html", {"error": "User not found."})
+
+    user_id = user_resp.data[0]["id"]
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        post_type = request.POST.get("post_type", "").strip()
+        url = request.POST.get("url", "").strip()
+
+        if not title or not post_type or not url:
+            return render(request, "create-post-link.html", {"error": "All fields are required."})
+
+        try:
+            supabase.table("posts").insert({
+                "title": title,
+                "description": description,
+                "content": url,  # store the link
+                "post_type": post_type,
+                "user_id": user_id
+            }).execute()
+            return render(request, "create-post-link.html", {"success": "Link post created successfully!"})
+        except Exception as e:
+            return render(request, "create-post-link.html", {"error": f"Error creating post: {str(e)}"})
+
+    return render(request, "create-post-link.html")
 
 
 
