@@ -130,18 +130,12 @@
 
       if (!postId || !upBtn || !downBtn) return;
 
-      upBtn.addEventListener("click", () => {
-        votePost(postId, "upvote", voteCount, upBtn, downBtn);
-      });
-
-      downBtn.addEventListener("click", () => {
-        votePost(postId, "downvote", voteCount, upBtn, downBtn);
-      });
+      upBtn.addEventListener("click", () => handleVote(postId, "upvote", voteCount, upBtn, downBtn));
+      downBtn.addEventListener("click", () => handleVote(postId, "downvote", voteCount, upBtn, downBtn));
     });
   });
 
-  async function votePost(postId, voteType, voteCountElem, upBtn, downBtn) {
-    console.log(`Voting post ${postId} as ${voteType}`);
+  async function handleVote(postId, voteType, voteCountElem, upBtn, downBtn) {
     try {
       const response = await fetch(`/vote_post/${postId}/${voteType}/`, {
         method: "POST",
@@ -155,12 +149,14 @@
       const data = await response.json();
 
       if (response.ok) {
-        // ✅ Update displayed count
+        // Update displayed vote count
         voteCountElem.textContent = data.net_votes;
 
-        // ✅ Highlight selected vote
+        // Remove previous highlights
         upBtn.classList.remove("active");
         downBtn.classList.remove("active");
+
+        // Highlight according to returned user vote
         if (data.user_vote === "upvote") upBtn.classList.add("active");
         if (data.user_vote === "downvote") downBtn.classList.add("active");
       } else {
@@ -171,6 +167,7 @@
       console.error("Vote request failed:", err);
     }
   }
+
 
   // -------------------- COMMENT VOTING SYSTEM --------------------
   function voteComment(commentId, type, btn) {
@@ -241,7 +238,6 @@
     }
   }
 
-  // Close comment menu if clicked outside
   document.addEventListener("click", function(e) {
     if (!e.target.classList.contains("comment-menu-btn")) {
       const openMenus = document.querySelectorAll(".comment-menu");
@@ -308,6 +304,7 @@
     if (parts.length === 2) return parts.pop().split(";").shift();
   }
 </script>
+
 
 
 </body>

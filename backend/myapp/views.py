@@ -262,9 +262,10 @@ def reset_password_page(request, reset_token):
     return render(request, "reset_password.html", {"reset_token": reset_token})
 
 
-# --------------------------
+## --------------------------
 # Home View (Protected)
 # --------------------------
+
 def home_page(request):
     if "user_email" not in request.session:
         return redirect("/login/")
@@ -280,7 +281,7 @@ def home_page(request):
         parent_id = request.POST.get("parent_id")
 
         # Get user_id
-        user_resp = supabase.table("users").select("id").eq("email", user_email).single().execute()
+        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
         user_id = user_resp.data["id"] if user_resp.data else None
 
         if post_id and comment_text and user_id:
@@ -300,6 +301,13 @@ def home_page(request):
     response = supabase.table("posts").select("*").order("created_at", desc=True).execute()
     posts = response.data if response.data else []
 
+    # Get current user ID for vote detection
+    user_id = None
+    if user_email:
+        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+        if user_resp.data:
+            user_id = user_resp.data["id"]
+
     formatted_posts = []
 
     for post in posts:
@@ -313,6 +321,24 @@ def home_page(request):
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
         # -----------------------------
+        # Fetch votes for this post
+        # -----------------------------
+        votes_resp = supabase.table("post_votes").select("*").eq("post_id", post_id).execute()
+        votes = votes_resp.data or []
+
+        upvotes = len([v for v in votes if v["vote_type"] == "up"])
+        downvotes = len([v for v in votes if v["vote_type"] == "down"])
+        net_votes = upvotes - downvotes
+
+        user_vote = None
+        if user_id:
+            uv = next((v["vote_type"] for v in votes if v["user_id"] == user_id), None)
+            if uv == "up":
+                user_vote = "upvote"
+            elif uv == "down":
+                user_vote = "downvote"
+
+        # -----------------------------
         # Fetch all comments for this post
         # -----------------------------
         comment_resp = supabase.table("comments").select("*").eq("post_id", post_id).order("created_at", desc=False).execute()
@@ -321,7 +347,7 @@ def home_page(request):
         # -----------------------------
         # Build nested comment tree
         # -----------------------------
-        def build_comment_tree(comments, parent_id_val=None, user_id=None):
+        def build_comment_tree(comments, parent_id_val=None):
             tree = []
             for c in comments:
                 if c.get("parent_id") == parent_id_val:
@@ -331,11 +357,17 @@ def home_page(request):
                     votes_resp = supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute()
                     votes = votes_resp.data or []
 
-                    upvotes = len([v for v in votes if v["vote_type"] == "upvote"])
-                    downvotes = len([v for v in votes if v["vote_type"] == "downvote"])
-                    net_votes = upvotes - downvotes
+                    upvotes_c = len([v for v in votes if v["vote_type"] == "upvote"])
+                    downvotes_c = len([v for v in votes if v["vote_type"] == "downvote"])
+                    net_votes_c = upvotes_c - downvotes_c
 
-                    user_vote = next((v["vote_type"] for v in votes if v["user_id"] == user_id), None)
+                    user_vote_c = None
+                    if user_id:
+                        uv_c = next((v["vote_type"] for v in votes if v["user_id"] == user_id), None)
+                        if uv_c == "upvote":
+                            user_vote_c = "upvote"
+                        elif uv_c == "downvote":
+                            user_vote_c = "downvote"
 
                     comment_obj = {
                         "comment_id": c["comment_id"],
@@ -343,11 +375,11 @@ def home_page(request):
                         "text": c["text"],
                         "created_at": time_since(c["created_at"]),
                         "edited": c.get("edited", False),
-                        "upvote_count": upvotes,
-                        "downvote_count": downvotes,
-                        "net_votes": net_votes,
-                        "user_vote": user_vote,
-                        "replies": build_comment_tree(comments, c["comment_id"], user_id)
+                        "upvote_count": upvotes_c,
+                        "downvote_count": downvotes_c,
+                        "net_votes": net_votes_c,
+                        "user_vote": user_vote_c,
+                        "replies": build_comment_tree(comments, c["comment_id"])
                     }
                     tree.append(comment_obj)
             return tree
@@ -365,9 +397,11 @@ def home_page(request):
             "is_image": is_image,
             "is_video": is_video,
             "comments": nested_comments,
-            "upvote_count": post.get("upvote_count", 0),
-            "downvote_count": post.get("downvote_count", 0),
-            "vote_count": post.get("upvote_count", 0) - post.get("downvote_count", 0)
+            "upvote_count": upvotes,
+            "downvote_count": downvotes,
+            "vote_count": net_votes,
+            "user_vote": user_vote,
+            "comment_count": len(all_comments)
         })
 
     return render(request, "home.html", {
@@ -375,6 +409,7 @@ def home_page(request):
         "role": request.session.get("role", "student"),
         "posts": formatted_posts,
     })
+
 
 
 
