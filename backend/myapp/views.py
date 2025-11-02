@@ -1,21 +1,44 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from supabase import create_client
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
-from datetime import datetime, timezone 
-from django.shortcuts import redirect
-from django.views.decorators.csrf import csrf_exempt
+from datetime import datetime, timezone, timedelta
+from supabase import create_client
+import time
+import secrets
 
+# --------------------------
 # Initialize Supabase client
+# --------------------------
 supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
+# --------------------------
+# Utility: Safe Supabase execute with retries
+# --------------------------
+def safe_execute(request_fn, retries=3, delay=0.1):
+    """
+    request_fn: lambda that calls supabase execute()
+    retries: number of retries on failure
+    delay: seconds to wait between retries
+    """
+    for attempt in range(retries):
+        try:
+            return request_fn()
+        except Exception as e:
+            if "non-blocking socket" in str(e) or "RemoteProtocolError" in str(e):
+                time.sleep(delay)
+                continue
+            raise
+    # final attempt
+    return request_fn()
 
-
-
+# --------------------------
+# Redirect root to login
+# --------------------------
 def root_redirect(request):
     return redirect("/login/")
-
 
 # --------------------------
 # Registration View
@@ -26,24 +49,15 @@ def register_page(request):
         password = request.POST.get("password", "").strip()
         confirm_password = request.POST.get("confirmPassword", "").strip()
         username = request.POST.get("username", "").strip()
-        role = request.POST.get("role", "").strip().lower()  # normalize to lowercase
-
-        profile_picture = None
-        bio = None
-        last_login = None
+        role = request.POST.get("role", "").strip().lower()
 
         # ---------- Validation ----------
         if not email or not password or not confirm_password or not role:
             return render(request, "register.html", {"error": "All fields are required."})
-
         if password != confirm_password:
             return render(request, "register.html", {"error": "Passwords do not match."})
-
         if role not in ["student", "teacher"]:
             return render(request, "register.html", {"error": "Invalid role selected."})
-
-        # ---------- Password Hash ----------
-        password_hash = make_password(password)
 
         # ---------- Check if email exists ----------
         try:
@@ -54,6 +68,7 @@ def register_page(request):
             return render(request, "register.html", {"error": f"Database error: {str(e)}"})
 
         # ---------- Insert User ----------
+        password_hash = make_password(password)
         date_joined = datetime.now(timezone.utc).isoformat()
         try:
             response = supabase.table("users").insert({
@@ -61,23 +76,20 @@ def register_page(request):
                 "password_hash": password_hash,
                 "role": role,
                 "username": username if username else None,
-                "profile_picture": profile_picture,
-                "bio": bio,
-                "last_login": last_login,
+                "profile_picture": None,
+                "bio": None,
+                "last_login": None,
                 "date_joined": date_joined
             }).execute()
-
             if getattr(response, "error", None):
                 return render(request, "register.html", {"error": f"Error registering: {response.error}"})
         except Exception as e:
             return render(request, "register.html", {"error": f"Error registering: {str(e)}"})
 
-        # ✅ Success → redirect to login page
         return redirect("/login/")
 
     # GET request
     return render(request, "register.html")
-
 
 # --------------------------
 # Login View
@@ -99,7 +111,6 @@ def login_page(request):
             return render(request, "login.html", {"error": "No account found. Please register."})
 
         user = response.data[0]
-
         if not check_password(password, user["password_hash"]):
             return render(request, "login.html", {"error": "Invalid credentials!"})
 
@@ -123,28 +134,31 @@ def login_page(request):
 # Password Recovery View
 # --------------------------
 def recover_password_page(request):
-    import secrets
-    from datetime import datetime, timedelta, timezone
     email = ""
     if request.method == "POST":
         email = request.POST.get("email", "").strip()
         if not email:
             return render(request, "recover_password.html", {"error": "Email is required.", "email": email})
+
         # Check if user exists
         try:
             response = supabase.table("users").select("*").eq("email", email).execute()
         except Exception as e:
             return render(request, "recover_password.html", {"error": f"Error connecting to database: {str(e)}", "email": email})
+
         if not response.data:
             return render(request, "recover_password.html", {"error": "No account found with that email.", "email": email})
+
         user = response.data[0]
         user_id = user.get("id")
         if not user_id:
             return render(request, "recover_password.html", {"error": "User ID not found.", "email": email})
+
         # Generate secure token and expiration
         reset_token = secrets.token_urlsafe(32)
         expiration_time = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
         created_at = datetime.now(timezone.utc).isoformat()
+
         # Store in password_recovery
         try:
             supabase.table("password_recovery").insert({
@@ -155,50 +169,67 @@ def recover_password_page(request):
             }).execute()
         except Exception as e:
             return render(request, "recover_password.html", {"error": f"Error saving reset token: {str(e)}", "email": email})
+
         # For testing, show the reset link directly
         reset_link = f"/reset-password/{reset_token}/"
-        return render(request, "recover_password.html", {"error": None, "message": "If this email exists, a recovery link has been generated.", "email": email, "reset_link": reset_link})
+        return render(request, "recover_password.html", {
+            "error": None,
+            "message": "If this email exists, a recovery link has been generated.",
+            "email": email,
+            "reset_link": reset_link
+        })
+
     return render(request, "recover_password.html", {"email": email})
+
+
 
 # --------------------------
 # Password Reset View
 # --------------------------
-from django.contrib.auth.hashers import make_password
-
 def reset_password_page(request, reset_token):
-    from datetime import datetime, timezone
-    # Look up the token in password_recovery
+    # Lookup token in password_recovery
     try:
-        token_resp = supabase.table("password_recovery").select("*", count="exact").eq("reset_token", reset_token).execute()
+        token_resp = supabase.table("password_recovery") \
+            .select("*", count="exact") \
+            .eq("reset_token", reset_token) \
+            .execute()
     except Exception as e:
         return render(request, "reset_password.html", {"error": f"Error looking up token: {str(e)}"})
+
     if not token_resp.data:
         return render(request, "reset_password.html", {"error": "Invalid or expired reset token."})
+
     token_row = token_resp.data[0]
+
     # Check expiration
     expiration_time = token_row.get("expiration_time")
     if not expiration_time:
         return render(request, "reset_password.html", {"error": "Token missing expiration."})
+
     try:
         expires = datetime.fromisoformat(expiration_time.replace('Z', '+00:00'))
     except Exception:
         expires = None
+
     if not expires or expires < datetime.now(timezone.utc):
         return render(request, "reset_password.html", {"error": "Reset token has expired."})
-    # If POST, handle password reset (step 3 will complete this)
+
+    # Handle POST request for resetting password
     if request.method == "POST":
         new_password = request.POST.get("new_password", "").strip()
         confirm_password = request.POST.get("confirm_password", "").strip()
+
         if not new_password or not confirm_password:
             return render(request, "reset_password.html", {"error": "All fields are required.", "reset_token": reset_token})
-        if new_password.strip() == "" or confirm_password.strip() == "":
-            return render(request, "reset_password.html", {"error": "Password cannot be blank.", "reset_token": reset_token})
+
         if new_password != confirm_password:
             return render(request, "reset_password.html", {"error": "Passwords do not match.", "reset_token": reset_token})
+
         user_id = token_row.get("user_id") or token_row.get("id")
         if not user_id:
             return render(request, "reset_password.html", {"error": "User not found for this token.", "reset_token": reset_token})
-        # Fetch current user password hash
+
+        # Fetch current password hash
         try:
             user_resp = supabase.table("users").select("password_hash").eq("id", user_id).execute()
             if not user_resp.data:
@@ -206,32 +237,34 @@ def reset_password_page(request, reset_token):
             current_hash = user_resp.data[0]["password_hash"]
         except Exception as e:
             return render(request, "reset_password.html", {"error": f"Error fetching user: {str(e)}", "reset_token": reset_token})
+
         # Prevent using the same password
         if check_password(new_password, current_hash):
             return render(request, "reset_password.html", {"error": "You cannot use your old password.", "reset_token": reset_token})
-        password_hash = make_password(new_password)
+
         # Update user's password
+        password_hash = make_password(new_password)
         try:
             update_resp = supabase.table("users").update({"password_hash": password_hash}).eq("id", user_id).execute()
             if getattr(update_resp, 'error', None):
                 return render(request, "reset_password.html", {"error": f"Failed to reset password: {update_resp.error}", "reset_token": reset_token})
         except Exception as e:
             return render(request, "reset_password.html", {"error": f"Error updating password: {str(e)}", "reset_token": reset_token})
+
         # Delete the used token
         try:
             supabase.table("password_recovery").delete().eq("reset_token", reset_token).execute()
         except Exception as e:
             return render(request, "reset_password.html", {"error": f"Password changed, but failed to clean up token: {str(e)}", "reset_token": reset_token})
-        return render(request, "reset_password.html", {"message": "Password reset successful! You can now log in."})
-    return render(request, "reset_password.html", {"reset_token": reset_token})
 
+        return render(request, "reset_password.html", {"message": "Password reset successful! You can now log in."})
+
+    return render(request, "reset_password.html", {"reset_token": reset_token})
 
 
 # --------------------------
 # Home View (Protected)
 # --------------------------
-# This view requires the user to be logged in.
-# If the user is not logged in, they will be redirected to the login page.
 def home_page(request):
     if "user_email" not in request.session:
         return redirect("/login/")
@@ -244,7 +277,7 @@ def home_page(request):
     if request.method == "POST":
         post_id = request.POST.get("post_id")
         comment_text = request.POST.get("comment")
-        parent_id = request.POST.get("parent_id")  # <--- use existing column
+        parent_id = request.POST.get("parent_id")
 
         # Get user_id
         user_resp = supabase.table("users").select("id").eq("email", user_email).single().execute()
@@ -254,7 +287,7 @@ def home_page(request):
             supabase.table("comments").insert({
                 "post_id": post_id,
                 "user_id": user_id,
-                "parent_id": parent_id,  # <--- use parent_id
+                "parent_id": parent_id,
                 "text": comment_text,
                 "created_at": datetime.now(timezone.utc).isoformat()
             }).execute()
@@ -276,50 +309,48 @@ def home_page(request):
         description = post.get("description", "")
         post_id = post.get("post_id")
 
-        # Determine media type
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
         # -----------------------------
         # Fetch all comments for this post
         # -----------------------------
-        comment_resp = (
-            supabase.table("comments")
-            .select("*")
-            .eq("post_id", post_id)
-            .order("created_at", desc=False)
-            .execute()
-        )
-
+        comment_resp = supabase.table("comments").select("*").eq("post_id", post_id).order("created_at", desc=False).execute()
         all_comments = comment_resp.data if comment_resp.data else []
 
         # -----------------------------
         # Build nested comment tree
         # -----------------------------
-        def build_comment_tree(comments, parent_id_val=None):
+        def build_comment_tree(comments, parent_id_val=None, user_id=None):
             tree = []
             for c in comments:
                 if c.get("parent_id") == parent_id_val:
-                    # Get author's email
                     user_resp = supabase.table("users").select("email").eq("id", c["user_id"]).maybe_single().execute()
-                    author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else None
-                    if not author_email:
-                        author_email = "anonymous@example.com"  # fallback
+                    author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else "anonymous@example.com"
 
-                    author_email = user_resp.data["email"] if user_resp.data else None
+                    votes_resp = supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute()
+                    votes = votes_resp.data or []
+
+                    upvotes = len([v for v in votes if v["vote_type"] == "upvote"])
+                    downvotes = len([v for v in votes if v["vote_type"] == "downvote"])
+                    net_votes = upvotes - downvotes
+
+                    user_vote = next((v["vote_type"] for v in votes if v["user_id"] == user_id), None)
+
                     comment_obj = {
                         "comment_id": c["comment_id"],
                         "author": author_email,
                         "text": c["text"],
                         "created_at": time_since(c["created_at"]),
-                        "edited": c.get("edited", False),  # ✅ include this!
-                        "replies": build_comment_tree(comments, c["comment_id"])
+                        "edited": c.get("edited", False),
+                        "upvote_count": upvotes,
+                        "downvote_count": downvotes,
+                        "net_votes": net_votes,
+                        "user_vote": user_vote,
+                        "replies": build_comment_tree(comments, c["comment_id"], user_id)
                     }
-
-
                     tree.append(comment_obj)
             return tree
-
 
         nested_comments = build_comment_tree(all_comments)
 
@@ -340,70 +371,187 @@ def home_page(request):
         })
 
     return render(request, "home.html", {
-        "user_email": user_email,  # important!
+        "user_email": user_email,
         "role": request.session.get("role", "student"),
         "posts": formatted_posts,
     })
 
 
 
-
-from django.http import HttpResponseForbidden
-from .models import Comment
-
-# views.py
+# --------------------------
+# Comment Editing & Deletion
+# --------------------------
 def edit_comment(request, comment_id):
-    if request.method == "POST":
-        # fetch the comment from Supabase
-        resp = supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute()
-        comment = resp.data
+    if request.method != "POST":
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
-        if not comment:
-            return HttpResponseForbidden("Comment not found.")
+    # Fetch comment
+    resp = supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute()
+    comment = resp.data
+    if not comment:
+        return HttpResponseForbidden("Comment not found.")
 
-        # check if current user is the author
-        user_email = request.session.get("user_email")
-        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
-        user_id = user_resp.data["id"] if user_resp.data else None
+    # Get current user
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    user_id = user_resp.data["id"] if user_resp.data else None
 
-        if comment["user_id"] != user_id:
-            return HttpResponseForbidden("You can't edit this comment.")
+    if comment["user_id"] != user_id:
+        return HttpResponseForbidden("You can't edit this comment.")
 
-        # update the comment
-        supabase.table("comments").update({
-            "text": request.POST.get("comment"),
-            "edited": True
-        }).eq("comment_id", comment_id).execute()
+    # Update comment
+    supabase.table("comments").update({
+        "text": request.POST.get("comment"),
+        "edited": True
+    }).eq("comment_id", comment_id).execute()
 
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 def delete_comment(request, comment_id):
-    if request.method == "POST":
-        # fetch the comment from Supabase
-        resp = supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute()
-        comment = resp.data
+    if request.method != "POST":
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
-        if not comment:
-            return HttpResponseForbidden("Comment not found.")
+    # Fetch comment
+    resp = supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute()
+    comment = resp.data
+    if not comment:
+        return HttpResponseForbidden("Comment not found.")
 
-        # check if current user is the author
-        user_email = request.session.get("user_email")
-        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
-        user_id = user_resp.data["id"] if user_resp.data else None
+    # Get current user
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    user_id = user_resp.data["id"] if user_resp.data else None
 
-        if comment["user_id"] != user_id:
-            return HttpResponseForbidden("You can't delete this comment.")
+    if comment["user_id"] != user_id:
+        return HttpResponseForbidden("You can't delete this comment.")
 
-        # delete the comment
-        supabase.table("comments").delete().eq("comment_id", comment_id).execute()
-
+    # Delete comment
+    supabase.table("comments").delete().eq("comment_id", comment_id).execute()
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
+# --------------------------
+# Comment Voting
+# --------------------------
+@csrf_exempt
+def vote_comment(request, comment_id, vote_type):
+    if "user_email" not in request.session:
+        return JsonResponse({"error": "Login required"}, status=403)
+
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    if not user_resp.data:
+        return JsonResponse({"error": "User not found"}, status=404)
+    user_id = user_resp.data["id"]
+
+    # Check existing vote
+    existing_vote_resp = supabase.table("comment_votes")\
+        .select("*").eq("comment_id", comment_id).eq("user_id", user_id).maybe_single().execute()
+    existing_vote = existing_vote_resp.data if existing_vote_resp and existing_vote_resp.data else None
+
+    if existing_vote:
+        if existing_vote["vote_type"] == vote_type:
+            supabase.table("comment_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute()
+            user_vote = None
+        else:
+            supabase.table("comment_votes").update({"vote_type": vote_type}).eq("vote_id", existing_vote["vote_id"]).execute()
+            user_vote = vote_type
+    else:
+        supabase.table("comment_votes").insert({
+            "user_id": user_id,
+            "comment_id": comment_id,
+            "vote_type": vote_type
+        }).execute()
+        user_vote = vote_type
+
+    # Compute net votes
+    votes_resp = supabase.table("comment_votes").select("*").eq("comment_id", comment_id).execute()
+    votes = votes_resp.data or []
+    net_votes = sum(1 if v["vote_type"] == "upvote" else -1 for v in votes)
+
+    return JsonResponse({"net_votes": net_votes, "user_vote": user_vote})
+
 
 # --------------------------
-# Utility: Convert ISO timestamp to human-readable time
+# Post Voting
+# --------------------------
+FRONTEND_TO_DB = {"upvote": "up", "downvote": "down"}
+
+@csrf_exempt
+def vote_post(request, post_id, vote_type):
+    if "user_email" not in request.session:
+        return JsonResponse({"error": "Login required"}, status=403)
+
+    user_email = request.session.get("user_email")
+    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    if not user_resp.data:
+        return JsonResponse({"error": "User not found"}, status=404)
+    user_id = user_resp.data["id"]
+
+    if vote_type not in FRONTEND_TO_DB:
+        return JsonResponse({"error": "Invalid vote type"}, status=400)
+    db_vote_value = FRONTEND_TO_DB[vote_type]
+
+    # Check post existence
+    post_resp = supabase.table("posts").select("post_id").eq("post_id", post_id).maybe_single().execute()
+    if not post_resp.data:
+        return JsonResponse({"error": "Post not found"}, status=404)
+
+    # Check existing vote
+    existing_vote_resp = supabase.table("post_votes")\
+        .select("*").eq("post_id", post_id).eq("user_id", user_id).maybe_single().execute()
+    existing_vote = existing_vote_resp.data if existing_vote_resp and existing_vote_resp.data else None
+
+    if existing_vote:
+        if existing_vote.get("vote_type") == db_vote_value:
+            supabase.table("post_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute()
+            user_vote = None
+        else:
+            supabase.table("post_votes").update({"vote_type": db_vote_value}).eq("vote_id", existing_vote["vote_id"]).execute()
+            user_vote = vote_type
+    else:
+        try:
+            supabase.table("post_votes").insert({
+                "user_id": user_id,
+                "post_id": post_id,
+                "vote_type": db_vote_value
+            }).execute()
+            user_vote = vote_type
+        except Exception as e:
+            if "duplicate key value" in str(e):
+                existing_vote_resp = supabase.table("post_votes")\
+                    .select("*").eq("post_id", post_id).eq("user_id", user_id).maybe_single().execute()
+                existing_vote = existing_vote_resp.data
+                if existing_vote:
+                    supabase.table("post_votes").update({"vote_type": db_vote_value}).eq("vote_id", existing_vote["vote_id"]).execute()
+                    user_vote = vote_type
+            else:
+                raise e
+
+        # Compute net votes using count (safe for many votes)
+        up_resp = supabase.table("post_votes")\
+            .select("vote_type", count="exact")\
+            .eq("post_id", post_id)\
+            .eq("vote_type", "up")\
+            .execute()
+        up_count = up_resp.count or 0
+
+        down_resp = supabase.table("post_votes")\
+            .select("vote_type", count="exact")\
+            .eq("post_id", post_id)\
+            .eq("vote_type", "down")\
+            .execute()
+        down_count = down_resp.count or 0
+
+        net_votes = up_count - down_count
+
+
+    return JsonResponse({"net_votes": net_votes, "user_vote": user_vote})
+
+
+# --------------------------
+# Utility: Human-readable time
 # --------------------------
 def time_since(created_at_str):
     """Converts ISO timestamp to human-readable relative time."""
@@ -435,94 +583,107 @@ def time_since(created_at_str):
         return f"{int(seconds // 29030400)}y ago"
 
 
-# --------------------------
-# Vote Post View
-# --------------------------
+
+
+FRONTEND_TO_DB = {
+    "upvote": "up",
+    "downvote": "down"
+}
+
 @csrf_exempt
 def vote_post(request, post_id, vote_type):
     if "user_email" not in request.session:
-        return redirect("/login/")
+        return JsonResponse({"error": "Login required"}, status=403)
 
     user_email = request.session.get("user_email")
 
-    # Get user and post
+    # Get user ID
     user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
-    if not user_resp or not user_resp.data:
-        return redirect("/login/")
-
+    if not user_resp.data:
+        return JsonResponse({"error": "User not found"}, status=404)
     user_id = user_resp.data["id"]
 
-    post_resp = supabase.table("posts").select("*").eq("post_id", post_id).maybe_single().execute()
-    if not post_resp or not post_resp.data:
+    # Validate vote type
+    if vote_type not in FRONTEND_TO_DB:
+        return JsonResponse({"error": "Invalid vote type"}, status=400)
+    db_vote_value = FRONTEND_TO_DB[vote_type]
+
+    # Check if post exists
+    post_resp = supabase.table("posts").select("post_id").eq("post_id", post_id).maybe_single().execute()
+    if not post_resp.data:
         return JsonResponse({"error": "Post not found"}, status=404)
 
-    post = post_resp.data
-
-    # Check if user already voted on this post
-    existing_vote = (
-        supabase.table("votes")
-        .select("*")
-        .eq("post_id", post_id)
-        .eq("user_id", user_id)
-        .maybe_single()
+    # Check for existing vote
+    existing_vote_resp = supabase.table("post_votes")\
+        .select("*")\
+        .eq("post_id", post_id)\
+        .eq("user_id", user_id)\
+        .maybe_single()\
         .execute()
-    )
+    existing_vote = existing_vote_resp.data if existing_vote_resp and existing_vote_resp.data else None
 
-    # CASE 1: User already voted the same way → remove the vote
-    if existing_vote.data and existing_vote.data["vote_type"] == vote_type:
-        supabase.table("votes").delete().eq("id", existing_vote.data["id"]).execute()
-        return JsonResponse({"message": "Vote removed"})
+    user_vote = None
 
-    # CASE 2: User voted opposite before → update it
-    elif existing_vote.data:
-        supabase.table("votes").update({"vote_type": vote_type}).eq("id", existing_vote.data["id"]).execute()
-
-    # CASE 3: User hasn't voted yet → add new
+    if existing_vote:
+        if existing_vote.get("vote_type") == db_vote_value:
+            # Same vote again → remove vote
+            supabase.table("post_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute()
+        else:
+            # Change vote type
+            supabase.table("post_votes").update({"vote_type": db_vote_value}).eq("vote_id", existing_vote["vote_id"]).execute()
+            user_vote = vote_type
     else:
-        supabase.table("votes").insert({
-            "user_id": user_id,
-            "post_id": post_id,
-            "vote_type": vote_type
-        }).execute()
+        # Insert new vote safely
+        try:
+            supabase.table("post_votes").insert({
+                "user_id": user_id,
+                "post_id": post_id,
+                "vote_type": db_vote_value
+            }).execute()
+            user_vote = vote_type
+        except Exception as e:
+            if "duplicate key value" in str(e):
+                # Handle race condition / duplicate insert
+                existing_vote_resp = supabase.table("post_votes")\
+                    .select("*")\
+                    .eq("post_id", post_id)\
+                    .eq("user_id", user_id)\
+                    .maybe_single()\
+                    .execute()
+                existing_vote = existing_vote_resp.data
+                if existing_vote:
+                    supabase.table("post_votes")\
+                        .update({"vote_type": db_vote_value})\
+                        .eq("vote_id", existing_vote["vote_id"])\
+                        .execute()
+                    user_vote = vote_type
+            else:
+                raise e
 
-    return JsonResponse({"message": "Vote updated"})
+    # Compute net votes
+    votes_resp = supabase.table("post_votes").select("vote_type").eq("post_id", post_id).execute()
+    votes = votes_resp.data or []
+    net_votes = sum(1 if v.get("vote_type") == "up" else -1 for v in votes)
 
+    return JsonResponse({
+        "net_votes": net_votes,
+        "user_vote": user_vote
+    })
 
-
-
-
+from django.shortcuts import render, redirect
+from django.conf import settings
 
 # --------------------------
-# Create Post (Text) - Protected
+# Create Post - Text
 # --------------------------
-# This view requires the user to be logged in.
-# If the user is not logged in, they will be redirected to the login page.
 def create_post_text(request):
     if "user_email" not in request.session:
         return redirect("/login/")
-    return render(request, "create-post-text.html")
 
-
-# --------------------------
-# Create Post (Text) - Unprotected
-# --------------------------
-# This view allows direct access to the page without requiring the user to log in.
-# If you want to make this page protected again, re-add the session check:
-#     if "user_email" not in request.session:
-#         return redirect("/login/")
-def create_post_text(request):
-    # Require login
-    if "user_email" not in request.session:
-        return redirect("/login/")
-
-    # Get user info
     user_email = request.session.get("user_email")
     user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
-
     if not user_resp.data:
-        return render(request, "create-post-text.html", {
-            "error": "User not found."
-        })
+        return render(request, "create-post-text.html", {"error": "User not found."})
 
     user_id = user_resp.data[0]["id"]
 
@@ -532,55 +693,35 @@ def create_post_text(request):
         post_type = request.POST.get("post_type", "").strip()
         url = request.POST.get("url", "").strip()
 
-        # Validate
         if not title or not description or not post_type or not url:
-            return render(request, "create-post-text.html", {
-                "error": "All fields are required."
-            })
+            return render(request, "create-post-text.html", {"error": "All fields are required."})
 
         try:
-            # ✅ Insert properly using new schema
             supabase.table("posts").insert({
                 "title": title,
                 "description": description,
-                "content": url,   # Store link inside content
+                "content": url,  # Store link in content
                 "post_type": post_type,
                 "user_id": user_id
             }).execute()
-
-            return render(request, "create-post-text.html", {
-                "success": "Post created successfully!"
-            })
-
+            return render(request, "create-post-text.html", {"success": "Post created successfully!"})
         except Exception as e:
-            return render(request, "create-post-text.html", {
-                "error": f"Error creating post: {str(e)}"
-            })
+            return render(request, "create-post-text.html", {"error": f"Error creating post: {str(e)}"})
 
     return render(request, "create-post-text.html")
 
 
-
 # --------------------------
-# Create Post (Image/Video) - Unprotected
+# Create Post - Image/Video
 # --------------------------
-# This view allows direct access to the page without requiring the user to log in.
-# To make it protected again, re-add the session check:
-#     if "user_email" not in request.session:
-#         return redirect("/login/")
 def create_post_image(request):
-    # Require login
     if "user_email" not in request.session:
         return redirect("/login/")
 
-    # Get user info
     user_email = request.session.get("user_email")
     user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
-
     if not user_resp.data:
-        return render(request, "create-post-image-video.html", {
-            "error": "User not found."
-        })
+        return render(request, "create-post-image-video.html", {"error": "User not found."})
 
     user_id = user_resp.data[0]["id"]
 
@@ -590,28 +731,19 @@ def create_post_image(request):
         post_type = request.POST.get("post_type", "").strip()
         file = request.FILES.get("fileUpload")
 
-        # Validate required fields
         if not title or not description or not post_type or not file:
-            return render(request, "create-post-image-video.html", {
-                "error": "All fields are required."
-            })
+            return render(request, "create-post-image-video.html", {"error": "All fields are required."})
 
         try:
-            # Upload file to Supabase Storage
+            # Upload file
             file_path = f"{user_email}/{file.name}"
-            file_bytes = file.read()  # Convert InMemoryUploadedFile to bytes
+            file_bytes = file.read()
             supabase.storage.from_(settings.SUPABASE_BUCKET).upload(file_path, file_bytes)
-
-            # Get public URL
             file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).rstrip("?")
-
         except Exception as e:
-            return render(request, "create-post-image-video.html", {
-                "error": f"File upload failed: {str(e)}"
-            })
+            return render(request, "create-post-image-video.html", {"error": f"File upload failed: {str(e)}"})
 
         try:
-            # ✅ Insert post record with separate title, description, and content fields
             supabase.table("posts").insert({
                 "title": title,
                 "description": description,
@@ -619,20 +751,16 @@ def create_post_image(request):
                 "post_type": post_type,
                 "user_id": user_id
             }).execute()
-
-            return render(request, "create-post-image-video.html", {
-                "success": "Post created successfully!"
-            })
-
+            return render(request, "create-post-image-video.html", {"success": "Post created successfully!"})
         except Exception as e:
-            return render(request, "create-post-image-video.html", {
-                "error": f"Error creating post: {str(e)}"
-            })
+            return render(request, "create-post-image-video.html", {"error": f"Error creating post: {str(e)}"})
 
-    # GET request
     return render(request, "create-post-image-video.html")
 
 
+# --------------------------
+# Create Post - Link
+# --------------------------
 def create_post_link(request):
     if "user_email" not in request.session:
         return redirect("/login/")
@@ -657,7 +785,7 @@ def create_post_link(request):
             supabase.table("posts").insert({
                 "title": title,
                 "description": description,
-                "content": url,  # store the link
+                "content": url,
                 "post_type": post_type,
                 "user_id": user_id
             }).execute()
@@ -668,11 +796,8 @@ def create_post_link(request):
     return render(request, "create-post-link.html")
 
 
-
-
-
 # --------------------------
-# Logout View
+# Logout
 # --------------------------
 def logout_page(request):
     request.session.flush()

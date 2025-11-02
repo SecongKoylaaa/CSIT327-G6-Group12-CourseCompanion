@@ -4,13 +4,11 @@
     {% if comment.reply_to %}
       <span class="reply-to">↪ replied to <strong>{{ comment.reply_to }}</strong></span>
     {% endif %}
-    
+
     <!-- Timestamp with [edited] if applicable -->
     <span class="comment-time">
       • {{ comment.created_at }}
-      {% if comment.edited %}
-        [edited]
-      {% endif %}
+      {% if comment.edited %}[edited]{% endif %}
     </span>
 
     <!-- Three-dot menu only for comment author -->
@@ -30,6 +28,18 @@
 
   <!-- Comment text -->
   <p class="comment-text" id="comment-text-{{ comment.comment_id }}">{{ comment.text }}</p>
+
+    <!-- Upvote/Downvote buttons with number -->
+    <div class="comment-votes" data-comment-id="{{ comment.comment_id }}">
+    <button class="comment-upvote {% if comment.user_vote == 'upvote' %}active{% endif %}" 
+            onclick="voteComment('{{ comment.comment_id }}', 'upvote', this)">⬆️</button>
+
+    <span class="comment-vote-count">{{ comment.net_votes|default:0 }}</span>
+
+    <button class="comment-downvote {% if comment.user_vote == 'downvote' %}active{% endif %}" 
+            onclick="voteComment('{{ comment.comment_id }}', 'downvote', this)">⬇️</button>
+    </div>
+
 
   <!-- Hidden edit form -->
   <form id="edit-form-{{ comment.comment_id }}" class="edit-form" method="POST" action="{% url 'edit_comment' comment.comment_id %}" style="display:none;">

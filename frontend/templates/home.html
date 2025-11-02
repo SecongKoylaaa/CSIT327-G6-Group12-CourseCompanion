@@ -52,14 +52,17 @@
           <a href="{{ post.url }}" target="_blank">{{ post.url }}</a>
         {% endif %}
 
-        <!-- ACTIONS -->
-        <div class="actions" data-post-id="{{ post.post_id }}">
+       <!-- ACTIONS -->
+        <div class="actions" data-post-id="{{ post.id }}">
           <button class="vote-btn upvote">⬆️</button>
-          <span class="vote-count">{{ post.vote_count }}</span>
+          <span class="vote-count" id="vote-count-{{ post.id }}">{{ post.vote_count }}</span>
           <button class="vote-btn downvote">⬇️</button>
           <span class="comment-toggle" onclick="toggleComments(this)">💬 {{ post.comment_count }}</span>
           <span>🔗 Share</span>
         </div>
+
+
+
 
         <!-- COMMENTS SECTION -->
         <div class="expanded-section">
@@ -98,7 +101,6 @@
     </ul>
   </aside>
 </div>
-
 <!-- ------------------- SCRIPTS ------------------- -->
 <script>
   // -------------------- COMMENTS TOGGLE --------------------
@@ -111,14 +113,14 @@
   document.addEventListener("click", function(e) {
     const dropdown = document.querySelector(".dropdown-content");
     const button = document.querySelector(".profile-btn");
-    if(button && button.contains(e.target)) {
+    if (button && button.contains(e.target)) {
       dropdown.classList.toggle("show");
-    } else if(dropdown) {
+    } else if (dropdown) {
       dropdown.classList.remove("show");
     }
   });
 
-  // -------------------- VOTING SYSTEM --------------------
+  // -------------------- POST VOTING SYSTEM --------------------
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".actions").forEach(actionDiv => {
       const postId = actionDiv.dataset.postId;
@@ -126,42 +128,78 @@
       const downBtn = actionDiv.querySelector(".downvote");
       const voteCount = actionDiv.querySelector(".vote-count");
 
-      upBtn.addEventListener("click", async () => {
-        await handleVote(postId, "upvote", voteCount, upBtn, downBtn);
+      if (!postId || !upBtn || !downBtn) return;
+
+      upBtn.addEventListener("click", () => {
+        votePost(postId, "upvote", voteCount, upBtn, downBtn);
       });
 
-      downBtn.addEventListener("click", async () => {
-        await handleVote(postId, "downvote", voteCount, upBtn, downBtn);
+      downBtn.addEventListener("click", () => {
+        votePost(postId, "downvote", voteCount, upBtn, downBtn);
       });
     });
   });
 
-  async function handleVote(postId, type, voteCountElem, upBtn, downBtn) {
+  async function votePost(postId, voteType, voteCountElem, upBtn, downBtn) {
+    console.log(`Voting post ${postId} as ${voteType}`);
     try {
-      const response = await fetch(`/vote/${postId}/${type}/`, {
+      const response = await fetch(`/vote_post/${postId}/${voteType}/`, {
         method: "POST",
-        headers: { "X-CSRFToken": getCookie("csrftoken") },
+        headers: {
+          "X-CSRFToken": getCookie("csrftoken"),
+          "Accept": "application/json"
+        },
+        credentials: "same-origin"
       });
+
       const data = await response.json();
 
-      if(response.ok) {
+      if (response.ok) {
+        // ✅ Update displayed count
         voteCountElem.textContent = data.net_votes;
+
+        // ✅ Highlight selected vote
         upBtn.classList.remove("active");
         downBtn.classList.remove("active");
-        if(data.user_vote === "upvote") upBtn.classList.add("active");
-        if(data.user_vote === "downvote") downBtn.classList.add("active");
+        if (data.user_vote === "upvote") upBtn.classList.add("active");
+        if (data.user_vote === "downvote") downBtn.classList.add("active");
       } else {
+        console.error("Vote error:", data);
         alert(data.error || "Something went wrong.");
       }
-    } catch(err) {
-      console.error("Vote error:", err);
+    } catch (err) {
+      console.error("Vote request failed:", err);
     }
   }
 
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if(parts.length === 2) return parts.pop().split(";").shift();
+  // -------------------- COMMENT VOTING SYSTEM --------------------
+  function voteComment(commentId, type, btn) {
+    const container = btn.closest(".comment-votes");
+    const voteCountElem = container.querySelector(".comment-vote-count");
+    const upBtn = container.querySelector(".comment-upvote");
+    const downBtn = container.querySelector(".comment-downvote");
+
+    fetch(`/vote_comment/${commentId}/${type}/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken"),
+        "Accept": "application/json"
+      },
+      credentials: "same-origin"
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          console.error(data.error);
+          return;
+        }
+        voteCountElem.textContent = data.net_votes;
+        upBtn.classList.remove("active");
+        downBtn.classList.remove("active");
+        if (data.user_vote === "upvote") upBtn.classList.add("active");
+        if (data.user_vote === "downvote") downBtn.classList.add("active");
+      })
+      .catch(err => console.error("Comment vote error:", err));
   }
 
   // -------------------- REPLY FORM TOGGLE --------------------
@@ -171,15 +209,15 @@
     if (!form) return;
 
     if (openReplyForm && openReplyForm !== form) {
-      openReplyForm.style.display = 'none';
+      openReplyForm.style.display = "none";
     }
 
-    if (form.style.display === 'none' || form.style.display === '') {
-      form.style.display = 'flex';
+    if (form.style.display === "none" || form.style.display === "") {
+      form.style.display = "flex";
       form.querySelector('input[type="text"]').focus();
       openReplyForm = form;
     } else {
-      form.style.display = 'none';
+      form.style.display = "none";
       openReplyForm = null;
     }
   }
@@ -191,25 +229,25 @@
     if (!menu) return;
 
     if (openCommentMenu && openCommentMenu !== menu) {
-      openCommentMenu.style.display = 'none';
+      openCommentMenu.style.display = "none";
     }
 
-    if (menu.style.display === 'none' || menu.style.display === '') {
-      menu.style.display = 'block';
+    if (menu.style.display === "none" || menu.style.display === "") {
+      menu.style.display = "block";
       openCommentMenu = menu;
     } else {
-      menu.style.display = 'none';
+      menu.style.display = "none";
       openCommentMenu = null;
     }
   }
 
   // Close comment menu if clicked outside
-  document.addEventListener('click', function(e) {
-    if (!e.target.classList.contains('comment-menu-btn')) {
-      const openMenus = document.querySelectorAll('.comment-menu');
+  document.addEventListener("click", function(e) {
+    if (!e.target.classList.contains("comment-menu-btn")) {
+      const openMenus = document.querySelectorAll(".comment-menu");
       openMenus.forEach(menu => {
-        if (menu.style.display === 'block') {
-          menu.style.display = 'none';
+        if (menu.style.display === "block") {
+          menu.style.display = "none";
           openCommentMenu = null;
         }
       });
@@ -222,21 +260,21 @@
     const button = document.querySelector(`.more-replies[data-comment-id="${commentId}"]`);
     if (!hidden || !button) return;
 
-    if (hidden.style.display === 'none' || hidden.style.display === '') {
-      hidden.style.display = 'block';
-      button.textContent = 'Hide comments';
+    if (hidden.style.display === "none" || hidden.style.display === "") {
+      hidden.style.display = "block";
+      button.textContent = "Hide comments";
     } else {
-      hidden.style.display = 'none';
-      button.textContent = 'Show more comments';
+      hidden.style.display = "none";
+      button.textContent = "Show more comments";
     }
   }
 
   function showAndFocusReplies(commentId) {
     toggleMoreComments(commentId);
     const hidden = document.getElementById(`hidden-replies-${commentId}`);
-    if(hidden) {
+    if (hidden) {
       const input = hidden.querySelector('input[type="text"]');
-      if(input) input.focus();
+      if (input) input.focus();
     }
   }
 
@@ -246,12 +284,12 @@
     const text = document.getElementById(`comment-text-${commentId}`);
     if (!form || !text) return;
 
-    if (form.style.display === 'none' || form.style.display === '') {
-      form.style.display = 'flex';
-      text.style.display = 'none';
+    if (form.style.display === "none" || form.style.display === "") {
+      form.style.display = "flex";
+      text.style.display = "none";
     } else {
-      form.style.display = 'none';
-      text.style.display = 'block';
+      form.style.display = "none";
+      text.style.display = "block";
     }
   }
 
@@ -259,12 +297,17 @@
     const form = document.getElementById(`edit-form-${commentId}`);
     const text = document.getElementById(`comment-text-${commentId}`);
     if (!form || !text) return;
-    form.style.display = 'none';
-    text.style.display = 'block';
+    form.style.display = "none";
+    text.style.display = "block";
   }
 
+  // -------------------- CSRF HELPER --------------------
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+  }
 </script>
-
 
 
 </body>
