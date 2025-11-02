@@ -1,0 +1,74 @@
+<div class="comment" id="comment-{{ comment.comment_id }}">
+  <div class="comment-header">
+    <strong>{{ comment.author }}</strong>
+    {% if comment.reply_to %}
+      <span class="reply-to">↪ replied to <strong>{{ comment.reply_to }}</strong></span>
+    {% endif %}
+    
+    <!-- Timestamp with [edited] if applicable -->
+    <span class="comment-time">
+      • {{ comment.created_at }}
+      {% if comment.edited %}
+        [edited]
+      {% endif %}
+    </span>
+
+    <!-- Three-dot menu only for comment author -->
+    {% if user_email == comment.author %}
+      <div class="comment-menu-wrapper">
+        <span class="comment-menu-btn" onclick="toggleCommentMenu('{{ comment.comment_id }}')">⋯</span>
+        <div class="comment-menu" id="comment-menu-{{ comment.comment_id }}">
+          <span class="edit-btn" onclick="toggleEditForm('{{ comment.comment_id }}')">Edit</span>
+          <form method="POST" action="{% url 'delete_comment' comment.comment_id %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="delete-btn">Delete</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Comment text -->
+  <p class="comment-text" id="comment-text-{{ comment.comment_id }}">{{ comment.text }}</p>
+
+  <!-- Hidden edit form -->
+  <form id="edit-form-{{ comment.comment_id }}" class="edit-form" method="POST" action="{% url 'edit_comment' comment.comment_id %}" style="display:none;">
+    {% csrf_token %}
+    <input type="text" name="comment" value="{{ comment.text }}" required>
+    <button type="submit">Save</button>
+    <button type="button" onclick="cancelEdit('{{ comment.comment_id }}')">Cancel</button>
+  </form>
+
+  <!-- Reply button -->
+  <button class="reply-btn" onclick="toggleReplyForm('{{ comment.comment_id }}')">Reply</button>
+
+  <!-- Hidden reply form -->
+  <form id="reply-form-{{ comment.comment_id }}" class="reply-form" method="POST" action="{% url 'home' %}" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="post_id" value="{{ post_id }}">
+    <input type="hidden" name="parent_id" value="{{ comment.comment_id }}">
+    <input type="text" name="comment" placeholder="Write a reply..." required>
+    <button type="submit">Reply</button>
+  </form>
+
+  <!-- Nested replies -->
+  {% if comment.replies %}
+    <div class="replies">
+      {% for reply in comment.replies|slice:":1" %}
+        {% include "comment_thread.html" with comment=reply post_id=post_id %}
+      {% endfor %}
+
+      {% if comment.replies|length > 1 %}
+        <div class="more-replies" data-comment-id="{{ comment.comment_id }}" onclick="toggleMoreComments('{{ comment.comment_id }}')">
+          Show more comments
+        </div>
+
+        <div class="hidden-replies" id="hidden-replies-{{ comment.comment_id }}" style="display:none;">
+          {% for reply in comment.replies|slice:"1:" %}
+            {% include "comment_thread.html" with comment=reply post_id=post_id %}
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>

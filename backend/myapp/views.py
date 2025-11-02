@@ -3,7 +3,9 @@ from django.http import HttpResponse
 from supabase import create_client
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
-from datetime import datetime, timezone  # <-- add this line
+from datetime import datetime, timezone 
+from django.shortcuts import redirect
+from django.views.decorators.csrf import csrf_exempt
 
 # Initialize Supabase client
 supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
@@ -234,13 +236,17 @@ def home_page(request):
     if "user_email" not in request.session:
         return redirect("/login/")
 
-    # ✅ Handle new comment submission
+    user_email = request.session.get("user_email")
+
+    # -----------------------------
+    # Handle new comment or reply
+    # -----------------------------
     if request.method == "POST":
         post_id = request.POST.get("post_id")
         comment_text = request.POST.get("comment")
-        user_email = request.session.get("user_email")
+        parent_id = request.POST.get("parent_id")  # <--- use existing column
 
-        # Get the user_id from Supabase (based on email)
+        # Get user_id
         user_resp = supabase.table("users").select("id").eq("email", user_email).single().execute()
         user_id = user_resp.data["id"] if user_resp.data else None
 
@@ -248,13 +254,16 @@ def home_page(request):
             supabase.table("comments").insert({
                 "post_id": post_id,
                 "user_id": user_id,
-                "text": comment_text,  # ✅ matches your schema
+                "parent_id": parent_id,  # <--- use parent_id
+                "text": comment_text,
                 "created_at": datetime.now(timezone.utc).isoformat()
             }).execute()
 
         return redirect("/home/")
 
-    # ✅ Fetch posts
+    # -----------------------------
+    # Fetch posts
+    # -----------------------------
     response = supabase.table("posts").select("*").order("created_at", desc=True).execute()
     posts = response.data if response.data else []
 
@@ -271,27 +280,48 @@ def home_page(request):
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
-        # ✅ Fetch comments for this post
+        # -----------------------------
+        # Fetch all comments for this post
+        # -----------------------------
         comment_resp = (
             supabase.table("comments")
-            .select("text, created_at, user_id")
+            .select("*")
             .eq("post_id", post_id)
-            .order("created_at", desc=True)
+            .order("created_at", desc=False)
             .execute()
         )
 
-        comments = []
-        if comment_resp.data:
-            for c in comment_resp.data:
-                # Get commenter's email
-                user_resp = supabase.table("users").select("email").eq("id", c["user_id"]).single().execute()
-                email = user_resp.data["email"] if user_resp.data else "Anonymous"
+        all_comments = comment_resp.data if comment_resp.data else []
 
-                comments.append({
-                    "author": email,
-                    "content": c["text"],  # ✅ use 'text' here
-                    "created_at": time_since(c["created_at"])
-                })
+        # -----------------------------
+        # Build nested comment tree
+        # -----------------------------
+        def build_comment_tree(comments, parent_id_val=None):
+            tree = []
+            for c in comments:
+                if c.get("parent_id") == parent_id_val:
+                    # Get author's email
+                    user_resp = supabase.table("users").select("email").eq("id", c["user_id"]).maybe_single().execute()
+                    author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else None
+                    if not author_email:
+                        author_email = "anonymous@example.com"  # fallback
+
+                    author_email = user_resp.data["email"] if user_resp.data else None
+                    comment_obj = {
+                        "comment_id": c["comment_id"],
+                        "author": author_email,
+                        "text": c["text"],
+                        "created_at": time_since(c["created_at"]),
+                        "edited": c.get("edited", False),  # ✅ include this!
+                        "replies": build_comment_tree(comments, c["comment_id"])
+                    }
+
+
+                    tree.append(comment_obj)
+            return tree
+
+
+        nested_comments = build_comment_tree(all_comments)
 
         formatted_posts.append({
             "id": post_id,
@@ -303,11 +333,14 @@ def home_page(request):
             "course": f"c/{course_name}",
             "is_image": is_image,
             "is_video": is_video,
-            "comments": comments  # ✅ attach comments to post
+            "comments": nested_comments,
+            "upvote_count": post.get("upvote_count", 0),
+            "downvote_count": post.get("downvote_count", 0),
+            "vote_count": post.get("upvote_count", 0) - post.get("downvote_count", 0)
         })
 
     return render(request, "home.html", {
-        "user_email": request.session.get("user_email"),
+        "user_email": user_email,  # important!
         "role": request.session.get("role", "student"),
         "posts": formatted_posts,
     })
@@ -315,7 +348,63 @@ def home_page(request):
 
 
 
-# Utility to convert ISO timestamp to human-readable relative time
+from django.http import HttpResponseForbidden
+from .models import Comment
+
+# views.py
+def edit_comment(request, comment_id):
+    if request.method == "POST":
+        # fetch the comment from Supabase
+        resp = supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute()
+        comment = resp.data
+
+        if not comment:
+            return HttpResponseForbidden("Comment not found.")
+
+        # check if current user is the author
+        user_email = request.session.get("user_email")
+        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+        user_id = user_resp.data["id"] if user_resp.data else None
+
+        if comment["user_id"] != user_id:
+            return HttpResponseForbidden("You can't edit this comment.")
+
+        # update the comment
+        supabase.table("comments").update({
+            "text": request.POST.get("comment"),
+            "edited": True
+        }).eq("comment_id", comment_id).execute()
+
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+def delete_comment(request, comment_id):
+    if request.method == "POST":
+        # fetch the comment from Supabase
+        resp = supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute()
+        comment = resp.data
+
+        if not comment:
+            return HttpResponseForbidden("Comment not found.")
+
+        # check if current user is the author
+        user_email = request.session.get("user_email")
+        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+        user_id = user_resp.data["id"] if user_resp.data else None
+
+        if comment["user_id"] != user_id:
+            return HttpResponseForbidden("You can't delete this comment.")
+
+        # delete the comment
+        supabase.table("comments").delete().eq("comment_id", comment_id).execute()
+
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+
+# --------------------------
+# Utility: Convert ISO timestamp to human-readable time
+# --------------------------
 def time_since(created_at_str):
     """Converts ISO timestamp to human-readable relative time."""
     if not created_at_str:
@@ -344,6 +433,63 @@ def time_since(created_at_str):
         return f"{int(seconds // 2419200)}mo ago"
     else:
         return f"{int(seconds // 29030400)}y ago"
+
+
+# --------------------------
+# Vote Post View
+# --------------------------
+@csrf_exempt
+def vote_post(request, post_id, vote_type):
+    if "user_email" not in request.session:
+        return redirect("/login/")
+
+    user_email = request.session.get("user_email")
+
+    # Get user and post
+    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    if not user_resp or not user_resp.data:
+        return redirect("/login/")
+
+    user_id = user_resp.data["id"]
+
+    post_resp = supabase.table("posts").select("*").eq("post_id", post_id).maybe_single().execute()
+    if not post_resp or not post_resp.data:
+        return JsonResponse({"error": "Post not found"}, status=404)
+
+    post = post_resp.data
+
+    # Check if user already voted on this post
+    existing_vote = (
+        supabase.table("votes")
+        .select("*")
+        .eq("post_id", post_id)
+        .eq("user_id", user_id)
+        .maybe_single()
+        .execute()
+    )
+
+    # CASE 1: User already voted the same way → remove the vote
+    if existing_vote.data and existing_vote.data["vote_type"] == vote_type:
+        supabase.table("votes").delete().eq("id", existing_vote.data["id"]).execute()
+        return JsonResponse({"message": "Vote removed"})
+
+    # CASE 2: User voted opposite before → update it
+    elif existing_vote.data:
+        supabase.table("votes").update({"vote_type": vote_type}).eq("id", existing_vote.data["id"]).execute()
+
+    # CASE 3: User hasn't voted yet → add new
+    else:
+        supabase.table("votes").insert({
+            "user_id": user_id,
+            "post_id": post_id,
+            "vote_type": vote_type
+        }).execute()
+
+    return JsonResponse({"message": "Vote updated"})
+
+
+
+
 
 
 # --------------------------
@@ -520,6 +666,7 @@ def create_post_link(request):
             return render(request, "create-post-link.html", {"error": f"Error creating post: {str(e)}"})
 
     return render(request, "create-post-link.html")
+
 
 
 
