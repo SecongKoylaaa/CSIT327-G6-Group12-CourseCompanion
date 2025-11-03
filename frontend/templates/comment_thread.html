@@ -1,17 +1,17 @@
-<div class="comment" id="comment-{{ comment.comment_id }}">
+<div class="comment" id="comment-{{ comment.comment_id }}"
+     data-created="{{ comment.created_at|date:'c' }}"
+     data-votes="{{ comment.net_votes|default:0 }}">
+  <!-- COMMENT HEADER -->
   <div class="comment-header">
     <strong>{{ comment.author }}</strong>
     {% if comment.reply_to %}
       <span class="reply-to">↪ replied to <strong>{{ comment.reply_to }}</strong></span>
     {% endif %}
-
-    <!-- Timestamp with [edited] if applicable -->
     <span class="comment-time">
-      • {{ comment.created_at }}
+      • <span class="comment-time-local" data-time="{{ comment.created_at|date:'c' }}"></span>
       {% if comment.edited %}[edited]{% endif %}
     </span>
 
-    <!-- Three-dot menu only for comment author -->
     {% if user_email == comment.author %}
       <div class="comment-menu-wrapper">
         <span class="comment-menu-btn" onclick="toggleCommentMenu('{{ comment.comment_id }}')">⋯</span>
@@ -26,22 +26,18 @@
     {% endif %}
   </div>
 
-  <!-- Comment text -->
+  <!-- COMMENT TEXT -->
   <p class="comment-text" id="comment-text-{{ comment.comment_id }}">{{ comment.text }}</p>
 
-    <!-- Upvote/Downvote buttons with number -->
-    <div class="comment-votes" data-comment-id="{{ comment.comment_id }}">
-    <button class="comment-upvote {% if comment.user_vote == 'upvote' %}active{% endif %}" 
-            onclick="voteComment('{{ comment.comment_id }}', 'upvote', this)">⬆️</button>
-
-    <span class="comment-vote-count">{{ comment.net_votes|default:0 }}</span>
-
-    <button class="comment-downvote {% if comment.user_vote == 'downvote' %}active{% endif %}" 
-            onclick="voteComment('{{ comment.comment_id }}', 'downvote', this)">⬇️</button>
-    </div>
+  <!-- UPVOTE / DOWNVOTE -->
+  <div class="comment-votes" data-vote-id="comment-{{ comment.comment_id }}">
+    <button class="comment-upvote">⬆️</button>
+    <button class="comment-downvote">⬇️</button>
+    <span class="comment-vote-count">{{ comment.net_votes }}</span>
+  </div>
 
 
-  <!-- Hidden edit form -->
+  <!-- EDIT FORM -->
   <form id="edit-form-{{ comment.comment_id }}" class="edit-form" method="POST" action="{% url 'edit_comment' comment.comment_id %}" style="display:none;">
     {% csrf_token %}
     <input type="text" name="comment" value="{{ comment.text }}" required>
@@ -49,10 +45,10 @@
     <button type="button" onclick="cancelEdit('{{ comment.comment_id }}')">Cancel</button>
   </form>
 
-  <!-- Reply button -->
+  <!-- REPLY BUTTON -->
   <button class="reply-btn" onclick="toggleReplyForm('{{ comment.comment_id }}')">Reply</button>
 
-  <!-- Hidden reply form -->
+  <!-- REPLY FORM -->
   <form id="reply-form-{{ comment.comment_id }}" class="reply-form" method="POST" action="{% url 'home' %}" style="display:none;">
     {% csrf_token %}
     <input type="hidden" name="post_id" value="{{ post_id }}">
@@ -60,25 +56,28 @@
     <input type="text" name="comment" placeholder="Write a reply..." required>
     <button type="submit">Reply</button>
   </form>
+  
+<!-- Nested replies -->
+{% if comment.replies %}
+  <div class="replies">
+    {% for reply in comment.replies|slice:":1" %}
+      {% include "comment_thread.html" with comment=reply post_id=post_id %}
+    {% endfor %}
 
-  <!-- Nested replies -->
-  {% if comment.replies %}
-    <div class="replies">
-      {% for reply in comment.replies|slice:":1" %}
-        {% include "comment_thread.html" with comment=reply post_id=post_id %}
-      {% endfor %}
+    {% if comment.replies|length > 1 %}
+      <!-- Show More Comments Button -->
+      <div class="more-replies" data-comment-id="{{ comment.comment_id }}" onclick="toggleMoreComments('{{ comment.comment_id }}')">
+        Show more comments
+      </div>
 
-      {% if comment.replies|length > 1 %}
-        <div class="more-replies" data-comment-id="{{ comment.comment_id }}" onclick="toggleMoreComments('{{ comment.comment_id }}')">
-          Show more comments
-        </div>
+      <!-- Hidden replies -->
+      <div class="hidden-replies" id="hidden-replies-{{ comment.comment_id }}" style="display:none;">
+        {% for reply in comment.replies|slice:"1:" %}
+          {% include "comment_thread.html" with comment=reply post_id=post_id %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
 
-        <div class="hidden-replies" id="hidden-replies-{{ comment.comment_id }}" style="display:none;">
-          {% for reply in comment.replies|slice:"1:" %}
-            {% include "comment_thread.html" with comment=reply post_id=post_id %}
-          {% endfor %}
-        </div>
-      {% endif %}
-    </div>
-  {% endif %}
 </div>

@@ -1,0 +1,122 @@
+/* ======================= POST CARD ======================= */
+.post {
+  display: flex;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #ddd;
+  margin-bottom: 30px;
+  padding: 15px;
+  gap: 15px;
+  transition: all 0.3s;
+}
+
+.post:hover {
+  box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+  transform: translateY(-3px);
+}
+
+/* Voting Sidebar */
+.vote-sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 50px;
+  flex-shrink: 0;
+  background: #fafafa;
+  border-radius: 12px;
+  padding: 10px 0;
+  border: 2px solid transparent;
+  transition: all 0.25s ease-in-out;
+}
+
+.vote-sidebar.active-up {
+  border-color: #ff4500;
+  transform: scale(1.05);
+  box-shadow: 0 0 8px rgba(255, 69, 0, 0.2);
+}
+
+.vote-sidebar.active-down {
+  border-color: #7193ff;
+  transform: scale(1.05);
+  box-shadow: 0 0 8px rgba(113, 147, 255, 0.2);
+}
+
+.vote-btn {
+  font-size: 22px;
+  cursor: pointer;
+  color: #888;
+  transition: all 0.2s ease-in-out;
+  user-select: none;
+}
+
+.vote-btn:hover {
+  transform: scale(1.25);
+}
+
+.vote-btn.up.active {
+  color: #ff4500;
+  transform: scale(1.35);
+}
+
+.vote-btn.down.active {
+  color: #7193ff;
+  transform: scale(1.35);
+}
+
+.vote-count {
+  font-weight: 700;
+  font-size: 16px;
+  color: #111;
+}
+
+.post-content {
+  flex: 1;
+}
+
+.post-content h3 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.post-description {
+  color: #444;
+  margin-bottom: 12px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.post-thumbnail {
+  width: 100%;
+  max-height: 450px;
+  border-radius: 12px;
+  object-fit: cover;
+  transition: all 0.2s;
+}
+
+.post-thumbnail:hover {
+  transform: scale(1.03);
+  filter: brightness(1.05);
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  font-size: 14px;
+  color: #555;
+}
+
+.comment-toggle,
+.share {
+  cursor: pointer;
+}
+
+.comment-toggle:hover,
+.share:hover {
+  color: #0079d3;
+  text-decoration: underline;
+}

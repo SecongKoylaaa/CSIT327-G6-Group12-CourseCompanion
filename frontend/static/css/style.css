@@ -206,14 +206,14 @@ body {
 }
 
 /* ======== COMMENTS ======== */
-.expanded-section {
+/* .expanded-section {
   display: none;
   margin-top: 10px;
 }
 
 .post.show-expanded .expanded-section {
   display: block;
-}
+} */
 
 .comments-area {
   background: #f9f9f9;
@@ -294,3 +294,51 @@ body {
 .sidebar li:last-child {
   border-bottom: none;
 }
+
+/* ======== COMMENT VOTE STYLING ======== */
+.comment-votes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.comment-votes button {
+  background: #f6f7f8;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  font-size: 18px;
+  padding: 4px 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.comment-votes button:hover {
+  transform: scale(1.15);
+  background: #fff;
+}
+
+/* When user has upvoted */
+.comment-votes .comment-upvote.active {
+  border: 2px solid #ff4500;
+  color: #ff4500;
+  transform: scale(1.1);
+  background: #fff5f0;
+}
+
+/* When user has downvoted */
+.comment-votes .comment-downvote.active {
+  border: 2px solid #7193ff;
+  color: #7193ff;
+  transform: scale(1.1);
+  background: #f0f4ff;
+}
+
+.comment-vote-count {
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+}
+
+

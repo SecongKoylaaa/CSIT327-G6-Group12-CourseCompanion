@@ -1,0 +1,37 @@
+<div class="expanded-section">
+  <div class="comments-area">
+    <h4>Comments</h4>
+
+    <!-- Sort toggle -->
+  <div class="comment-sort">
+    <div class="sort-dropdown">
+      <button class="sort-btn" onclick="toggleSortMenu(this)">
+        Sort by: <span class="selected-sort">Top</span> ⌄
+      </button>
+      <div class="sort-menu">
+        <button onclick="selectSortOption('Top', this, '{{ post.id }}')">Top</button>
+        <button onclick="selectSortOption('New', this, '{{ post.id }}')">New</button>
+        <button onclick="selectSortOption('Oldest', this, '{{ post.id }}')">Oldest</button>
+      </div>
+    </div>
+  </div>
+
+
+    <!-- Comments list -->
+    <div class="comments-list" id="comments-list-{{ post.id }}">
+      {% for comment in post.comments %}
+        {% include "comment_thread.html" with comment=comment post_id=post.id %}
+      {% empty %}
+        <p class="no-comments">No comments yet.</p>
+      {% endfor %}
+    </div>
+
+    <!-- Comment form -->
+    <form class="comment-form" method="POST" action="{% url 'home' %}">
+      {% csrf_token %}
+      <input type="hidden" name="post_id" value="{{ post.id }}">
+      <input type="text" name="comment" placeholder="Add a comment..." required>
+      <button type="submit">Post</button>
+    </form>
+  </div>
+</div>

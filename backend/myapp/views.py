@@ -9,6 +9,7 @@ from supabase import create_client
 import time
 import secrets
 
+
 # --------------------------
 # Initialize Supabase client
 # --------------------------
@@ -344,10 +345,21 @@ def home_page(request):
         comment_resp = supabase.table("comments").select("*").eq("post_id", post_id).order("created_at", desc=False).execute()
         all_comments = comment_resp.data if comment_resp.data else []
 
+
+
         # -----------------------------
         # Build nested comment tree
         # -----------------------------
-        def build_comment_tree(comments, parent_id_val=None):
+ 
+        # Inside build_comment_tree or when formatting comments:
+        def parse_datetime(dt_str):
+            """Convert ISO string from Supabase to datetime object."""
+            try:
+                return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+            except Exception:
+                return datetime.now(timezone.utc)
+
+        def build_comment_tree(comments, parent_id_val=None, user_id=None):
             tree = []
             for c in comments:
                 if c.get("parent_id") == parent_id_val:
@@ -357,32 +369,30 @@ def home_page(request):
                     votes_resp = supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute()
                     votes = votes_resp.data or []
 
-                    upvotes_c = len([v for v in votes if v["vote_type"] == "upvote"])
-                    downvotes_c = len([v for v in votes if v["vote_type"] == "downvote"])
-                    net_votes_c = upvotes_c - downvotes_c
+                    upvotes = len([v for v in votes if v["vote_type"] == "upvote"])
+                    downvotes = len([v for v in votes if v["vote_type"] == "downvote"])
+                    net_votes = upvotes - downvotes
 
-                    user_vote_c = None
-                    if user_id:
-                        uv_c = next((v["vote_type"] for v in votes if v["user_id"] == user_id), None)
-                        if uv_c == "upvote":
-                            user_vote_c = "upvote"
-                        elif uv_c == "downvote":
-                            user_vote_c = "downvote"
+                    user_vote = next((v["vote_type"] for v in votes if v["user_id"] == user_id), None)
+
+                    # Convert created_at string to datetime object
+                    created_at_dt = parse_datetime(c["created_at"])
 
                     comment_obj = {
                         "comment_id": c["comment_id"],
                         "author": author_email,
                         "text": c["text"],
-                        "created_at": time_since(c["created_at"]),
+                        "created_at": created_at_dt,
                         "edited": c.get("edited", False),
-                        "upvote_count": upvotes_c,
-                        "downvote_count": downvotes_c,
-                        "net_votes": net_votes_c,
-                        "user_vote": user_vote_c,
-                        "replies": build_comment_tree(comments, c["comment_id"])
+                        "upvote_count": upvotes,
+                        "downvote_count": downvotes,
+                        "net_votes": net_votes,
+                        "user_vote": user_vote,
+                        "replies": build_comment_tree(comments, c["comment_id"], user_id)
                     }
                     tree.append(comment_obj)
             return tree
+
 
         nested_comments = build_comment_tree(all_comments)
 
