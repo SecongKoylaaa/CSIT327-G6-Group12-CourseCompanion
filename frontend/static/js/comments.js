@@ -16,8 +16,29 @@ function toManilaTime(isoString) {
 // -------------------- COMMENTS TOGGLE --------------------
 function toggleComments(el) {
   const post = el.closest(".post");
+  if (!post) return;
   post.classList.toggle("show-expanded");
 }
+
+// -------------------- COMMENT MENU TOGGLE --------------------
+let openCommentMenu = null;
+function toggleCommentMenu(commentId) {
+  const menu = document.getElementById(`comment-menu-${commentId}`);
+  if (!menu) return;
+
+  if (openCommentMenu && openCommentMenu !== menu) {
+    openCommentMenu.style.display = "none";
+  }
+
+  if (menu.style.display === "none" || menu.style.display === "") {
+    menu.style.display = "block";
+    openCommentMenu = menu;
+  } else {
+    menu.style.display = "none";
+    openCommentMenu = null;
+  }
+}
+
 
 // -------------------- COMMENT VOTING SYSTEM --------------------
 function voteComment(commentId, type, btn) {
@@ -80,8 +101,8 @@ function voteComment(commentId, type, btn) {
         if (voteCountElem) voteCountElem.textContent = oldValue;
       })
       .finally(() => {
-        upBtn?.disabled = false;
-        downBtn?.disabled = false;
+        if (upBtn) upBtn.disabled = false;
+        if (downBtn) downBtn.disabled = false;
       });
 
   } catch (ex) {
@@ -110,22 +131,7 @@ function toggleReplyForm(commentId) {
   }
 }
 
-// -------------------- COMMENT MENU TOGGLE --------------------
-let openCommentMenu = null;
-function toggleCommentMenu(commentId) {
-  const menu = document.getElementById(`comment-menu-${commentId}`);
-  if (!menu) return;
 
-  if (openCommentMenu && openCommentMenu !== menu) openCommentMenu.style.display = "none";
-
-  if (menu.style.display === "none" || menu.style.display === "") {
-    menu.style.display = "block";
-    openCommentMenu = menu;
-  } else {
-    menu.style.display = "none";
-    openCommentMenu = null;
-  }
-}
 
 // -------------------- CLOSE MENUS ON OUTSIDE CLICK --------------------
 document.addEventListener("click", function(e) {
