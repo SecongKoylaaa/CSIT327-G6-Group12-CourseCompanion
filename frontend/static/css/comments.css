@@ -1,0 +1,280 @@
+/* ======================= COMMENTS ======================= */
+.expanded-section {
+  max-height: 0;
+  overflow: hidden;
+  margin-top: 0;
+  border-top: 1px solid #eee;
+  padding-top: 0;
+  transition: all 0.4s ease;
+}
+
+.post.show-expanded .expanded-section {
+  max-height: 4000px;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.comment-error {
+  font-size: 0.8em;
+  color: #888;
+  margin-top: 4px;
+  word-break: break-word; /* ensures long text wraps */
+  line-height: 1.2;
+}
+
+.comment-error.maxed {
+  color: red;
+}
+
+/* Sort dropdown */
+.comment-sort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.sort-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.sort-btn {
+  background: none;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.sort-menu {
+  display: none;
+  position: absolute;
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  border-radius: 6px;
+  margin-top: 5px;
+  z-index: 100;
+}
+
+.sort-menu.show {
+  display: block;
+}
+
+.sort-menu button {
+  display: block;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sort-menu button:hover {
+  background: #f0f0f0;
+}
+
+/* Comments */
+.comment {
+  background: #f6f7f8;
+  padding: 14px 16px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border-left: 4px solid #bbb;
+  transition: all 0.3s;
+}
+
+.comment:hover {
+  background: #f0f1f3;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.comment-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85em;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.comment-text {
+  margin: 4px 0 8px 0;
+  font-size: 0.95em;
+  color: #222;
+  line-height: 1.6;
+  white-space: pre-wrap; /* preserves line breaks and wraps long text */
+  word-break: break-word; /* breaks really long words */
+}
+
+/* Reply button */
+.reply-btn {
+  background: none;
+  border: none;
+  color: #0079d3;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+.reply-btn:hover {
+  text-decoration: underline;
+}
+
+/* Reply, Comment & Edit forms */
+.reply-form,
+.comment-form,
+.edit-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  align-items: flex-start; /* keep buttons top-aligned */
+}
+
+.reply-form textarea,
+.comment-form textarea,
+.edit-form textarea {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 0.85em;
+  border-radius: 20px;
+  border: 1px solid #ccc;
+  resize: none; /* disables manual resize */
+  overflow-y: auto;
+  line-height: 1.4;
+  min-height: 50px;
+  max-height: 200px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Buttons */
+.reply-form button,
+.comment-form button,
+.edit-form button {
+  background: #ff4500;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  height: 42px; /* fixed button height */
+  align-self: flex-start; /* keep button top-aligned with textarea */
+}
+
+.comment-form button {
+  border-radius: 25px;
+  padding: 10px 18px;
+}
+
+.reply-form button:hover,
+.comment-form button:hover,
+.edit-form button:hover {
+  background: #e03d00;
+  transform: scale(1.05);
+}
+
+/* Replies */
+.replies {
+  margin-left: 28px;
+  border-left: 2px solid #ddd;
+  padding-left: 12px;
+}
+
+.more-replies {
+  color: #0079d3;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9em;
+  margin-top: 4px;
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+.more-replies:hover {
+  color: #005999;
+  text-decoration: underline;
+}
+
+/* ======================= REDDIT-STYLE HORIZONTAL VOTE BOX ======================= */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+/* Wrapper for the horizontal vote box */
+.vote-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 6px 10px;
+  gap: 10px;
+  transition: all 0.25s ease-in-out;
+}
+
+.vote-box:hover {
+  box-shadow: 0 0 10px rgba(0,0,0,0.08);
+  transform: scale(1.02);
+}
+
+/* Vote buttons */
+.vote-btn {
+  border: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: #888;
+  border-radius: 8px;
+  padding: 4px 8px;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Vote count text */
+.vote-count {
+  font-weight: bold;
+  font-size: 0.95em;
+  color: #333;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* When active (upvoted) */
+.active-upvote {
+  color: #ff4500 !important;
+  border-color: #ff4500 !important;
+  box-shadow: 0 0 5px #ff4500;
+  transform: scale(1.1);
+}
+
+/* When active (downvoted) */
+.active-downvote {
+  color: #7193ff !important;
+  border-color: #7193ff !important;
+  box-shadow: 0 0 5px #7193ff;
+  transform: scale(1.1);
+}
+
+.comment-votes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 50px; /* keeps area stable even before number updates */
+}
+
+.comment-vote-count {
+  display: inline-block;
+  min-width: 24px; /* prevents collapse when number updates */
+  text-align: center;
+  font-weight: bold;
+  color: #333;
+  transition: none; /* disable CSS transition to prevent flicker */
+  opacity: 1 !important; /* ensure always visible */
+}
