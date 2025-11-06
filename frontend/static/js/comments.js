@@ -73,13 +73,13 @@ function voteComment(commentId, type, btn) {
           return;
         }
 
-        const newVotes = (data.net_votes !== undefined && data.net_votes !== null) 
-                          ? data.net_votes 
-                          : oldValue;
+        // Get updated vote count from backend
+        let newVotes = parseInt(data.net_votes ?? oldValue, 10);
 
+        // Update immediately in UI
         if (voteCountElem) {
           voteCountElem.textContent = newVotes;
-          voteCountElem.style.opacity = "1"; // force visible
+          voteCountElem.style.opacity = "1";
           voteCountElem.animate(
             [
               { transform: "scale(1)", opacity: 1 },
@@ -90,12 +90,14 @@ function voteComment(commentId, type, btn) {
           );
         }
 
+        // Update button highlight instantly
         if (upBtn) upBtn.classList.remove("active-upvote");
         if (downBtn) downBtn.classList.remove("active-downvote");
 
-        if (data.user_vote === "upvote") upBtn?.classList.add("active-upvote");
-        else if (data.user_vote === "downvote") downBtn?.classList.add("active-downvote");
+        if (data.user_vote === "upvote" && upBtn) upBtn.classList.add("active-upvote");
+        if (data.user_vote === "downvote" && downBtn) downBtn.classList.add("active-downvote");
       })
+
       .catch(err => {
         console.error("Vote error:", err);
         if (voteCountElem) voteCountElem.textContent = oldValue;
