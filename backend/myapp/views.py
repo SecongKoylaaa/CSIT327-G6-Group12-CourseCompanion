@@ -263,10 +263,69 @@ def reset_password_page(request, reset_token):
     return render(request, "reset_password.html", {"reset_token": reset_token})
 
 
-## --------------------------
-# Home View (Protected)
-# --------------------------
+from django.http import HttpResponseForbidden
 
+# -----------------------------
+# Helper: parse datetime string
+# -----------------------------
+def parse_datetime(dt_str):
+    """Convert ISO string from Supabase to datetime object."""
+    try:
+        return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+    except Exception:
+        return datetime.now(timezone.utc)
+
+# -----------------------------
+# Helper: build nested comment tree
+# -----------------------------
+def build_comment_tree(comments, parent_id_val=None, user_id=None):
+    """
+    Recursively build a nested comment tree with votes and per-user states.
+    """
+    tree = []
+    for c in comments:
+        if c.get("parent_id") == parent_id_val:
+            # Get author email
+            user_resp = supabase.table("users").select("email").eq("id", c["user_id"]).maybe_single().execute()
+            author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else "anonymous@example.com"
+
+            # Fetch votes
+            votes_resp = supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute()
+            votes = votes_resp.data or []
+
+            upvotes = len([v for v in votes if v["vote_type"] == "upvote"])
+            downvotes = len([v for v in votes if v["vote_type"] == "downvote"])
+            net_votes = upvotes - downvotes
+
+            # Determine current user's vote properly
+            raw_vote = next((v["vote_type"] for v in votes if v["user_id"] == user_id), None)
+            if raw_vote == "upvote":
+                user_vote = "upvote"
+            elif raw_vote == "downvote":
+                user_vote = "downvote"
+            else:
+                user_vote = None
+
+            # Build comment object
+            comment_obj = {
+                "comment_id": c["comment_id"],
+                "author": author_email,
+                "text": c["text"],
+                "created_at": parse_datetime(c.get("created_at")),
+                "edited": c.get("edited", False),
+                "upvote_count": upvotes,
+                "downvote_count": downvotes,
+                "net_votes": net_votes,
+                "user_vote": user_vote,
+                "replies": build_comment_tree(comments, parent_id_val=c["comment_id"], user_id=user_id)
+            }
+            tree.append(comment_obj)
+    return tree
+
+
+# -----------------------------
+# Home page view
+# -----------------------------
 def home_page(request):
     if "user_email" not in request.session:
         return redirect("/login/")
@@ -308,6 +367,8 @@ def home_page(request):
         user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
         if user_resp.data:
             user_id = user_resp.data["id"]
+    print("Current user:", user_email, "ID:", user_id)
+
 
     formatted_posts = []
 
@@ -338,6 +399,9 @@ def home_page(request):
                 user_vote = "upvote"
             elif uv == "down":
                 user_vote = "downvote"
+            else:
+                user_vote = None
+
 
         # -----------------------------
         # Fetch all comments for this post
@@ -345,56 +409,10 @@ def home_page(request):
         comment_resp = supabase.table("comments").select("*").eq("post_id", post_id).order("created_at", desc=False).execute()
         all_comments = comment_resp.data if comment_resp.data else []
 
-
-
         # -----------------------------
         # Build nested comment tree
         # -----------------------------
- 
-        # Inside build_comment_tree or when formatting comments:
-        def parse_datetime(dt_str):
-            """Convert ISO string from Supabase to datetime object."""
-            try:
-                return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-            except Exception:
-                return datetime.now(timezone.utc)
-
-        def build_comment_tree(comments, parent_id_val=None, user_id=None):
-            tree = []
-            for c in comments:
-                if c.get("parent_id") == parent_id_val:
-                    user_resp = supabase.table("users").select("email").eq("id", c["user_id"]).maybe_single().execute()
-                    author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else "anonymous@example.com"
-
-                    votes_resp = supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute()
-                    votes = votes_resp.data or []
-
-                    upvotes = len([v for v in votes if v["vote_type"] == "upvote"])
-                    downvotes = len([v for v in votes if v["vote_type"] == "downvote"])
-                    net_votes = upvotes - downvotes
-
-                    user_vote = next((v["vote_type"] for v in votes if v["user_id"] == user_id), None)
-
-                    # Convert created_at string to datetime object
-                    created_at_dt = parse_datetime(c["created_at"])
-
-                    comment_obj = {
-                        "comment_id": c["comment_id"],
-                        "author": author_email,
-                        "text": c["text"],
-                        "created_at": created_at_dt,
-                        "edited": c.get("edited", False),
-                        "upvote_count": upvotes,
-                        "downvote_count": downvotes,
-                        "net_votes": net_votes,
-                        "user_vote": user_vote,
-                        "replies": build_comment_tree(comments, c["comment_id"], user_id)
-                    }
-                    tree.append(comment_obj)
-            return tree
-
-
-        nested_comments = build_comment_tree(all_comments)
+        nested_comments = build_comment_tree(all_comments, user_id=user_id)
 
         formatted_posts.append({
             "id": post_id,
@@ -485,37 +503,61 @@ def vote_comment(request, comment_id, vote_type):
         return JsonResponse({"error": "Login required"}, status=403)
 
     user_email = request.session.get("user_email")
+
+    # Fetch user ID safely
     user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
-    if not user_resp.data:
+    if not user_resp or not user_resp.data:
         return JsonResponse({"error": "User not found"}, status=404)
+
     user_id = user_resp.data["id"]
 
-    # Check existing vote
-    existing_vote_resp = supabase.table("comment_votes")\
-        .select("*").eq("comment_id", comment_id).eq("user_id", user_id).maybe_single().execute()
+    # Check if vote exists for this user/comment
+    existing_vote_resp = supabase.table("comment_votes") \
+        .select("*") \
+        .eq("user_id", user_id) \
+        .eq("comment_id", comment_id) \
+        .maybe_single() \
+        .execute()
+
     existing_vote = existing_vote_resp.data if existing_vote_resp and existing_vote_resp.data else None
 
+    # Process voting logic
     if existing_vote:
         if existing_vote["vote_type"] == vote_type:
+            # Same vote again → remove it (unvote)
             supabase.table("comment_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute()
-            user_vote = None
+            message = "Vote removed"
         else:
+            # Switch vote type
             supabase.table("comment_votes").update({"vote_type": vote_type}).eq("vote_id", existing_vote["vote_id"]).execute()
-            user_vote = vote_type
+            message = "Vote updated"
     else:
+        # New vote
         supabase.table("comment_votes").insert({
             "user_id": user_id,
             "comment_id": comment_id,
             "vote_type": vote_type
         }).execute()
-        user_vote = vote_type
+        message = "Vote added"
 
-    # Compute net votes
-    votes_resp = supabase.table("comment_votes").select("*").eq("comment_id", comment_id).execute()
-    votes = votes_resp.data or []
-    net_votes = sum(1 if v["vote_type"] == "upvote" else -1 for v in votes)
+    # Get updated totals
+    votes_resp = supabase.table("comment_votes") \
+        .select("vote_type") \
+        .eq("comment_id", comment_id) \
+        .execute()
 
-    return JsonResponse({"net_votes": net_votes, "user_vote": user_vote})
+    if not votes_resp or votes_resp.data is None:
+        total_votes = 0
+    else:
+        total_votes = sum(1 if v["vote_type"] == "upvote" else -1 for v in votes_resp.data)
+
+    return JsonResponse({
+        "message": message,
+        "total_votes": total_votes,
+        "user_vote": vote_type if message != "Vote removed" else None
+    })
+
+
 
 
 # --------------------------

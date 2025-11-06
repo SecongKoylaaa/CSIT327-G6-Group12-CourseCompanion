@@ -21,41 +21,75 @@ function toggleComments(el) {
 
 // -------------------- COMMENT VOTING SYSTEM --------------------
 function voteComment(commentId, type, btn) {
-  const container = btn.closest(".comment-votes");
-  const voteCountElem = container.querySelector(".comment-vote-count");
-  const upBtn = container.querySelector(".comment-upvote");
-  const downBtn = container.querySelector(".comment-downvote");
+  try {
+    const container = btn.closest(".comment-votes");
+    if (!container) return;
 
-  fetch(`/vote_comment/${commentId}/${type}/`, {
-    method: "POST",
-    headers: {
-      "X-CSRFToken": getCookie("csrftoken"),
-      "Accept": "application/json"
-    },
-    credentials: "same-origin"
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.error) {
-        console.error(data.error);
-        return;
-      }
+    const voteCountElem = container.querySelector(".comment-vote-count");
+    const upBtn = container.querySelector(".comment-upvote");
+    const downBtn = container.querySelector(".comment-downvote");
 
-      voteCountElem.textContent = data.net_votes;
+    if (btn && btn.tagName === "BUTTON") btn.type = "button";
 
-      upBtn.classList.remove("active-upvote");
-      downBtn.classList.remove("active-downvote");
+    const oldValue = voteCountElem?.textContent.trim() || "0";
+    if (voteCountElem) voteCountElem.textContent = oldValue;
 
-      if (data.user_vote === "upvote") {
-        upBtn.classList.add("active-upvote");
-        upBtn.animate([{ transform: "scale(1)" }, { transform: "scale(1.2)" }, { transform: "scale(1)" }], { duration: 200 });
-      } else if (data.user_vote === "downvote") {
-        downBtn.classList.add("active-downvote");
-        downBtn.animate([{ transform: "scale(1)" }, { transform: "scale(1.2)" }, { transform: "scale(1)" }], { duration: 200 });
-      }
+    if (upBtn) upBtn.disabled = true;
+    if (downBtn) downBtn.disabled = true;
+
+    fetch(`/vote_comment/${commentId}/${type}/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken"),
+        "Accept": "application/json"
+      },
+      credentials: "same-origin"
     })
-    .catch(err => console.error("Comment vote error:", err));
+      .then(res => res.json())
+      .then(data => {
+        if (!data || data.error) {
+          console.error(data?.error || "Vote error");
+          return;
+        }
+
+        const newVotes = (data.net_votes !== undefined && data.net_votes !== null) 
+                          ? data.net_votes 
+                          : oldValue;
+
+        if (voteCountElem) {
+          voteCountElem.textContent = newVotes;
+          voteCountElem.style.opacity = "1"; // force visible
+          voteCountElem.animate(
+            [
+              { transform: "scale(1)", opacity: 1 },
+              { transform: "scale(1.2)", opacity: 1 },
+              { transform: "scale(1)", opacity: 1 }
+            ],
+            { duration: 180 }
+          );
+        }
+
+        if (upBtn) upBtn.classList.remove("active-upvote");
+        if (downBtn) downBtn.classList.remove("active-downvote");
+
+        if (data.user_vote === "upvote") upBtn?.classList.add("active-upvote");
+        else if (data.user_vote === "downvote") downBtn?.classList.add("active-downvote");
+      })
+      .catch(err => {
+        console.error("Vote error:", err);
+        if (voteCountElem) voteCountElem.textContent = oldValue;
+      })
+      .finally(() => {
+        upBtn?.disabled = false;
+        downBtn?.disabled = false;
+      });
+
+  } catch (ex) {
+    console.error("voteComment exception:", ex);
+  }
 }
+
+
 
 // -------------------- REPLY FORM TOGGLE --------------------
 let openReplyForm = null;
@@ -67,7 +101,8 @@ function toggleReplyForm(commentId) {
 
   if (form.style.display === "none" || form.style.display === "") {
     form.style.display = "flex";
-    form.querySelector('input[type="text"]').focus();
+    const t = form.querySelector('textarea, input[type="text"]');
+    if (t) t.focus();
     openReplyForm = form;
   } else {
     form.style.display = "none";
@@ -181,65 +216,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// -------------------- REDDIT-STYLE PERSISTENT VOTING --------------------
-document.addEventListener("DOMContentLoaded", () => {
-  const savedVotes = JSON.parse(localStorage.getItem("userVotes")) || {};
-
-  // Restore votes for posts and comments
-  Object.entries(savedVotes).forEach(([id, type]) => {
-    const container = document.querySelector(`[data-vote-id="${id}"]`);
-    if (!container) return;
-    const upBtn = container.querySelector(".vote-btn.upvote, .comment-upvote");
-    const downBtn = container.querySelector(".vote-btn.downvote, .comment-downvote");
-    if (type === "up") upBtn?.classList.add("active-upvote");
-    if (type === "down") downBtn?.classList.add("active-downvote");
-  });
-
-  // Handle click events for all vote buttons
-  document.querySelectorAll(".vote-btn, .comment-upvote, .comment-downvote").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const container = btn.closest("[data-vote-id]");
-      if (!container) return;
-
-      const id = container.dataset.voteId;
-      const voteCountEl = container.querySelector(".vote-count, .comment-vote-count");
-      const upBtn = container.querySelector(".vote-btn.upvote, .comment-upvote");
-      const downBtn = container.querySelector(".vote-btn.downvote, .comment-downvote");
-
-      let count = parseInt(voteCountEl?.textContent || "0");
-      const currentVote = savedVotes[id];
-      const isUp = btn.classList.contains("upvote") || btn.classList.contains("comment-upvote");
-      const newVote = isUp ? "up" : "down";
-
-      if (currentVote === newVote) {
-        // Remove vote
-        delete savedVotes[id];
-        btn.classList.remove("active-upvote", "active-downvote");
-        count += isUp ? -1 : 1;
-      } else {
-        // Apply new vote
-        if (newVote === "up") {
-          upBtn.classList.add("active-upvote");
-          downBtn.classList.remove("active-downvote");
-          count += currentVote === "down" ? 2 : 1;
-        } else {
-          downBtn.classList.add("active-downvote");
-          upBtn.classList.remove("active-upvote");
-          count -= currentVote === "up" ? 2 : 1;
-        }
-        savedVotes[id] = newVote;
-      }
-
-      // Animate the clicked button
-      btn.animate([{ transform: "scale(1)" }, { transform: "scale(1.2)" }, { transform: "scale(1)" }], { duration: 180 });
-
-      // Update count and save
-      if (voteCountEl) voteCountEl.textContent = count;
-      localStorage.setItem("userVotes", JSON.stringify(savedVotes));
-    });
-  });
-});
-
 // -------------------- TOGGLE MORE REPLIES --------------------
 function toggleMoreComments(commentId) {
   const hiddenReplies = document.getElementById(`hidden-replies-${commentId}`);
@@ -253,3 +229,69 @@ function toggleMoreComments(commentId) {
     moreRepliesBtn.textContent = "Show More Comments";
   }
 }
+
+// -------------------- LIVE COMMENT CHARACTER VALIDATION & AUTO-RESIZE --------------------
+document.addEventListener("DOMContentLoaded", () => {
+  const forms = document.querySelectorAll(".comment-form, .reply-form, .edit-form");
+
+  forms.forEach(form => {
+    const textarea = form.querySelector("textarea[name='comment']");
+    if (!textarea) return;
+
+    // Create counter/error display element (only once)
+    let counter = textarea.nextElementSibling;
+    if (!counter || !counter.classList || !counter.classList.contains("comment-error")) {
+      counter = document.createElement("div");
+      counter.className = "comment-error";
+      textarea.after(counter);
+    }
+    counter.textContent = "0 / 300";
+
+    // Auto-resize function
+    function resizeTextarea() {
+      textarea.style.height = "auto";
+      textarea.style.height = textarea.scrollHeight + "px";
+    }
+
+    textarea.addEventListener("input", () => {
+      let value = textarea.value;
+
+      // Hard limit
+      if (value.length > 300) value = value.slice(0, 300);
+      textarea.value = value;
+
+      // Update counter/error text
+      counter.textContent = `${value.length} / 300${value.length === 300 ? " - Maximum reached" : ""}`;
+      if (value.length === 300) counter.classList.add("maxed");
+      else counter.classList.remove("maxed");
+
+      // Resize textarea
+      resizeTextarea();
+    });
+
+    // Initialize height
+    resizeTextarea();
+  });
+
+  // ----- CHANGED ----- Ensure all vote buttons are type="button" to prevent accidental submits
+  document.querySelectorAll(".comment-upvote, .comment-downvote").forEach(b => {
+    if (b.tagName === "BUTTON") b.type = "button";
+  });
+});
+
+// -------------------- Small helper used for dynamic textareas --------------------
+function resizeInput(input) {
+  input.style.height = "auto"; // reset first
+  input.style.height = input.scrollHeight + "px"; // grow only textarea
+}
+
+// Initialize existing textareas if any were added outside DOMContentLoaded
+document.querySelectorAll(".comment-form textarea, .reply-form textarea").forEach(input => {
+  input.addEventListener("input", () => {
+    if (input.value.length > 300) input.value = input.value.slice(0, 300); // hard limit
+    resizeInput(input);
+  });
+
+  // initialize height
+  resizeInput(input);
+});
