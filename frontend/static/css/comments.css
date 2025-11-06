@@ -18,7 +18,7 @@
   font-size: 0.8em;
   color: #888;
   margin-top: 4px;
-  word-break: break-word; /* ensures long text wraps */
+  word-break: break-word;
   line-height: 1.2;
 }
 
@@ -104,8 +104,8 @@
   font-size: 0.95em;
   color: #222;
   line-height: 1.6;
-  white-space: pre-wrap; /* preserves line breaks and wraps long text */
-  word-break: break-word; /* breaks really long words */
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Reply button */
@@ -128,7 +128,7 @@
   display: flex;
   gap: 8px;
   margin-top: 14px;
-  align-items: flex-start; /* keep buttons top-aligned */
+  align-items: flex-start;
 }
 
 .reply-form textarea,
@@ -139,7 +139,7 @@
   font-size: 0.85em;
   border-radius: 20px;
   border: 1px solid #ccc;
-  resize: none; /* disables manual resize */
+  resize: none;
   overflow-y: auto;
   line-height: 1.4;
   min-height: 50px;
@@ -160,8 +160,8 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  height: 42px; /* fixed button height */
-  align-self: flex-start; /* keep button top-aligned with textarea */
+  height: 42px;
+  align-self: flex-start;
 }
 
 .comment-form button {
@@ -225,19 +225,42 @@
   transform: scale(1.02);
 }
 
-/* Vote buttons */
+/* ======================= UPDATED VOTE & ACTION BUTTONS ======================= */
 .vote-btn {
   border: 2px solid transparent;
-  background: none;
+  background: #f6f7f8;
   cursor: pointer;
   font-size: 20px;
-  color: #888;
+  color: #666;
   border-radius: 8px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   transition: all 0.2s ease-in-out;
 }
 
-/* Vote count text */
+.vote-btn:hover {
+  background: #e9eaec;
+  transform: scale(1.05);
+}
+
+/* Active upvote */
+.active-upvote {
+  color: #ff4500 !important;
+  background: #ffe8d9 !important;
+  border-color: #ff4500 !important;
+  box-shadow: 0 0 6px rgba(255, 69, 0, 0.5);
+  transform: scale(1.1);
+}
+
+/* Active downvote */
+.active-downvote {
+  color: #3366ff !important;
+  background: #dfe6ff !important;
+  border-color: #7193ff !important;
+  box-shadow: 0 0 6px rgba(113, 147, 255, 0.5);
+  transform: scale(1.1);
+}
+
+/* Vote count */
 .vote-count {
   font-weight: bold;
   font-size: 0.95em;
@@ -246,51 +269,79 @@
   text-align: center;
 }
 
-/* When active (upvoted) */
-.active-upvote {
-  color: #ff4500 !important;
-  border-color: #ff4500 !important;
-  box-shadow: 0 0 5px #ff4500;
-  transform: scale(1.1);
-}
-
-/* When active (downvoted) */
-.active-downvote {
-  color: #7193ff !important;
-  border-color: #7193ff !important;
-  box-shadow: 0 0 5px #7193ff;
-  transform: scale(1.1);
-}
-
 .comment-votes {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 50px; /* keeps area stable even before number updates */
+  min-width: 50px;
 }
 
 .comment-vote-count {
   display: inline-block;
-  min-width: 24px; /* prevents collapse when number updates */
+  min-width: 24px;
   text-align: center;
   font-weight: bold;
   color: #333;
-  transition: none; /* disable CSS transition to prevent flicker */
-  opacity: 1 !important; /* ensure always visible */
+  transition: none;
+  opacity: 1 !important;
 }
 
-.upvote.active-upvote {
-  color: #ff4500;
-  transform: scale(1.1);
+/* ======================= COMMENT & SHARE BUTTONS ======================= */
+.comment-toggle,
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background-color: transparent;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 1em;
+  color: #1a1a1b;
+  border: 2px solid transparent;
+  transition: all 0.2s ease-in-out;
+  user-select: none;
+  text-decoration: none !important; /* ✅ Force remove underline */
 }
 
-.downvote.active-downvote {
-  color: #7193ff;
-  transform: scale(1.1);
+/* Explicitly prevent underline from being applied */
+.comment-toggle *,
+.share-btn * {
+  text-decoration: none !important;
 }
 
-.vote-count {
-  font-weight: bold;
-  min-width: 24px;
-  text-align: center;
+/* Ensure no underline even on hover/focus/active */
+.comment-toggle:hover,
+.comment-toggle:focus,
+.comment-toggle:active,
+.share-btn:hover,
+.share-btn:focus,
+.share-btn:active {
+  text-decoration: none !important; /* ✅ strong fix */
+}
+
+/* Icon styling */
+.comment-toggle .icon,
+.share-btn .icon {
+  font-size: 1.4em;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Hover effect */
+.comment-toggle:hover,
+.share-btn:hover {
+  background-color: #f0f2f5;
+  transform: scale(1.05);
+  border-color: #ccc;
+}
+
+/* Active state (clicked/highlighted) */
+.comment-toggle.active,
+.share-btn.active {
+  background-color: #d0d6dd;
+  border-color: #888;
+  transform: scale(1.05);
 }
