@@ -34,14 +34,14 @@
 <div class="comment-votes" data-comment-id="{{ comment.comment_id }}">
   <button class="comment-upvote {% if comment.user_vote == 'upvote' %}active-upvote{% endif %}" 
           onclick="voteComment('{{ comment.comment_id }}', 'upvote', this)">
-    ▲
+    ⬆️
   </button>
 
   <span class="comment-vote-count">{{ comment.net_votes }}</span>
 
   <button class="comment-downvote {% if comment.user_vote == 'downvote' %}active-downvote{% endif %}" 
           onclick="voteComment('{{ comment.comment_id }}', 'downvote', this)">
-    ▼
+    ⬇️
   </button>
 </div>
 

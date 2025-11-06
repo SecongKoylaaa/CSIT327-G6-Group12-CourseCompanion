@@ -553,9 +553,10 @@ def vote_comment(request, comment_id, vote_type):
 
     return JsonResponse({
         "message": message,
-        "total_votes": total_votes,
+        "net_votes": total_votes,  # ✅ must match frontend key
         "user_vote": vote_type if message != "Vote removed" else None
     })
+
 
 
 
