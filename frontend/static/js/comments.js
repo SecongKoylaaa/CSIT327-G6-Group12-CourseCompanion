@@ -303,3 +303,75 @@ document.querySelectorAll(".comment-form textarea, .reply-form textarea").forEac
   // initialize height
   resizeInput(input);
 });
+
+
+// -------------------- POST VOTING SYSTEM --------------------
+function votePost(postId, type, btn) {
+  try {
+    const container = btn.closest(".actions"); // matches your wrapper
+    if (!container) return;
+
+    const voteCountElem = container.querySelector(".vote-count"); // matches your HTML
+    const upBtn = container.querySelector(".upvote");
+    const downBtn = container.querySelector(".downvote");
+
+    if (btn && btn.tagName === "BUTTON") btn.type = "button";
+
+    const oldValue = voteCountElem?.textContent.trim() || "0";
+    if (voteCountElem) voteCountElem.textContent = oldValue;
+
+    if (upBtn) upBtn.disabled = true;
+    if (downBtn) downBtn.disabled = true;
+
+    fetch(`/vote_post/${postId}/${type}/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken"),
+        "Accept": "application/json"
+      },
+      credentials: "same-origin"
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data || data.error) {
+          console.error(data?.error || "Vote error");
+          return;
+        }
+
+        // Update vote count instantly
+        let newVotes = parseInt(data.net_votes ?? oldValue, 10);
+        if (voteCountElem) {
+          voteCountElem.textContent = newVotes;
+          voteCountElem.style.opacity = "1";
+          voteCountElem.animate(
+            [
+              { transform: "scale(1)", opacity: 1 },
+              { transform: "scale(1.2)", opacity: 1 },
+              { transform: "scale(1)", opacity: 1 }
+            ],
+            { duration: 180 }
+          );
+        }
+
+        // Remove any existing highlight first
+        if (upBtn) upBtn.classList.remove("active-upvote");
+        if (downBtn) downBtn.classList.remove("active-downvote");
+
+        // Apply new highlight based on server response
+        if (data.user_vote === "upvote" && upBtn) upBtn.classList.add("active-upvote");
+        if (data.user_vote === "downvote" && downBtn) downBtn.classList.add("active-downvote");
+
+      })
+      .catch(err => {
+        console.error("Vote error:", err);
+        if (voteCountElem) voteCountElem.textContent = oldValue;
+      })
+      .finally(() => {
+        if (upBtn) upBtn.disabled = false;
+        if (downBtn) downBtn.disabled = false;
+      });
+
+  } catch (ex) {
+    console.error("votePost exception:", ex);
+  }
+}

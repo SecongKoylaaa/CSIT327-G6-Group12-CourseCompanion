@@ -564,78 +564,58 @@ def vote_comment(request, comment_id, vote_type):
 # --------------------------
 # Post Voting
 # --------------------------
-FRONTEND_TO_DB = {"upvote": "up", "downvote": "down"}
-
 @csrf_exempt
 def vote_post(request, post_id, vote_type):
     if "user_email" not in request.session:
         return JsonResponse({"error": "Login required"}, status=403)
 
     user_email = request.session.get("user_email")
+
+    # Fetch user ID
     user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
-    if not user_resp.data:
+    if not user_resp or not user_resp.data:
         return JsonResponse({"error": "User not found"}, status=404)
+
     user_id = user_resp.data["id"]
 
-    if vote_type not in FRONTEND_TO_DB:
-        return JsonResponse({"error": "Invalid vote type"}, status=400)
-    db_vote_value = FRONTEND_TO_DB[vote_type]
-
-    # Check post existence
-    post_resp = supabase.table("posts").select("post_id").eq("post_id", post_id).maybe_single().execute()
-    if not post_resp.data:
-        return JsonResponse({"error": "Post not found"}, status=404)
-
     # Check existing vote
-    existing_vote_resp = supabase.table("post_votes")\
-        .select("*").eq("post_id", post_id).eq("user_id", user_id).maybe_single().execute()
+    existing_vote_resp = supabase.table("post_votes") \
+        .select("*") \
+        .eq("user_id", user_id) \
+        .eq("post_id", post_id) \
+        .maybe_single() \
+        .execute()
+
     existing_vote = existing_vote_resp.data if existing_vote_resp and existing_vote_resp.data else None
 
+    # Process voting
     if existing_vote:
-        if existing_vote.get("vote_type") == db_vote_value:
+        if existing_vote["vote_type"] == vote_type:
+            # Same vote → remove it
             supabase.table("post_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute()
-            user_vote = None
+            message = "Vote removed"
         else:
-            supabase.table("post_votes").update({"vote_type": db_vote_value}).eq("vote_id", existing_vote["vote_id"]).execute()
-            user_vote = vote_type
+            # Switch vote
+            supabase.table("post_votes").update({"vote_type": vote_type}).eq("vote_id", existing_vote["vote_id"]).execute()
+            message = "Vote updated"
     else:
-        try:
-            supabase.table("post_votes").insert({
-                "user_id": user_id,
-                "post_id": post_id,
-                "vote_type": db_vote_value
-            }).execute()
-            user_vote = vote_type
-        except Exception as e:
-            if "duplicate key value" in str(e):
-                existing_vote_resp = supabase.table("post_votes")\
-                    .select("*").eq("post_id", post_id).eq("user_id", user_id).maybe_single().execute()
-                existing_vote = existing_vote_resp.data
-                if existing_vote:
-                    supabase.table("post_votes").update({"vote_type": db_vote_value}).eq("vote_id", existing_vote["vote_id"]).execute()
-                    user_vote = vote_type
-            else:
-                raise e
+        # New vote
+        supabase.table("post_votes").insert({
+            "user_id": user_id,
+            "post_id": post_id,
+            "vote_type": vote_type
+        }).execute()
+        message = "Vote added"
 
-        # Compute net votes using count (safe for many votes)
-        up_resp = supabase.table("post_votes")\
-            .select("vote_type", count="exact")\
-            .eq("post_id", post_id)\
-            .eq("vote_type", "up")\
-            .execute()
-        up_count = up_resp.count or 0
+    # Compute net votes
+    votes_resp = supabase.table("post_votes").select("vote_type").eq("post_id", post_id).execute()
+    total_votes = sum(1 if v["vote_type"] == "up" else -1 for v in (votes_resp.data or []))
 
-        down_resp = supabase.table("post_votes")\
-            .select("vote_type", count="exact")\
-            .eq("post_id", post_id)\
-            .eq("vote_type", "down")\
-            .execute()
-        down_count = down_resp.count or 0
-
-        net_votes = up_count - down_count
-
-
-    return JsonResponse({"net_votes": net_votes, "user_vote": user_vote})
+    return JsonResponse({
+        "message": message,
+        "net_votes": total_votes,       # Matches frontend key
+        "user_vote": vote_type if message != "Vote removed" else None
+    })
 
 
 # --------------------------
