@@ -1,263 +1,134 @@
-/* RESET */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: Arial, sans-serif;
-}
 
-/* BODY */
-body {
+/* ======================= BODY SCOPED ======================= */
+.create-container {
   background: #f3f3f3;
   color: #111;
-}
-
-/* ===== NAVBAR ===== */
-.navbar {
+  min-height: 100vh; /* full viewport height */
+  padding: 40px 20px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  padding: 15px 20px;
-  border-bottom: solid #ddd;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+  justify-content: center; /* horizontal center */
+  align-items: center;     /* vertical center */
+  flex-direction: column;  /* ensures content stacks properly if needed */
 }
 
-/* LEFT SIDE */
-.nav-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
-.logo {
-  width: 35px;
-  height: 35px;
-}
-
-/* Clickable logo/text */
-.logo-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none; /* remove underline */
-  color: #ff4500;        /* keep orange color */
-}
-
-.logo-link:hover {
-  color: #ff4500;       /* prevent color change on hover */
-}
-
-.logo-text {
-  font-size: 20px;
-  font-weight: bold;
-}
-
-/* CENTER SEARCH */
-.nav-center {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
-.search-bar {
-  width: 90%;
-  padding: 15px 14px;
-  border-radius: 20px;
-  border: 1px solid #ccc;
-  outline: none;
-  background: #f9f9f9;
-}
-
-.search-bar:focus {
-  border-color: #ff4500;
-}
-
-/* RIGHT SIDE */
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.create-btn {
-  background: #ff4500;
-  color: #fff;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 20px;
-  text-decoration: none;
-  font-weight: bold;
-}
-
-.create-btn:hover {
-  background: #e03e00;
-}
-
-.profile-btn {
-  font-size: 20px;
-  border: none;
-  background: #eee;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-}
-
-/* DROPDOWN */
-.profile-dropdown {
-  position: relative;
-}
-
-.dropdown-content {
-  display: none;
-  position: absolute;
-  right: 0;
-  top: 45px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  overflow: hidden;
-  min-width: 140px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.dropdown-content a {
-  display: block;
-  padding: 10px;
-  color: #333;
-  text-decoration: none;
-}
-
-.dropdown-content a:hover {
-  background: #f3f3f3;
-}
-
-.dropdown-content.show {
-  display: block;
-}
-
-/* ===== CREATE POST SECTION ===== */
-.create-container {
-  display: flex;
-  justify-content: center;
-  padding: 20px; /* reduced top padding to match home layout */
-}
-
+/* ======================= CREATE CARD ======================= */
 .create-card {
   background: #fff;
   border: 1px solid #ddd;
-  border-radius: 10px;
+  border-radius: 12px;
   width: 740px;
-  padding: 24px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  padding: 32px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .create-card h1 {
-  font-size: 22px;
-  font-weight: 600;
-  margin-bottom: 20px;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: #222;
 }
 
-/* Tabs */
-.tabs {
+/* ======================= TABS ======================= */
+.create-card .tabs {
   display: flex;
   border-bottom: 1px solid #ccc;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  gap: 8px;
 }
 
-.tabs a {
+.create-card .tabs a {
   flex: 1;
   text-align: center;
-  padding: 10px 0;
+  padding: 12px 0;
   text-decoration: none;
   color: #878a8c;
   font-weight: 600;
   border-bottom: 3px solid transparent;
-  transition: 0.2s;
+  transition: all 0.2s ease;
 }
 
-.tabs a.active {
+.create-card .tabs a.active {
   color: #0079d3;
   border-bottom-color: #0079d3;
 }
 
-/* Form Fields */
-label {
+/* ======================= FORM FIELDS ======================= */
+.create-card label {
   display: block;
   font-weight: 600;
   font-size: 14px;
-  margin: 10px 0 5px;
+  margin: 12px 0 6px;
 }
 
-input[type="text"],
-input[type="url"],
-textarea,
-select {
+.create-card input[type="text"],
+.create-card input[type="url"],
+.create-card textarea,
+.create-card select {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border: 1px solid #ccc;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
   background: #fff;
-  margin-bottom: 10px;
-  transition: border 0.2s;
+  margin-bottom: 12px;
+  transition: border 0.2s, box-shadow 0.2s;
 }
 
-input:focus,
-textarea:focus,
-select:focus {
+.create-card input:focus,
+.create-card textarea:focus,
+.create-card select:focus {
   border-color: #0079d3;
   outline: none;
+  box-shadow: 0 0 6px rgba(0, 121, 211, 0.3);
 }
 
-textarea {
+.create-card textarea {
   resize: none;
   height: 120px;
 }
 
-/* Character count */
-.char-count {
+/* ======================= CHARACTER COUNT ======================= */
+.create-card .char-count {
   text-align: right;
   font-size: 12px;
   color: #878a8c;
   margin-bottom: 8px;
 }
 
-/* Tag Selector */
-.tag-selector {
+/* ======================= TAG SELECTOR ======================= */
+.create-card .tag-selector {
   position: relative;
 }
 
-#tag-btn {
+.create-card #tag-btn {
   background: #f6f7f8;
   border: 1px solid #ccc;
   border-radius: 20px;
   padding: 6px 16px;
   font-size: 14px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-#tag-btn:hover {
+.create-card #tag-btn:hover {
   background: #e8f3ff;
   border-color: #0079d3;
 }
 
-.tag-choices-horizontal {
+.create-card .tag-choices-horizontal {
   display: flex;
   gap: 8px;
   background: #fff;
   border: 1px solid #ccc;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 6px;
   position: absolute;
   top: 40px;
   z-index: 100;
 }
 
-.tag-choice-btn {
+.create-card .tag-choice-btn {
   background: #f6f7f8;
   border: 1px solid #ccc;
   border-radius: 15px;
@@ -266,37 +137,38 @@ textarea {
   cursor: pointer;
 }
 
-.tag-choice-btn:hover {
+.create-card .tag-choice-btn:hover {
   background: #e8f3ff;
   border-color: #0079d3;
 }
 
-/* Submit button */
-.post-btn {
+/* ======================= SUBMIT BUTTON ======================= */
+.create-card .post-btn {
   background: #0079d3;
   color: #fff;
   border: none;
   border-radius: 20px;
-  padding: 10px 20px;
+  padding: 12px 20px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
-  margin-top: 10px;
+  transition: all 0.2s ease;
+  margin-top: 16px;
 }
 
-.post-btn:hover {
+.create-card .post-btn:hover {
   background: #1484d6;
+  box-shadow: 0 4px 12px rgba(20, 132, 214, 0.3);
 }
 
-/* Messages */
-.error {
+/* ======================= ERROR & SUCCESS MESSAGES ======================= */
+.create-card .error {
   color: #d93025;
   font-size: 14px;
   margin-top: 10px;
 }
 
-.success {
+.create-card .success {
   color: #0f9d58;
   font-size: 14px;
   margin-top: 10px;

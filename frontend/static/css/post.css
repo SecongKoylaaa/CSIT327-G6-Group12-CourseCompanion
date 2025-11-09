@@ -1,98 +1,44 @@
 /* ======================= POST CARD ======================= */
 .post {
   display: flex;
+  flex-direction: column;
   background: #fff;
-  border-radius: 14px;
   border: 1px solid #ddd;
+  border-radius: 14px;
+  padding: 20px 24px;
   margin-bottom: 30px;
-  padding: 15px;
-  gap: 15px;
-  transition: all 0.3s;
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
 }
 
 .post:hover {
-  box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
   transform: translateY(-3px);
 }
 
-/* Voting Sidebar */
-.vote-sidebar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: 50px;
-  flex-shrink: 0;
-  background: #fafafa;
-  border-radius: 12px;
-  padding: 10px 0;
-  border: 2px solid transparent;
-  transition: all 0.25s ease-in-out;
-}
-
-.vote-sidebar.active-up {
-  border-color: #ff4500;
-  transform: scale(1.05);
-  box-shadow: 0 0 8px rgba(255, 69, 0, 0.2);
-}
-
-.vote-sidebar.active-down {
-  border-color: #7193ff;
-  transform: scale(1.05);
-  box-shadow: 0 0 8px rgba(113, 147, 255, 0.2);
-}
-
-.vote-btn {
-  font-size: 22px;
-  cursor: pointer;
-  color: #888;
-  transition: all 0.2s ease-in-out;
-  user-select: none;
-}
-
-.vote-btn:hover {
-  transform: scale(1.25);
-}
-
-.vote-btn.up.active {
-  color: #ff4500;
-  transform: scale(1.35);
-}
-
-.vote-btn.down.active {
-  color: #7193ff;
-  transform: scale(1.35);
-}
-
-.vote-count {
-  font-weight: 700;
-  font-size: 16px;
-  color: #111;
-}
-
-.post-content {
-  flex: 1;
-}
-
+/* ======================= POST HEADER ======================= */
+.post-title,
 .post-content h3 {
   font-size: 22px;
   font-weight: 700;
-  margin-bottom: 8px;
+  color: #1a1a1b;
+  margin-bottom: 10px;
 }
 
-.post-description {
-  color: #444;
-  margin-bottom: 12px;
+.post-description,
+.post-content {
   font-size: 15px;
   line-height: 1.6;
+  color: #444;
+  margin-bottom: 14px;
 }
 
+/* ======================= POST IMAGE ======================= */
 .post-thumbnail {
   width: 100%;
   max-height: 450px;
   border-radius: 12px;
   object-fit: cover;
-  transition: all 0.2s;
+  transition: transform 0.2s ease-in-out, filter 0.2s ease-in-out;
 }
 
 .post-thumbnail:hover {
@@ -100,23 +46,152 @@
   filter: brightness(1.05);
 }
 
-/* Actions */
+/* ======================= VOTE SIDEBAR ======================= */
+.vote-sidebar,
+.vote-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fafafa;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 10px 0;
+  gap: 10px;
+  flex-shrink: 0;
+  user-select: none;
+  transition: all 0.25s ease-in-out;
+}
+
+.vote-sidebar.active-up {
+  border-color: #ff4500;
+  box-shadow: 0 0 8px rgba(255, 69, 0, 0.2);
+}
+
+.vote-sidebar.active-down {
+  border-color: #7193ff;
+  box-shadow: 0 0 8px rgba(113, 147, 255, 0.2);
+}
+
+/* ======================= VOTE BUTTONS ======================= */
+.vote-btn {
+  font-size: 20px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: #878a8c;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 8px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.vote-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: scale(1.15);
+}
+
+.vote-btn.active-upvote {
+  color: #ff4500;
+  border-color: #ff4500;
+  background: rgba(255, 69, 0, 0.12);
+  box-shadow: 0 0 10px rgba(255, 69, 0, 0.3);
+  transform: scale(1.15);
+}
+
+.vote-btn.active-downvote {
+  color: #7193ff;
+  border-color: #7193ff;
+  background: rgba(113, 147, 255, 0.12);
+  box-shadow: 0 0 10px rgba(113, 147, 255, 0.3);
+  transform: scale(1.15);
+}
+
+.vote-count {
+  font-weight: 700;
+  font-size: 16px;
+  color: #111;
+  margin: 4px 0;
+  transition: transform 0.2s ease;
+}
+
+/* ======================= ACTIONS ======================= */
 .actions {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 12px; /* space between buttons */
   margin-top: 14px;
-  font-size: 14px;
+  font-size: 1rem; /* base font size for scaling */
   color: #555;
 }
 
-.comment-toggle,
-.share {
+/* ======================= VOTE BUTTONS ======================= */
+.vote-btn {
+  font-size: 1.25rem;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: #878a8c;
   cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 8px; /* fixed padding to keep height consistent */
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.vote-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: scale(1.15);
+}
+
+.vote-btn.active-upvote {
+  color: #ff4500;
+  border-color: #ff4500;
+  background: rgba(255, 69, 0, 0.12);
+}
+
+.vote-btn.active-downvote {
+  color: #7193ff;
+  border-color: #7193ff;
+  background: rgba(113, 147, 255, 0.12);
+}
+
+/* ======================= COMMENT & SHARE BUTTONS ======================= */
+.comment-toggle,
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px; /* same as vote buttons to match height */
+  font-size: 1rem; /* base font size */
+  font-weight: 500;
+  color: #1a1a1b;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  user-select: none;
+  line-height: 1;
+}
+
+.comment-toggle .icon,
+.share-btn .icon {
+  font-size: 1.25rem; /* scales emoji proportionally */
+  display: inline-flex;
+  align-items: center;
 }
 
 .comment-toggle:hover,
-.share:hover {
+.share-btn:hover {
+  background-color: #f0f2f5;
   color: #0079d3;
-  text-decoration: underline;
+  border-color: #ccc;
+  transform: scale(1.05);
+}
+
+.comment-toggle.active,
+.share-btn.active {
+  background-color: #d0d6dd;
+  border-color: #888;
+  transform: scale(1.05);
 }

@@ -1,0 +1,25 @@
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-left">
+    <a href="{% url 'home' %}" class="logo-link">
+      <img src="https://img.icons8.com/ios-filled/50/ff4500/handshake.png" alt="logo" class="logo">
+      <span class="logo-text">Course Companion</span>
+    </a>
+  </div>
+
+  <div class="nav-center">
+    <input type="text" class="search-bar" placeholder="Search Course Companion...">
+  </div>
+
+  <div class="nav-right">
+    <a href="{% url 'create-post-text' %}" class="create-btn">+ Create</a>
+
+    <div class="profile-dropdown">
+      <button class="profile-btn">👤</button>
+      <div class="dropdown-content">
+        <a href="#">View Profile</a>
+        <a href="{% url 'logout' %}">Logout</a>
+      </div>
+    </div>
+  </div>
+</nav>
