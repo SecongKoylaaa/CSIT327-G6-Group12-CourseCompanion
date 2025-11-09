@@ -4,35 +4,15 @@
 <head>
   <meta charset="UTF-8">
   <title>Course Companion</title>
-  <link rel="stylesheet" href="{% static 'css/home.css' %}">
+  <link rel="stylesheet" href="{% static 'css/layout.css' %}">
+  <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
   <link rel="stylesheet" href="{% static 'css/post.css' %}">
   <link rel="stylesheet" href="{% static 'css/comments.css' %}">
-
 </head>
 <body>
 
 <!-- NAVBAR -->
-<nav class="navbar">
-  <div class="nav-left">
-    <img src="https://img.icons8.com/ios-filled/50/ff4500/handshake.png" alt="logo" class="logo">
-    <h1 class="logo-text">Course Companion</h1>
-  </div>
-
-  <div class="nav-center">
-    <input type="text" class="search-bar" placeholder="Search Course Companion...">
-  </div>
-
-  <div class="nav-right">
-    <a href="{% url 'create-post-text' %}" class="create-btn">+ Create</a>
-    <div class="profile-dropdown">
-      <button class="profile-btn">👤</button>
-      <div class="dropdown-content">
-        <a href="#">View Profile</a>
-        <a href="/logout/">Logout</a>
-      </div>
-    </div>
-  </div>
-</nav>
+{% include "navbar.html" %}
 
 <!-- MAIN LAYOUT -->
 <div class="main-layout">
@@ -57,12 +37,23 @@
 
         <!-- ACTIONS -->
         <div class="actions" data-post-id="{{ post.id }}" data-user-vote="{{ post.user_vote|default:'' }}">
-          <button class="vote-btn upvote {% if post.user_vote == 'upvote' %}active-upvote{% endif %}" onclick="votePost('{{ post.id }}', 'upvote', this)">⬆️</button>
+          <button class="vote-btn upvote {% if post.user_vote == 'upvote' %}active-upvote{% endif %}"
+                  onclick="votePost('{{ post.id }}', 'upvote', this)">⬆️</button>
+
           <span class="vote-count" id="vote-count-{{ post.id }}">{{ post.vote_count }}</span>
-          <button class="vote-btn downvote {% if post.user_vote == 'downvote' %}active-downvote{% endif %}" onclick="votePost('{{ post.id }}', 'downvote', this)">⬇️</button>
-          <span class="comment-toggle" onclick="toggleComments(this)">💬 {{ post.comment_count }}</span>
-          <span>🔗 Share</span>
+
+          <button class="vote-btn downvote {% if post.user_vote == 'downvote' %}active-downvote{% endif %}"
+                  onclick="votePost('{{ post.id }}', 'downvote', this)">⬇️</button>
+
+          <span class="comment-toggle" onclick="toggleComments(this)">
+            <span class="icon">💬</span> {{ post.comment_count }}
+          </span>
+
+          <span class="share-btn" onclick="sharePost('{{ post.id }}')">
+            <span class="icon">🔗</span> Share
+          </span>
         </div>
+
 
 
 

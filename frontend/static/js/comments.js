@@ -17,7 +17,18 @@ function toManilaTime(isoString) {
 function toggleComments(el) {
   const post = el.closest(".post");
   if (!post) return;
+
+  // Toggle the comment section visibility
   post.classList.toggle("show-expanded");
+
+  // Toggle active class on the comment icon itself
+  // Remove active from any other comment-toggle in the same post
+  post.querySelectorAll(".comment-toggle").forEach(span => {
+    if (span !== el) span.classList.remove("active");
+  });
+
+  // Toggle current active state
+  el.classList.toggle("active");
 }
 
 // -------------------- COMMENT MENU TOGGLE --------------------
@@ -38,6 +49,7 @@ function toggleCommentMenu(commentId) {
     openCommentMenu = null;
   }
 }
+
 
 
 // -------------------- COMMENT VOTING SYSTEM --------------------

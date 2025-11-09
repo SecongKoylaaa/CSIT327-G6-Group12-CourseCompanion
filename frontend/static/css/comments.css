@@ -1,4 +1,6 @@
-/* ======================= COMMENTS ======================= */
+/* ======================= COMMENT SECTION ======================= */
+
+/* Expandable comment section */
 .expanded-section {
   max-height: 0;
   overflow: hidden;
@@ -14,11 +16,12 @@
   padding-top: 12px;
 }
 
+/* ======================= COMMENT ERRORS ======================= */
 .comment-error {
   font-size: 0.8em;
   color: #888;
   margin-top: 4px;
-  word-break: break-word; /* ensures long text wraps */
+  word-break: break-word;
   line-height: 1.2;
 }
 
@@ -26,7 +29,7 @@
   color: red;
 }
 
-/* Sort dropdown */
+/* ======================= SORT DROPDOWN ======================= */
 .comment-sort {
   display: flex;
   align-items: center;
@@ -51,7 +54,7 @@
   position: absolute;
   background: white;
   border: 1px solid #ddd;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
   border-radius: 6px;
   margin-top: 5px;
   z-index: 100;
@@ -63,105 +66,122 @@
 
 .sort-menu button {
   display: block;
+  width: 100%;
   background: none;
   border: none;
   padding: 8px 12px;
-  width: 100%;
   text-align: left;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .sort-menu button:hover {
   background: #f0f0f0;
 }
 
-/* Comments */
+/* ======================= COMMENT CARD ======================= */
 .comment {
   background: #f6f7f8;
   padding: 14px 16px;
   border-radius: 12px;
   margin-bottom: 12px;
   border-left: 4px solid #bbb;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
 }
 
 .comment:hover {
   background: #f0f1f3;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
+/* ======================= COMMENT HEADER ======================= */
 .comment-header {
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 8px;
   font-size: 0.85em;
   color: #555;
   margin-bottom: 6px;
 }
 
+/* ======================= COMMENT TEXT ======================= */
 .comment-text {
   margin: 4px 0 8px 0;
   font-size: 0.95em;
   color: #222;
   line-height: 1.6;
-  white-space: pre-wrap; /* preserves line breaks and wraps long text */
-  word-break: break-word; /* breaks really long words */
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-/* Reply button */
+/* ======================= REPLY BUTTON ======================= */
 .reply-btn {
   background: none;
   border: none;
   color: #0079d3;
   cursor: pointer;
   font-size: 0.85em;
+  transition: all 0.2s ease;
+  text-decoration: none !important; /* Remove underline */
+}
+
+/* Remove all link states for reply button */
+.reply-btn:link,
+.reply-btn:visited,
+.reply-btn:hover,
+.reply-btn:focus,
+.reply-btn:active {
+  text-decoration: none !important;
+  color: #0079d3;
 }
 
 .reply-btn:hover {
-  text-decoration: underline;
+  color: #005999;
+  background-color: rgba(0, 121, 211, 0.08);
+  border-radius: 4px;
+  padding: 2px 6px;
 }
 
-/* Reply, Comment & Edit forms */
+/* ======================= COMMENT FORMS ======================= */
 .reply-form,
 .comment-form,
 .edit-form {
   display: flex;
   gap: 8px;
   margin-top: 14px;
-  align-items: flex-start; /* keep buttons top-aligned */
+  align-items: flex-start;
 }
 
 .reply-form textarea,
 .comment-form textarea,
 .edit-form textarea {
   flex: 1;
+  width: 100%;
+  min-height: 50px;
+  max-height: 200px;
   padding: 10px 14px;
   font-size: 0.85em;
   border-radius: 20px;
   border: 1px solid #ccc;
-  resize: none; /* disables manual resize */
+  resize: none;
   overflow-y: auto;
   line-height: 1.4;
-  min-height: 50px;
-  max-height: 200px;
   box-sizing: border-box;
-  width: 100%;
 }
 
-/* Buttons */
 .reply-form button,
 .comment-form button,
 .edit-form button {
   background: #ff4500;
-  color: white;
+  color: #fff;
   border: none;
   border-radius: 20px;
   padding: 6px 14px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  height: 42px; /* fixed button height */
-  align-self: flex-start; /* keep button top-aligned with textarea */
+  height: 42px;
+  align-self: flex-start;
 }
 
 .comment-form button {
@@ -176,13 +196,14 @@
   transform: scale(1.05);
 }
 
-/* Replies */
+/* ======================= REPLIES ======================= */
 .replies {
   margin-left: 28px;
   border-left: 2px solid #ddd;
   padding-left: 12px;
 }
 
+/* ======================= MORE REPLIES LINK ======================= */
 .more-replies {
   color: #0079d3;
   cursor: pointer;
@@ -191,106 +212,133 @@
   margin-top: 4px;
   display: inline-block;
   transition: all 0.2s ease;
+  text-decoration: none !important;
 }
 
+/* Remove all link states */
+.more-replies:link,
+.more-replies:visited,
+.more-replies:hover,
+.more-replies:focus,
+.more-replies:active {
+  text-decoration: none !important;
+  color: #0079d3;
+}
+
+/* Hover effect */
 .more-replies:hover {
   color: #005999;
-  text-decoration: underline;
+  background-color: rgba(0, 121, 211, 0.08);
+  border-radius: 4px;
+  padding: 2px 6px;
 }
 
-/* ======================= REDDIT-STYLE HORIZONTAL VOTE BOX ======================= */
-.actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 16px;
-  margin-top: 10px;
-}
-
-/* Wrapper for the horizontal vote box */
-.vote-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* ======================= COMMENT AREA ======================= */
+.comments-area {
   background: #f8f9fa;
-  border: 1px solid #ddd;
   border-radius: 12px;
-  padding: 6px 10px;
-  gap: 10px;
-  transition: all 0.25s ease-in-out;
+  padding: 18px;
+  margin-top: 16px;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.05);
 }
 
-.vote-box:hover {
-  box-shadow: 0 0 10px rgba(0,0,0,0.08);
-  transform: scale(1.02);
+.comments-area h4 {
+  margin-bottom: 12px;
+  color: #1a1a1b;
+  font-weight: 600;
 }
 
-/* Vote buttons */
-.vote-btn {
+/* ======================= COMMENT STYLES ======================= */
+.comment {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  transition: all 0.2s ease;
+}
+
+.comment:hover {
+  border-color: #ccc;
+  transform: translateY(-1px);
+}
+
+.comment-author {
+  font-weight: 600;
+  color: #0079d3;
+  margin-bottom: 6px;
+}
+
+.comment-text {
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9em;
+}
+
+.comment-actions button {
+  border: none;
+  background: none;
+  color: #878a8c;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.comment-actions button:hover {
+  color: #0079d3;
+}
+
+/* ======================= COMMENT VOTING ======================= */
+.comment-votes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.comment-votes button {
   border: 2px solid transparent;
   background: none;
   cursor: pointer;
-  font-size: 20px;
-  color: #888;
-  border-radius: 8px;
-  padding: 4px 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
   transition: all 0.2s ease-in-out;
+  font-size: 16px;
+  color: #878a8c;
 }
 
-/* Vote count text */
-.vote-count {
-  font-weight: bold;
-  font-size: 0.95em;
-  color: #333;
-  min-width: 20px;
-  text-align: center;
-}
-
-/* When active (upvoted) */
-.active-upvote {
-  color: #ff4500 !important;
-  border-color: #ff4500 !important;
-  box-shadow: 0 0 5px #ff4500;
+.comment-votes button:hover {
   transform: scale(1.1);
 }
 
-/* When active (downvoted) */
-.active-downvote {
-  color: #7193ff !important;
-  border-color: #7193ff !important;
-  box-shadow: 0 0 5px #7193ff;
-  transform: scale(1.1);
+.comment-upvote.active-upvote {
+  border-color: #ff4500;
+  color: #ff4500;
+  background-color: rgba(255, 69, 0, 0.12);
+  transform: scale(1.15);
+  box-shadow: 0 0 8px rgba(255, 69, 0, 0.25);
 }
 
-.comment-votes {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 50px; /* keeps area stable even before number updates */
+.comment-downvote.active-downvote {
+  border-color: #7193ff;
+  color: #7193ff;
+  background-color: rgba(113, 147, 255, 0.12);
+  transform: scale(1.15);
+  box-shadow: 0 0 8px rgba(113, 147, 255, 0.25);
 }
 
 .comment-vote-count {
-  display: inline-block;
-  min-width: 24px; /* prevents collapse when number updates */
-  text-align: center;
-  font-weight: bold;
+  font-weight: 600;
   color: #333;
-  transition: none; /* disable CSS transition to prevent flicker */
-  opacity: 1 !important; /* ensure always visible */
-}
-
-.upvote.active-upvote {
-  color: #ff4500;
-  transform: scale(1.1);
-}
-
-.downvote.active-downvote {
-  color: #7193ff;
-  transform: scale(1.1);
-}
-
-.vote-count {
-  font-weight: bold;
-  min-width: 24px;
+  min-width: 25px;
   text-align: center;
+  transition: all 0.2s ease;
 }
+
+
+
