@@ -1,47 +1,62 @@
-/* ======================= NAVBAR ======================= */
+/* LEFT SECTION
+.nav-left {
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  height: 40px;
+  margin-right: 10px;
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+} */
+/* ================= NAVBAR BASE ================= */
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(90deg, #1a1a1b, #272729);
-  padding: 16px 40px; /* more spacious padding */
+  background: linear-gradient(to right, #1c1c1c, #232323);
+  padding: 12px 40px;
   color: white;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   position: sticky;
   top: 0;
   z-index: 100;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* LEFT SIDE */
+/* ================= LEFT SECTION ================= */
 .nav-left {
   display: flex;
-  align-items: center; /* vertically center all children */
-  gap: 16px;
+  align-items: center; 
 }
 
-/* Logo image */
-.logo {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: white;
-  object-fit: cover;
-}
-
-/* Logo text */
-.logo-text {
-  font-size: 24px;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: 0.5px;
+.logo-link {
   display: flex;
-  align-items: center; /* vertically center inside its own container */
+  align-items: center; 
+  text-decoration: none;
+}
+
+.logo {
+  height: 40px;
+  width: 40px;
+  object-fit: contain;
+  margin-right: 10px; 
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+  line-height: 1;
 }
 
 
-
-/* CENTER SEARCH */
+/* ================= CENTER SECTION ================= */
 .nav-center {
   flex: 1;
   display: flex;
@@ -49,106 +64,106 @@
 }
 
 .search-bar {
-  width: 55%;
-  padding: 12px 20px;
-  border-radius: 30px;
+  width: 65%;
+  padding: 10px 16px;
   border: none;
-  outline: none;
+  border-radius: 25px;
   font-size: 15px;
+  outline: none;
+  background-color: #2a2a2a;
+  color: white;
   transition: all 0.3s ease;
-  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.25);
 }
 
 .search-bar::placeholder {
-  color: #ccc;
+  color: #aaa;
 }
 
 .search-bar:focus {
-  box-shadow: 0 0 10px rgba(255, 69, 0, 0.6);
-  background: #2c2c2e;
-  color: #fff;
+  box-shadow: 0 0 6px rgba(255, 69, 0, 0.6);
 }
 
-/* RIGHT SIDE */
+/* ================= RIGHT SECTION ================= */
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 28px; /* a bit wider spacing */
+  gap: 20px;
 }
 
 /* CREATE BUTTON */
 .create-btn {
-  background: #ff4500;
+  background: linear-gradient(to right, #ff4500, #ff5500);
   color: white;
-  padding: 10px 22px;
-  border-radius: 30px;
+  padding: 10px 20px;
+  border-radius: 25px;
+  text-decoration: none;
   font-weight: 700;
   font-size: 15px;
   transition: all 0.3s ease;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(255, 69, 0, 0.4);
+  box-shadow: 0 2px 6px rgba(255, 69, 0, 0.3);
 }
 
 .create-btn:hover {
-  background: #e03d00;
-  transform: scale(1.08);
-  box-shadow: 0 6px 15px rgba(255, 69, 0, 0.5);
+  background: linear-gradient(to right, #ff5500, #ff6600);
+  transform: scale(1.05);
 }
 
-/* PROFILE DROPDOWN */
+/* ================= PROFILE DROPDOWN ================= */
 .profile-dropdown {
   position: relative;
 }
 
 .profile-btn {
-  background: #2c2c2e;
+  background: #2a2a2a;
   border: none;
-  font-size: 26px;
-  cursor: pointer;
+  font-size: 22px;
   color: white;
+  cursor: pointer;
   border-radius: 50%;
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .profile-btn:hover {
-  background: #3a3a3c;
+  background-color: #3a3a3a;
 }
 
 /* DROPDOWN MENU */
 .dropdown-content {
   display: none;
   position: absolute;
-  right: 0;
   top: 50px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+  right: 0;
+  background-color: #2c2c2c;
+  border-radius: 10px;
+  min-width: 150px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
   overflow: hidden;
-  z-index: 10;
-  min-width: 160px;
-  transition: all 0.2s ease;
+  z-index: 200;
 }
 
-.dropdown-content.show {
+/* When dropdown is open via JS */
+.profile-dropdown.open .dropdown-content {
   display: block;
 }
 
+/* Dropdown links */
 .dropdown-content a {
+  color: white;
+  padding: 10px 16px;
   display: block;
-  padding: 12px 20px;
-  color: #222;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 .dropdown-content a:hover {
-  background: #f2f2f2;
-  color: #ff4500;
-  font-weight: 600;
+  background-color: #3a3a3a;
+  color: #ff5500;
 }
+
+/* ===== REMOVE OLD HOVER RULE (this was the issue) ===== */
+/* .profile-dropdown:hover .dropdown-content { display: block; }  <-- removed */
