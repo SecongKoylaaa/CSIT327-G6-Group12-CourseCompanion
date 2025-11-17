@@ -28,9 +28,9 @@
         {% endif %}
 
         {% if post.is_image %}
-          <img src="{{ post.url }}" alt="Post Image" class="post-thumbnail">
+          <img src="{{ post.url }}" alt="Post Image" class="post-thumbnail clickable-media">
         {% elif post.is_video %}
-          <video class="post-thumbnail" src="{{ post.url }}" controls></video>
+          <video src="{{ post.url }}" class="post-thumbnail clickable-media" controls muted></video>
         {% elif post.url %}
           <a href="{{ post.url }}" target="_blank">{{ post.url }}</a>
         {% endif %}
@@ -54,10 +54,7 @@
           </span>
         </div>
 
-
-
-
-        <!-- COMMENTS SECTION (hidden by default) -->
+        <!-- COMMENTS SECTION -->
         <div class="expanded-section">
           {% include "comments.html" with post=post %}
         </div>
@@ -81,8 +78,56 @@
   </aside>
 </div>
 
+<!-- IMAGE & VIDEO LIGHTBOX MODAL -->
+<div id="mediaModal" class="media-modal">
+  <span class="close-modal">&times;</span>
+  <img id="modalImage" class="modal-content" style="display:none;">
+  <video id="modalVideo" class="modal-content" controls style="display:none;"></video>
+</div>
+
 <!-- ------------------- SCRIPTS ------------------- -->
 <script src="{% static 'js/comments.js' %}"></script>
+
+<script>
+  // MEDIA LIGHTBOX
+  const modal = document.getElementById('mediaModal');
+  const modalImg = document.getElementById('modalImage');
+  const modalVideo = document.getElementById('modalVideo');
+  const closeModal = document.querySelector('.close-modal');
+
+  function openMedia(el) {
+    modal.classList.add('show');
+    if (el.tagName.toLowerCase() === 'img') {
+      modalImg.src = el.src;
+      modalImg.style.display = 'block';
+      modalVideo.style.display = 'none';
+    } else if (el.tagName.toLowerCase() === 'video') {
+      modalVideo.src = el.src;
+      modalVideo.style.display = 'block';
+      modalImg.style.display = 'none';
+      modalVideo.play();
+    }
+  }
+
+  document.querySelectorAll('.clickable-media').forEach(el => {
+    el.addEventListener('click', () => openMedia(el));
+  });
+
+  function closeMedia() {
+    modal.classList.remove('show');
+    modalVideo.pause();
+  }
+
+  closeModal.addEventListener('click', closeMedia);
+
+  modal.addEventListener('click', e => {
+    if (e.target === modal) closeMedia();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeMedia();
+  });
+</script>
 
 </body>
 </html>
