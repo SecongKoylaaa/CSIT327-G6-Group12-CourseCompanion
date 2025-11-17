@@ -3,118 +3,122 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Create Post (Link)</title>
+  <title>Create Post (Text)</title>
   <link rel="stylesheet" href="{% static 'css/layout.css' %}">
   <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
   <link rel="stylesheet" href="{% static 'css/post-create.css' %}">
 </head>
 <body>
 
-{% include "navbar.html" %}
+  {% include "navbar.html" %}
 
-<div class="create-container">
-  <div class="create-card">
-    <h1>Create a Post</h1>
+  <div class="create-container">
+    <div class="create-card">
 
-    <!-- Course Selector -->
-    <label for="course">Select a Course <span class="required">*</span></label>
-    <select id="course" name="course" required>
-      <option value="" disabled {% if not course %}selected{% endif %}>Select a course</option>
-      <option value="CS101" {% if course == "CS101" %}selected{% endif %}>Computer Science 101</option>
-      <option value="IT102" {% if course == "IT102" %}selected{% endif %}>Information Technology 102</option>
-      <option value="SE103" {% if course == "SE103" %}selected{% endif %}>Software Engineering 103</option>
-      <option value="DB104" {% if course == "DB104" %}selected{% endif %}>Database Systems 104</option>
-    </select>
+      <h1>Create a Post</h1>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <a href="{% url 'create-post-text' %}">Text</a>
-      <a href="{% url 'create-post-image-video' %}">Images & Video</a>
-      <a href="{% url 'create-post-link' %}" class="active">Link</a>
-    </div>
-
-    <form method="POST" id="post-form">
-      {% csrf_token %}
-
-      <!-- Title -->
-      <label for="title">Title <span class="required">*</span></label>
-      <input id="title" name="title" type="text" maxlength="200" placeholder="Enter title"
-             value="{{ title|default:'' }}" required>
-      <div class="char-count" id="title-count">{{ title|length|default:0 }}/200</div>
-
-      <!-- Tag Selector -->
-      <div class="tag-selector">
-        <label>Add Tag <span class="required">*</span></label>
-        <button type="button" id="tag-btn">
-          {% if post_type %}{{ post_type|title }}{% else %}Add tags{% endif %}
-        </button>
-
-        <div id="tag-choices" class="tag-choices-horizontal" style="display:none;">
-          <button type="button" class="tag-choice-btn" data-value="question">Question</button>
-          <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
-          <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
-        </div>
-
-        <input type="hidden" name="post_type" id="post_type" value="{{ post_type|default:'' }}">
+      <div class="tabs">
+        <a href="{% url 'create-post-text' %}" class="active">Text</a>
+        <a href="{% url 'create-post-image-video' %}">Images & Video</a>
+        <a href="{% url 'create-post-link' %}">Link</a>
       </div>
 
-      <!-- URL -->
-      <label for="url">Link URL <span class="required">*</span></label>
-      <input id="url" name="url" type="url" placeholder="https://example.com"
-             value="{{ url|default:'' }}" required>
+      <form method="POST" id="post-form">
+        {% csrf_token %}
 
-      {% if error %}
-        <div class="error">{{ error }}</div>
-      {% endif %}
-      {% if success %}
-        <div class="success">{{ success }}</div>
-      {% endif %}
+        <!-- Course Selector -->
+        <label>Select a Course <span class="required">*</span></label>
+        <select id="course" name="course" required>
+          <option value="" disabled {% if not course %}selected{% endif %}>Select a course</option>
+          <option value="Computer Science 101" {% if course == "Computer Science 101" %}selected{% endif %}>Computer Science 101</option>
+          <option value="Information Technology 102" {% if course == "Information Technology 102" %}selected{% endif %}>Information Technology 102</option>
+          <option value="Software Engineering 103" {% if course == "Software Engineering 103" %}selected{% endif %}>Software Engineering 103</option>
+          <option value="Database Systems 104" {% if course == "Database Systems 104" %}selected{% endif %}>Database Systems 104</option>
+        </select>
 
-      <button type="submit" class="post-btn">Post</button>
-    </form>
+        <!-- Title -->
+        <label>Title <span class="required">*</span></label>
+        <input type="text" name="title" id="title" maxlength="200"
+               value="{{ title|default:'' }}"
+               placeholder="Enter title" required>
+        <div class="char-count" id="title-count">{{ title|length|default:0 }}/200</div>
+
+        <!-- Description -->
+        <label>Description <span class="required">*</span></label>
+        <textarea name="description" id="description" maxlength="300" placeholder="Write your post...">{{ description|default:'' }}</textarea>
+        <div class="char-count" id="desc-count">{{ description|length|default:0 }}/300</div>
+
+        <!-- Tag Selector -->
+        <div class="tag-selector">
+          <label>Add Tag</label>
+          <button type="button" id="tag-btn">
+            {% if post_type %}{{ post_type|title }}{% else %}Add tags{% endif %}
+          </button>
+
+          <div id="tag-choices" class="tag-choices-horizontal">
+            <button type="button" class="tag-choice-btn" data-value="question">Question</button>
+            <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
+            <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
+          </div>
+
+          <input type="hidden" name="post_type" id="post_type" value="{{ post_type|default:'' }}">
+        </div>
+
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        {% if success %}<div class="success">{{ success }}</div>{% endif %}
+
+        <button type="submit" class="post-btn">Post</button>
+      </form>
+    </div>
   </div>
-</div>
 
 <script>
-  // Character counter
+  // Character counters
   const titleInput = document.getElementById('title');
+  const descInput = document.getElementById('description');
   const titleCount = document.getElementById('title-count');
+  const descCount = document.getElementById('desc-count');
+
   titleCount.textContent = `${titleInput.value.length}/200`;
-  titleInput.addEventListener('input', () => {
-    titleCount.textContent = `${titleInput.value.length}/200`;
-  });
+  descCount.textContent = `${descInput.value.length}/300`;
+
+  titleInput.addEventListener('input', () => titleCount.textContent = `${titleInput.value.length}/200`);
+  descInput.addEventListener('input', () => descCount.textContent = `${descInput.value.length}/300`);
 
   // Tag dropdown
-  const tagBtn = document.getElementById('tag-btn');
-  const tagChoices = document.getElementById('tag-choices');
-  const postTypeInput = document.getElementById('post_type');
+  const tagBtn = document.getElementById("tag-btn");
+  const tagChoices = document.getElementById("tag-choices");
+  const postTypeInput = document.getElementById("post_type");
 
-  tagBtn.addEventListener('click', e => {
+  tagBtn.addEventListener("click", e => {
     e.stopPropagation();
-    tagChoices.style.display = tagChoices.style.display === 'flex' ? 'none' : 'flex';
+    tagChoices.style.display = tagChoices.style.display === "flex" ? "none" : "flex";
   });
 
-  document.querySelectorAll('.tag-choice-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+  document.querySelectorAll(".tag-choice-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
       tagBtn.textContent = btn.textContent;
-      postTypeInput.value = btn.getAttribute('data-value');
-      tagChoices.style.display = 'none';
+      postTypeInput.value = btn.getAttribute("data-value");
+      tagChoices.style.display = "none";
     });
   });
 
-  document.addEventListener('click', e => {
+  document.addEventListener("click", e => {
     if (!tagChoices.contains(e.target) && e.target !== tagBtn) {
-      tagChoices.style.display = 'none';
+      tagChoices.style.display = "none";
     }
   });
 
-  // Prevent submission if tag not selected
+  // Form validation: ensure tag and course are selected
   const form = document.getElementById("post-form");
+  const courseSelect = document.getElementById("course");
+
   form.addEventListener("submit", e => {
-    if (!postTypeInput.value || postTypeInput.value.trim() === "") {
+    if (!postTypeInput.value || !courseSelect.value) {
       e.preventDefault();
-      alert("Please select a tag before posting!");
-      tagBtn.focus();
+      alert("Please select a course and a tag before posting!");
+      if (!courseSelect.value) courseSelect.focus();
+      else tagBtn.focus();
     }
   });
 </script>

@@ -20,13 +20,13 @@
     <h1>Create a Post</h1>
 
     <!-- Course Selector -->
-    <label for="course">Select a Course</label>
+    <label>Select a Course <span class="required">*</span></label>
     <select id="course" name="course" required>
-      <option value="" disabled selected>Select a course</option>
-      <option>Computer Science 101</option>
-      <option>Information Technology 102</option>
-      <option>Software Engineering 103</option>
-      <option>Database Systems 104</option>
+      <option value="" disabled {% if not course %}selected{% endif %}>Select a course</option>
+      <option value="Computer Science 101" {% if course == "Computer Science 101" %}selected{% endif %}>Computer Science 101</option>
+      <option value="Information Technology 102" {% if course == "Information Technology 102" %}selected{% endif %}>Information Technology 102</option>
+      <option value="Software Engineering 103" {% if course == "Software Engineering 103" %}selected{% endif %}>Software Engineering 103</option>
+      <option value="Database Systems 104" {% if course == "Database Systems 104" %}selected{% endif %}>Database Systems 104</option>
     </select>
 
     <!-- Tabs -->

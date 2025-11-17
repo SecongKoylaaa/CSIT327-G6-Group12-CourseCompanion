@@ -756,20 +756,17 @@ def create_post_text(request):
 
     user_email = request.session.get("user_email")
     user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
-
     if not user_resp.data:
         return render(request, "create-post-text.html", {"error": "User not found."})
-
     user_id = user_resp.data[0]["id"]
 
     if request.method == "POST":
-        # Get form data
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
-        course = request.POST.get("course", "").strip()
+        course = request.POST.get("course", "").strip()  # just text
 
-        # Validation
+        # Validate
         if not title or not description or not post_type or not course:
             return render(request, "create-post-text.html", {
                 "error": "All fields are required.",
@@ -779,14 +776,15 @@ def create_post_text(request):
                 "course": course
             })
 
-        # Insert post (NO COURSE FIELD)
+        # Insert post (course just a string)
         try:
             supabase.table("posts").insert({
                 "title": title,
                 "description": description,
                 "content": "",
                 "post_type": post_type,
-                "user_id": user_id
+                "user_id": user_id,
+                "course_id": None  # leave null, just like Images & Video
             }).execute()
 
             return render(request, "create-post-text.html", {
@@ -807,6 +805,7 @@ def create_post_text(request):
             })
 
     return render(request, "create-post-text.html")
+
 
 
 
