@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export PYTHONPATH=$PYTHONPATH:$(pwd)
+# Add backend folder to PYTHONPATH so Django modules are found
+export PYTHONPATH="${PYTHONPATH:-}:$(pwd)/backend"
 
 echo "==> Installing dependencies"
 pip install --upgrade pip
