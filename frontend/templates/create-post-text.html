@@ -3,123 +3,121 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Create Post</title>
+  <title>Create Post (Link)</title>
   <link rel="stylesheet" href="{% static 'css/layout.css' %}">
   <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
   <link rel="stylesheet" href="{% static 'css/post-create.css' %}">
 </head>
 <body>
 
-  <!-- NAVBAR -->
-  {% include "navbar.html" %}
+{% include "navbar.html" %}
 
-  <!-- MAIN CREATE POST SECTION -->
-  <div class="create-container">
-    <div class="create-card">
-      <h1>Create a Post</h1>
+<div class="create-container">
+  <div class="create-card">
+    <h1>Create a Post</h1>
 
-      <!-- Course Selector -->
-      <label for="course">Select a Course</label>
-      <select id="course" name="course" required>
-        <option value="" disabled selected>Select a course</option>
-        <option>Computer Science 101</option>
-        <option>Information Technology 102</option>
-        <option>Software Engineering 103</option>
-        <option>Database Systems 104</option>
-      </select>
+    <!-- Course Selector -->
+    <label for="course">Select a Course <span class="required">*</span></label>
+    <select id="course" name="course" required>
+      <option value="" disabled {% if not course %}selected{% endif %}>Select a course</option>
+      <option value="CS101" {% if course == "CS101" %}selected{% endif %}>Computer Science 101</option>
+      <option value="IT102" {% if course == "IT102" %}selected{% endif %}>Information Technology 102</option>
+      <option value="SE103" {% if course == "SE103" %}selected{% endif %}>Software Engineering 103</option>
+      <option value="DB104" {% if course == "DB104" %}selected{% endif %}>Database Systems 104</option>
+    </select>
 
-      <!-- Tabs -->
-      <div class="tabs">
-        <a href="{% url 'create-post-text' %}" class="active">Text</a>
-        <a href="{% url 'create-post-image-video' %}">Images & Video</a>
-        <a href="{% url 'create-post-link' %}">Link</a>
-      </div>
+    <!-- Tabs -->
+    <div class="tabs">
+      <a href="{% url 'create-post-text' %}">Text</a>
+      <a href="{% url 'create-post-image-video' %}">Images & Video</a>
+      <a href="{% url 'create-post-link' %}" class="active">Link</a>
+    </div>
 
-      <!-- Form -->
-      <form method="POST">
-        {% csrf_token %}
+    <form method="POST" id="post-form">
+      {% csrf_token %}
 
-        <!-- Title -->
-        <label for="title">Title <span class="required">*</span></label>
-        <input id="title" name="title" type="text" maxlength="200" placeholder="Enter title" required>
-        <div class="char-count" id="title-count">0/200</div>
+      <!-- Title -->
+      <label for="title">Title <span class="required">*</span></label>
+      <input id="title" name="title" type="text" maxlength="200" placeholder="Enter title"
+             value="{{ title|default:'' }}" required>
+      <div class="char-count" id="title-count">{{ title|length|default:0 }}/200</div>
 
-        <!-- Body -->
-        <label for="description">Body</label>
-        <textarea id="description" name="description" maxlength="300" placeholder="Write your post..."></textarea>
-        <div class="char-count" id="desc-count">0/300</div>
+      <!-- Tag Selector -->
+      <div class="tag-selector">
+        <label>Add Tag <span class="required">*</span></label>
+        <button type="button" id="tag-btn">
+          {% if post_type %}{{ post_type|title }}{% else %}Add tags{% endif %}
+        </button>
 
-        <!-- Tag Selector -->
-        <div class="tag-selector">
-          <label>Add Tag</label>
-          <button type="button" id="tag-btn">Add tags</button>
-          <div id="tag-choices" class="tag-choices-horizontal" style="display:none;">
-            <button type="button" class="tag-choice-btn" data-value="question">Question</button>
-            <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
-            <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
-          </div>
-          <input type="hidden" name="post_type" id="post_type" required>
+        <div id="tag-choices" class="tag-choices-horizontal" style="display:none;">
+          <button type="button" class="tag-choice-btn" data-value="question">Question</button>
+          <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
+          <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
         </div>
 
-        <!-- Messages -->
-        {% if error %}
-          <div class="error">{{ error }}</div>
-        {% endif %}
-        {% if success %}
-          <div class="success">{{ success }}</div>
-        {% endif %}
+        <input type="hidden" name="post_type" id="post_type" value="{{ post_type|default:'' }}">
+      </div>
 
-        <!-- Submit -->
-        <button type="submit" class="post-btn">Post</button>
-      </form>
-    </div>
+      <!-- URL -->
+      <label for="url">Link URL <span class="required">*</span></label>
+      <input id="url" name="url" type="url" placeholder="https://example.com"
+             value="{{ url|default:'' }}" required>
+
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+      {% if success %}
+        <div class="success">{{ success }}</div>
+      {% endif %}
+
+      <button type="submit" class="post-btn">Post</button>
+    </form>
   </div>
+</div>
 
-  <!-- JS -->
-  <script>
-    // Character counters
-    const titleInput = document.getElementById('title');
-    const descInput = document.getElementById('description');
-    const titleCount = document.getElementById('title-count');
-    const descCount = document.getElementById('desc-count');
+<script>
+  // Character counter
+  const titleInput = document.getElementById('title');
+  const titleCount = document.getElementById('title-count');
+  titleCount.textContent = `${titleInput.value.length}/200`;
+  titleInput.addEventListener('input', () => {
+    titleCount.textContent = `${titleInput.value.length}/200`;
+  });
 
-    titleInput.addEventListener('input', () => {
-      titleCount.textContent = `${titleInput.value.length}/200`;
+  // Tag dropdown
+  const tagBtn = document.getElementById('tag-btn');
+  const tagChoices = document.getElementById('tag-choices');
+  const postTypeInput = document.getElementById('post_type');
+
+  tagBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    tagChoices.style.display = tagChoices.style.display === 'flex' ? 'none' : 'flex';
+  });
+
+  document.querySelectorAll('.tag-choice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tagBtn.textContent = btn.textContent;
+      postTypeInput.value = btn.getAttribute('data-value');
+      tagChoices.style.display = 'none';
     });
+  });
 
-    descInput.addEventListener('input', () => {
-      descCount.textContent = `${descInput.value.length}/300`;
-    });
+  document.addEventListener('click', e => {
+    if (!tagChoices.contains(e.target) && e.target !== tagBtn) {
+      tagChoices.style.display = 'none';
+    }
+  });
 
-    // Tag dropdown
-    const tagBtn = document.getElementById('tag-btn');
-    const tagChoices = document.getElementById('tag-choices');
+  // Prevent submission if tag not selected
+  const form = document.getElementById("post-form");
+  form.addEventListener("submit", e => {
+    if (!postTypeInput.value || postTypeInput.value.trim() === "") {
+      e.preventDefault();
+      alert("Please select a tag before posting!");
+      tagBtn.focus();
+    }
+  });
+</script>
 
-    tagBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      tagChoices.style.display = tagChoices.style.display === 'flex' ? 'none' : 'flex';
-    });
-
-    document.querySelectorAll('.tag-choice-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        tagBtn.textContent = btn.textContent;
-        document.getElementById('post_type').value = btn.getAttribute('data-value');
-        tagChoices.style.display = 'none';
-      });
-    });
-
-    document.addEventListener('click', () => tagChoices.style.display = 'none');
-
-    // Profile dropdown toggle
-    document.addEventListener('click', function(e) {
-      const dropdown = document.querySelector('.dropdown-content');
-      const button = document.querySelector('.profile-btn');
-      if (button.contains(e.target)) {
-        dropdown.classList.toggle('show');
-      } else {
-        dropdown.classList.remove('show');
-      }
-    });
-  </script>
 </body>
 </html>

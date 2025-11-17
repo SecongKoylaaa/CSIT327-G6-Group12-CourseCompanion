@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="{% static 'css/post-create.css' %}">
 
   <style>
-    /* Drag & Drop Upload Box */
     .upload-box {
       border: 2px dashed #ccc;
       border-radius: 10px;
@@ -20,15 +19,12 @@
       transition: border-color 0.2s, background 0.2s;
       position: relative;
     }
+
     .upload-box:hover {
       border-color: #ff4500;
       background-color: #fff8f0;
     }
-    .upload-box p {
-      margin: 0;
-      font-size: 16px;
-      color: #555;
-    }
+
     .upload-box img,
     .upload-box video {
       max-width: 100%;
@@ -36,195 +32,228 @@
       margin-top: 10px;
       border-radius: 10px;
     }
+
+    .remove-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #ff3b30;
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 99;
+      display: none;
+    }
+
+    .remove-btn:hover {
+      background: #d32f2f;
+    }
+
+    .tag-choices-horizontal {
+      display: none;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .tag-choice-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      background: #f7f7f7;
+    }
+
+    .tag-choice-btn:hover {
+      background: #ffefd8;
+      border-color: #ffa042;
+    }
   </style>
 </head>
 <body>
 
-  <!-- NAVBAR -->
   {% include "navbar.html" %}
 
-
-  <!-- MAIN CREATE POST SECTION -->
   <div class="create-container">
     <div class="create-card">
+
       <h1>Create a Post</h1>
 
-      <!-- Course Selector -->
-      <label for="course">Select a Course</label>
-      <select id="course" name="course" required>
-        <option value="" disabled selected>Select a course</option>
-        <option>Computer Science 101</option>
-        <option>Information Technology 102</option>
-        <option>Software Engineering 103</option>
-        <option>Database Systems 104</option>
-      </select>
-
-      <!-- Tabs -->
       <div class="tabs">
         <a href="{% url 'create-post-text' %}">Text</a>
         <a href="{% url 'create-post-image-video' %}" class="active">Images & Video</a>
         <a href="{% url 'create-post-link' %}">Link</a>
       </div>
 
-      <!-- Upload Form -->
-      <form method="POST" enctype="multipart/form-data">
+      <form method="POST" enctype="multipart/form-data" id="post-form">
         {% csrf_token %}
 
-        <!-- Title -->
-        <label for="title">Title <span class="required">*</span></label>
-        <input id="title" name="title" type="text" maxlength="200" placeholder="Enter title" required>
-        <div class="char-count" id="title-count">0/200</div>
+        <label>Select a Course <span class="required">*</span></label>
+        <select id="course" name="course" required>
+          <option value="" disabled {% if not course %}selected{% endif %}>Select a course</option>
+          <option value="Computer Science 101" {% if course == "Computer Science 101" %}selected{% endif %}>Computer Science 101</option>
+          <option value="Information Technology 102" {% if course == "Information Technology 102" %}selected{% endif %}>Information Technology 102</option>
+          <option value="Software Engineering 103" {% if course == "Software Engineering 103" %}selected{% endif %}>Software Engineering 103</option>
+          <option value="Database Systems 104" {% if course == "Database Systems 104" %}selected{% endif %}>Database Systems 104</option>
+        </select>
 
-        <!-- Body -->
-        <label for="description">Body</label>
-        <textarea id="description" name="description" maxlength="300" placeholder="Write your post..."></textarea>
-        <div class="char-count" id="desc-count">0/300</div>
+        <label>Title <span class="required">*</span></label>
+        <input type="text" name="title" id="title" maxlength="200"
+               value="{{ title|default:'' }}"
+               placeholder="Enter title" required>
+        <div class="char-count" id="title-count">{{ title|length|default:0 }}/200</div>
 
-        <!-- Tag Selector -->
+        <label>Description <span class="required">*</span></label>
+        <textarea name="description" id="description" maxlength="300" placeholder="Write your post...">{{ description|default:'' }}</textarea>
+        <div class="char-count" id="desc-count">{{ description|length|default:0 }}/300</div>
+
+        <!-- TAG SELECTOR -->
         <div class="tag-selector">
           <label>Add Tag</label>
-          <button type="button" id="tag-btn">Add tags</button>
-          <div id="tag-choices" class="tag-choices-horizontal" style="display:none;">
+          <button type="button" id="tag-btn">
+            {% if post_type %}
+              {{ post_type|title }}
+            {% else %}
+              Add tags
+            {% endif %}
+          </button>
+
+          <div id="tag-choices" class="tag-choices-horizontal">
             <button type="button" class="tag-choice-btn" data-value="question">Question</button>
             <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
             <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
           </div>
-          <input type="hidden" name="post_type" id="post_type" required>
+
+          <input type="hidden" name="post_type" id="post_type" value="{{ post_type|default:'' }}">
         </div>
 
-        <!-- Drag & Drop Upload Box -->
+        <label>Upload Image or Video <span class="required">*</span></label>
+
         <div class="upload-box" id="uploadBox">
-          <p id="uploadText">Drag and Drop or Upload Media</p>
-          <img id="previewImage" style="display:none;">
-          <video id="previewVideo" controls style="display:none;"></video>
+          <p id="uploadText" style="{% if preview_url %}display:none{% endif %}">Drag and Drop or Upload Media</p>
+
+          <div id="removeMediaBtn" class="remove-btn" style="{% if preview_url %}display:flex{% else %}display:none{% endif %}">✖</div>
+
+          {% if preview_type == "image" %}
+            <img id="previewImage" src="{{ preview_url }}" style="display:block;">
+            <video id="previewVideo" style="display:none;" controls></video>
+
+          {% elif preview_type == "video" %}
+            <video id="previewVideo" src="{{ preview_url }}" style="display:block;" controls></video>
+            <img id="previewImage" style="display:none;">
+
+          {% else %}
+            <img id="previewImage" style="display:none;">
+            <video id="previewVideo" style="display:none;" controls></video>
+          {% endif %}
+
           <input type="file" id="fileUpload" name="fileUpload" accept="image/*,video/*" style="display:none;">
         </div>
 
-        <!-- Messages -->
-        {% if error %}
-          <div class="error">{{ error }}</div>
-        {% endif %}
-        {% if success %}
-          <div class="success">{{ success }}</div>
-        {% endif %}
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        {% if success %}<div class="success">{{ success }}</div>{% endif %}
 
-        <!-- Submit -->
         <button type="submit" class="post-btn">Post</button>
       </form>
+
     </div>
   </div>
 
-  <!-- JS -->
   <script>
-    // Character counters
+    /* CHARACTER COUNTS */
     const titleInput = document.getElementById('title');
     const descInput = document.getElementById('description');
-    const titleCount = document.getElementById('title-count');
-    const descCount = document.getElementById('desc-count');
+    document.getElementById('title-count').textContent = `${titleInput.value.length}/200`;
+    document.getElementById('desc-count').textContent = `${descInput.value.length}/300`;
 
-    titleInput.addEventListener('input', () => {
-      titleCount.textContent = `${titleInput.value.length}/200`;
-    });
+    titleInput.addEventListener('input', () =>
+      document.getElementById('title-count').textContent = `${titleInput.value.length}/200`
+    );
 
-    descInput.addEventListener('input', () => {
-      descCount.textContent = `${descInput.value.length}/300`;
-    });
+    descInput.addEventListener('input', () =>
+      document.getElementById('desc-count').textContent = `${descInput.value.length}/300`
+    );
 
-    // Tag dropdown
-    const tagBtn = document.getElementById('tag-btn');
-    const tagChoices = document.getElementById('tag-choices');
+    /* TAG DROPDOWN */
+    const tagBtn = document.getElementById("tag-btn");
+    const tagChoices = document.getElementById("tag-choices");
 
-    tagBtn.addEventListener('click', (e) => {
+    tagBtn.addEventListener("click", e => {
       e.stopPropagation();
-      tagChoices.style.display = tagChoices.style.display === 'flex' ? 'none' : 'flex';
+      tagChoices.style.display = tagChoices.style.display === "block" ? "none" : "block";
     });
 
-    document.querySelectorAll('.tag-choice-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+    document.querySelectorAll(".tag-choice-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const value = btn.getAttribute("data-value");
         tagBtn.textContent = btn.textContent;
-        document.getElementById('post_type').value = btn.getAttribute('data-value');
-        tagChoices.style.display = 'none';
+        document.getElementById("post_type").value = value;
+        tagChoices.style.display = "none";
       });
     });
 
-    document.addEventListener('click', () => tagChoices.style.display = 'none');
+    document.addEventListener("click", () => {
+      tagChoices.style.display = "none";
+    });
 
-    // Drag & Drop / Click Upload
-    const uploadBox = document.getElementById('uploadBox');
-    const fileInput = document.getElementById('fileUpload');
-    const previewImage = document.getElementById('previewImage');
-    const previewVideo = document.getElementById('previewVideo');
-    const uploadText = document.getElementById('uploadText');
+    /* UPLOAD PREVIEW */
+    const uploadBox = document.getElementById("uploadBox");
+    const fileInput = document.getElementById("fileUpload");
+    const previewImage = document.getElementById("previewImage");
+    const previewVideo = document.getElementById("previewVideo");
+    const uploadText = document.getElementById("uploadText");
+    const removeBtn = document.getElementById("removeMediaBtn");
 
-    uploadBox.addEventListener('click', () => fileInput.click());
+    uploadBox.addEventListener("click", () => fileInput.click());
 
-    fileInput.addEventListener('change', function() {
+    fileInput.addEventListener("change", function () {
       const file = this.files[0];
       if (!file) return;
 
-      previewImage.style.display = 'none';
-      previewVideo.style.display = 'none';
+      previewImage.style.display = "none";
+      previewVideo.style.display = "none";
 
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = e => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        if (file.type.startsWith("image/")) {
           previewImage.src = e.target.result;
-          previewImage.style.display = 'block';
-          uploadText.style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-      } else if (file.type.startsWith('video/')) {
-        const reader = new FileReader();
-        reader.onload = e => {
+          previewImage.style.display = "block";
+        } else if (file.type.startsWith("video/")) {
           previewVideo.src = e.target.result;
-          previewVideo.style.display = 'block';
-          uploadText.style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-      } else {
-        alert("Please upload an image or video file.");
-        fileInput.value = "";
-      }
+          previewVideo.style.display = "block";
+        }
+        uploadText.style.display = "none";
+        removeBtn.style.display = "flex";
+      };
+      reader.readAsDataURL(file);
     });
 
-    // Drag & Drop events
-    uploadBox.addEventListener('dragover', e => {
-      e.preventDefault();
-      uploadBox.style.borderColor = '#ff4500';
+    removeBtn.addEventListener("click", () => {
+      previewImage.style.display = "none";
+      previewVideo.style.display = "none";
+      previewImage.src = "";
+      previewVideo.src = "";
+      uploadText.style.display = "block";
+      removeBtn.style.display = "none";
+      fileInput.value = "";
     });
 
-    uploadBox.addEventListener('dragleave', e => {
-      e.preventDefault();
-      uploadBox.style.borderColor = '#ccc';
+    // FORCE CLOSE TAG MENU ON PAGE LOAD
+    window.addEventListener("DOMContentLoaded", () => {
+      const tagChoices = document.getElementById("tag-choices");
+      const tagBtn = document.getElementById("tag-btn");
+
+      tagChoices.style.display = "none";
+      tagBtn.setAttribute("aria-expanded", "false");
     });
 
-    uploadBox.addEventListener('drop', e => {
-      e.preventDefault();
-      uploadBox.style.borderColor = '#ccc';
-      const files = e.dataTransfer.files;
-      if (files.length) fileInput.files = files;
-      fileInput.dispatchEvent(new Event('change'));
-    });
-
-    // Form validation
-    document.querySelector("form").addEventListener("submit", function(e) {
-      const postType = document.getElementById("post_type").value.trim();
-      if (!postType) {
-        alert("Please select a post type before submitting.");
-        e.preventDefault();
-      }
-    });
-
-    // Profile dropdown toggle
-    document.addEventListener('click', function(e) {
-      const dropdown = document.querySelector('.dropdown-content');
-      const button = document.querySelector('.profile-btn');
-      if (button.contains(e.target)) {
-        dropdown.classList.toggle('show');
-      } else {
-        dropdown.classList.remove('show');
-      }
-    });
   </script>
+
 </body>
 </html>

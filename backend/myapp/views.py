@@ -745,6 +745,8 @@ def vote_post(request, post_id, vote_type):
 from django.shortcuts import render, redirect
 from django.conf import settings
 
+
+
 # --------------------------
 # Create Post - Text
 # --------------------------
@@ -754,38 +756,65 @@ def create_post_text(request):
 
     user_email = request.session.get("user_email")
     user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+
     if not user_resp.data:
         return render(request, "create-post-text.html", {"error": "User not found."})
 
     user_id = user_resp.data[0]["id"]
 
     if request.method == "POST":
+        # Get form data
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
-        url = request.POST.get("url", "").strip()
+        course = request.POST.get("course", "").strip()
 
-        if not title or not description or not post_type or not url:
-            return render(request, "create-post-text.html", {"error": "All fields are required."})
+        # Validation
+        if not title or not description or not post_type or not course:
+            return render(request, "create-post-text.html", {
+                "error": "All fields are required.",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "course": course
+            })
 
+        # Insert post (NO COURSE FIELD)
         try:
             supabase.table("posts").insert({
                 "title": title,
                 "description": description,
-                "content": url,  # Store link in content
+                "content": "",
                 "post_type": post_type,
                 "user_id": user_id
             }).execute()
-            return render(request, "create-post-text.html", {"success": "Post created successfully!"})
+
+            return render(request, "create-post-text.html", {
+                "success": "Post created successfully!",
+                "title": "",
+                "description": "",
+                "post_type": "",
+                "course": ""
+            })
+
         except Exception as e:
-            return render(request, "create-post-text.html", {"error": f"Error creating post: {str(e)}"})
+            return render(request, "create-post-text.html", {
+                "error": f"Error creating post: {str(e)}",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "course": course
+            })
 
     return render(request, "create-post-text.html")
+
 
 
 # --------------------------
 # Create Post - Image/Video
 # --------------------------
+from django.conf import settings
+
 def create_post_image(request):
     if "user_email" not in request.session:
         return redirect("/login/")
@@ -801,20 +830,36 @@ def create_post_image(request):
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
-        file = request.FILES.get("fileUpload")
+        course = request.POST.get("course", "").strip()
+        uploaded_file = request.FILES.get("fileUpload")
 
-        if not title or not description or not post_type or not file:
-            return render(request, "create-post-image-video.html", {"error": "All fields are required."})
+        # Validate fields (course required but NOT inserted into posts table)
+        if not title or not post_type or not course or not uploaded_file:
+            return render(request, "create-post-image-video.html", {
+                "error": "All fields are required.",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "course": course,
+            })
 
+        # Upload to Supabase Storage
         try:
-            # Upload file
-            file_path = f"{user_email}/{file.name}"
-            file_bytes = file.read()
+            file_path = f"{user_email}/{uploaded_file.name}"
+            # read bytes (uploaded_file may be InMemoryUploadedFile or TemporaryUploadedFile)
+            file_bytes = uploaded_file.read()
             supabase.storage.from_(settings.SUPABASE_BUCKET).upload(file_path, file_bytes)
-            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).rstrip("?")
+            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).split("?")[0]
         except Exception as e:
-            return render(request, "create-post-image-video.html", {"error": f"File upload failed: {str(e)}"})
+            return render(request, "create-post-image-video.html", {
+                "error": f"File upload failed: {str(e)}",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "course": course,
+            })
 
+        # Insert post record (DO NOT include `course` in insert unless your table has that column)
         try:
             supabase.table("posts").insert({
                 "title": title,
@@ -823,11 +868,33 @@ def create_post_image(request):
                 "post_type": post_type,
                 "user_id": user_id
             }).execute()
-            return render(request, "create-post-image-video.html", {"success": "Post created successfully!"})
-        except Exception as e:
-            return render(request, "create-post-image-video.html", {"error": f"Error creating post: {str(e)}"})
 
+            # determine preview type for template (image/video)
+            preview_type = "video" if uploaded_file.content_type.startswith("video") else "image"
+
+            return render(request, "create-post-image-video.html", {
+                "success": "Post created successfully!",
+                "preview_url": file_url,
+                "preview_type": preview_type,
+                # keep other values blank so form looks clean after success
+                "title": "",
+                "description": "",
+                "post_type": "",
+                "course": ""
+            })
+
+        except Exception as e:
+            return render(request, "create-post-image-video.html", {
+                "error": f"Error creating post: {str(e)}",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "course": course,
+            })
+
+    # GET
     return render(request, "create-post-image-video.html")
+
 
 
 # --------------------------
@@ -866,6 +933,8 @@ def create_post_link(request):
             return render(request, "create-post-link.html", {"error": f"Error creating post: {str(e)}"})
 
     return render(request, "create-post-link.html")
+
+
 
 
 # --------------------------
