@@ -12,9 +12,15 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
+# Database
+import dj_database_url
 
+# Load .env in local dev only
+if os.environ.get("RENDER", "") != "true":
+    load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,15 +30,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ywyn6ku%6=-g%1u0-@7a+b6#ow_emzic6nahvvzrysu7t-zcf#'
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "unsafe-dev-key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://tkyztssepvewbmgsaaeq.supabase.co") # replace with your supabase url 
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRreXp0c3NlcHZld2JtZ3NhYWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODQ4NjMsImV4cCI6MjA3NDk2MDg2M30.uwxitzioVAWuNENFGnVwuXcQyvbXi6AdfjwYg-suoA8") #replace with your supabase URL
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "post_media")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 
 # Database connection string
 # postgresql://postgres:[YOUR_PASSWORD]@db.tkyztssepvewbmgsaaeq.supabase.co:5432/postgres
@@ -57,6 +64,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # add WhiteNoise here
 ]
 #That’s the problem ❌ — you don’t have a backend/urls.py.
 #Your actual urls.py is in myproject/urls.py.
@@ -85,15 +94,8 @@ WSGI_APPLICATION = 'myproject.wsgi.application' #this
 
 
 
-# Database
-import dj_database_url
-
-# Load environment variables from .env
-load_dotenv()
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-
 # Database configuration using Supabase Session Pooler
+DATABASE_URL = os.environ.get("DATABASE_URL")
 DATABASES = {
     'default': dj_database_url.config(
         default="sqlite:///db.sqlite3",
@@ -101,9 +103,6 @@ DATABASES = {
         ssl_require=True   # enforce SSL
     )
 }
-
-
-
 
 
 # Password validation
@@ -140,13 +139,24 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = '/static/'
+# Static files (WhiteNoise)
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "..", "frontend", "static"),
 ]
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# WhiteNoise: serve compressed static files
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Security (production)
+if os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "True").lower() == "true":
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True

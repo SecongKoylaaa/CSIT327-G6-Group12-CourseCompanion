@@ -23,6 +23,10 @@
         <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
         <h3>{{ post.title }}</h3>
 
+        {% if post.post_type %}
+          <p class="post-type">Type: {{ post.post_type }}</p> 
+        {% endif %}
+
         {% if post.description %}
           <p class="post-description">{{ post.description }}</p>
         {% endif %}
