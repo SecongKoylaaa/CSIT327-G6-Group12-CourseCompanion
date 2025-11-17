@@ -3,6 +3,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.conf import settings
+from django.shortcuts import redirect
 from django.contrib.auth.hashers import make_password, check_password
 from datetime import datetime, timezone, timedelta
 from supabase import create_client
@@ -46,9 +47,12 @@ def root_redirect(request):
 # --------------------------
 def register_page(request):
     if request.method == "POST":
+        MAX_EMAIL_LENGTH = 50
+        MAX_PASSWORD_LENGTH = 30
+
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "").strip()
-        confirm_password = request.POST.get("confirmPassword", "").strip()
+        confirm = request.POST.get("confirmPassword", "").strip()
         username = request.POST.get("username", "").strip()
         role = request.POST.get("role", "").strip().lower()
 
@@ -89,7 +93,6 @@ def register_page(request):
 
         return redirect("/login/")
 
-    # GET request
     return render(request, "register.html")
 
 # --------------------------
@@ -97,8 +100,17 @@ def register_page(request):
 # --------------------------
 def login_page(request):
     if request.method == "POST":
+        MAX_EMAIL_LENGTH = 50
+        MAX_PASSWORD_LENGTH = 30
+
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "").strip()
+
+        if len(email) > MAX_EMAIL_LENGTH:
+            return render(request, "login.html", {"error": f"Email cannot exceed {MAX_EMAIL_LENGTH} characters."})
+
+        if len(password) > MAX_PASSWORD_LENGTH:
+            return render(request, "login.html", {"error": f"Password cannot exceed {MAX_PASSWORD_LENGTH} characters."})
 
         if not email or not password:
             return render(request, "login.html", {"error": "Email and password are required."})
@@ -118,14 +130,6 @@ def login_page(request):
         # Save user session
         request.session["user_email"] = email
         request.session["role"] = user.get("role", "student")
-
-        # Update last_login timestamp
-        try:
-            supabase.table("users").update({
-                "last_login": datetime.now(timezone.utc).isoformat()
-            }).eq("id", user["id"]).execute()
-        except Exception as e:
-            print(f"Warning: failed to update last_login: {e}")
 
         return redirect("/home/")
 
