@@ -54,7 +54,7 @@
           </span>
         </div>
 
-        <!-- COMMENTS SECTION -->
+        <!-- COMMENTS SECTION (hidden by default) -->
         <div class="expanded-section">
           {% include "comments.html" with post=post %}
         </div>
@@ -78,7 +78,7 @@
   </aside>
 </div>
 
-<!-- IMAGE & VIDEO LIGHTBOX MODAL -->
+<!-- IMAGE & VIDEO MODAL -->
 <div id="mediaModal" class="media-modal">
   <span class="close-modal">&times;</span>
   <img id="modalImage" class="modal-content" style="display:none;">
@@ -89,13 +89,13 @@
 <script src="{% static 'js/comments.js' %}"></script>
 
 <script>
-  // MEDIA LIGHTBOX
-  const modal = document.getElementById('mediaModal');
-  const modalImg = document.getElementById('modalImage');
-  const modalVideo = document.getElementById('modalVideo');
-  const closeModal = document.querySelector('.close-modal');
+const modal = document.getElementById('mediaModal');
+const modalImg = document.getElementById('modalImage');
+const modalVideo = document.getElementById('modalVideo');
+const closeModal = document.querySelector('.close-modal');
 
-  function openMedia(el) {
+document.querySelectorAll('.clickable-media').forEach(el => {
+  el.addEventListener('click', () => {
     modal.classList.add('show');
     if (el.tagName.toLowerCase() === 'img') {
       modalImg.src = el.src;
@@ -107,26 +107,20 @@
       modalImg.style.display = 'none';
       modalVideo.play();
     }
-  }
-
-  document.querySelectorAll('.clickable-media').forEach(el => {
-    el.addEventListener('click', () => openMedia(el));
   });
+});
 
-  function closeMedia() {
+closeModal.addEventListener('click', () => {
+  modal.classList.remove('show');
+  modalVideo.pause();
+});
+
+modal.addEventListener('click', e => {
+  if (e.target === modal) {
     modal.classList.remove('show');
     modalVideo.pause();
   }
-
-  closeModal.addEventListener('click', closeMedia);
-
-  modal.addEventListener('click', e => {
-    if (e.target === modal) closeMedia();
-  });
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeMedia();
-  });
+});
 </script>
 
 </body>
