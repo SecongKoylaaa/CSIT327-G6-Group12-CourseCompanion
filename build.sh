@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PYTHONPATH=$PYTHONPATH:$(pwd)
+
 echo "==> Installing dependencies"
 pip install --upgrade pip
 pip install -r requirements.txt
