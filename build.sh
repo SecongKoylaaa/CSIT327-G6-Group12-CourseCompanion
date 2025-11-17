@@ -6,10 +6,10 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 echo "==> Running database migrations"
-python manage.py makemigrations
-python manage.py migrate --noinput
+python backend/manage.py makemigrations
+python backend/manage.py migrate --noinput
 
 echo "==> Collecting static files"
-python manage.py collectstatic --noinput
+python backend/manage.py collectstatic --noinput
 
 echo "==> Build complete"
