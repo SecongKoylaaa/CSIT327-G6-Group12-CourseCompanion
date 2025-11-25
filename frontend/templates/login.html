@@ -3,44 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login</title>
+  <title>Log In</title>
   <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/auth.css">
 </head>
+
 <body>
-  <div class="container">
-    <img src="https://img.icons8.com/ios-filled/100/000000/lock-2.png" alt="logo">
-    <h2>Login</h2>
-
-    <form id="loginForm" method="POST" action="/login/">
-      {% csrf_token %}
-      <input type="email" name="email" placeholder="Email *" required maxlength="50">
-
-      <div class="password-container">
-        <input type="password" name="password" id="password" placeholder="Password *" required maxlength="30">
-        <button type="button" id="togglePassword" class="show-password">&#128065;</button>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <svg class="auth-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+        <h1>Log In</h1>
+        <p class="auth-subtitle">Welcome back</p>
       </div>
 
-      <div class="links"> 
-        <a href="/recover" >Forgot password?</a>
-      </div>
-      <div class="links">No account? <a href="/register">Register</a></div>
+      <form id="loginForm" method="POST" action="/login/">
+        {% csrf_token %}
 
-      <button type="submit">Login</button>
-    </form>
+        <div class="input-group">
+          <label for="email">Email</label>
+          <input type="email" name="email" id="email" placeholder="you@example.com" required maxlength="50" autocomplete="email">
+        </div>
 
-    {% if error %}
-      <div class="error">{{ error }}</div>
-    {% endif %}
+        <div class="input-group">
+          <label for="password">Password</label>
+          <div class="password-wrapper">
+            <input type="password" name="password" id="password" placeholder="••••••••" required maxlength="30" autocomplete="current-password">
+            <button type="button" id="togglePassword" class="toggle-password" aria-label="Toggle password visibility">
+              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-footer">
+          <a href="/recover" class="link-subtle">Forgot password?</a>
+        </div>
+
+        {% if error %}
+          <div class="alert alert-error">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            {{ error }}
+          </div>
+        {% endif %}
+
+        <button type="submit" class="btn-primary">Log In</button>
+
+        <div class="divider">
+          <span>New here?</span>
+        </div>
+
+        <a href="/register" class="btn-secondary">Create Account</a>
+      </form>
+    </div>
   </div>
+
   <script>
     const togglePassword = document.getElementById("togglePassword");
     const password = document.getElementById("password");
 
     togglePassword.addEventListener("click", () => {
-      password.type = password.type === "password" ? "text" : "password";
+      const isPassword = password.type === "password";
+      password.type = isPassword ? "text" : "password";
+      togglePassword.classList.toggle("active", !isPassword);
     });
-
-    
   </script>
 </body>
 </html>

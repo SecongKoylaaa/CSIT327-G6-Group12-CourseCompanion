@@ -1,92 +1,114 @@
-<div class="comment" id="comment-{{ comment.comment_id }}"
-     data-created="{{ comment.created_at|date:'c' }}"
-     data-votes="{{ comment.net_votes|default:0 }}">
-  
-  <!-- COMMENT HEADER -->
-  <div class="comment-header">
-    <strong>{{ comment.author }}</strong>
-    {% if comment.reply_to %}
-      <span class="reply-to">↪ replied to <strong>{{ comment.reply_to }}</strong></span>
-    {% endif %}
-    <span class="comment-time">
-      • <span class="comment-time-local" data-time="{{ comment.created_at|date:'c' }}"></span>
-      {% if comment.edited %}[edited]{% endif %}
-    </span>
+<div class="comment-wrapper level-{{ level }}">
 
-    {% if user_email == comment.author %}
+  <div class="comment level-{{ level }}"
+       id="comment-{{ comment.comment_id }}"
+       data-created="{{ comment.created_at|date:'c' }}"
+       data-votes="{{ comment.net_votes|default:0 }}">
+
+    <!-- COMMENT HEADER -->
+    <div class="comment-header">
+      <strong class="comment-author">{{ comment.author }}</strong>
+
+      <span class="comment-time">
+        • <span class="comment-time-local" data-time="{{ comment.created_at|date:'c' }}"></span>
+        {% if comment.edited %}[edited]{% endif %}
+      </span>
+
+      {% if user_email == comment.author %}
       <div class="comment-menu-wrapper">
         <span class="comment-menu-btn" onclick="toggleCommentMenu('{{ comment.comment_id }}')">⋯</span>
-        <div class="comment-menu" id="comment-menu-{{ comment.comment_id }}">
+
+        <div class="comment-menu" id="comment-menu-{{ comment.comment_id }}" style="display:none;">
           <span class="edit-btn" onclick="toggleEditForm('{{ comment.comment_id }}')">Edit</span>
+
           <form method="POST" action="{% url 'delete_comment' comment.comment_id %}" style="display:inline;">
             {% csrf_token %}
             <button type="submit" class="delete-btn">Delete</button>
           </form>
         </div>
       </div>
-    {% endif %}
-  </div>
-
-  <!-- COMMENT TEXT -->
-  <p class="comment-text" id="comment-text-{{ comment.comment_id }}">{{ comment.text }}</p>
-
-  <!-- UPVOTE / DOWNVOTE -->
-<div class="comment-votes" data-comment-id="{{ comment.comment_id }}">
-  <button class="comment-upvote {% if comment.user_vote == 'upvote' %}active-upvote{% endif %}" 
-          onclick="voteComment('{{ comment.comment_id }}', 'upvote', this)">
-    ⬆️
-  </button>
-
-  <span class="comment-vote-count">{{ comment.net_votes }}</span>
-
-  <button class="comment-downvote {% if comment.user_vote == 'downvote' %}active-downvote{% endif %}" 
-          onclick="voteComment('{{ comment.comment_id }}', 'downvote', this)">
-    ⬇️
-  </button>
-</div>
-
-
-  <!-- EDIT FORM -->
-  <form id="edit-form-{{ comment.comment_id }}" class="edit-form" method="POST" action="{% url 'edit_comment' comment.comment_id %}" style="display:none;">
-    {% csrf_token %}
-    <textarea name="comment" required>{{ comment.text }}</textarea>
-    <button type="submit">Save</button>
-    <button type="button" onclick="cancelEdit('{{ comment.comment_id }}')">Cancel</button>
-  </form>
-
-  <!-- REPLY BUTTON -->
-  <button class="reply-btn" onclick="toggleReplyForm('{{ comment.comment_id }}')">Reply</button>
-
-  <!-- REPLY FORM -->
-  <form id="reply-form-{{ comment.comment_id }}" class="reply-form" method="POST" action="{% url 'home' %}" style="display:none;">
-    {% csrf_token %}
-    <input type="hidden" name="post_id" value="{{ post_id }}">
-    <input type="hidden" name="parent_id" value="{{ comment.comment_id }}">
-    <textarea name="comment" placeholder="Write a reply..." required></textarea>
-    <button type="submit">Reply</button>
-  </form>
-  
-  <!-- Nested replies -->
-  {% if comment.replies %}
-    <div class="replies">
-      {% for reply in comment.replies|slice:":1" %}
-        {% include "comment_thread.html" with comment=reply post_id=post_id %}
-      {% endfor %}
-
-      {% if comment.replies|length > 1 %}
-        <!-- Show More Comments Button -->
-        <div class="more-replies" data-comment-id="{{ comment.comment_id }}" onclick="toggleMoreComments('{{ comment.comment_id }}')">
-          Show more comments
-        </div>
-
-        <!-- Hidden replies -->
-        <div class="hidden-replies" id="hidden-replies-{{ comment.comment_id }}" style="display:none;">
-          {% for reply in comment.replies|slice:"1:" %}
-            {% include "comment_thread.html" with comment=reply post_id=post_id %}
-          {% endfor %}
-        </div>
       {% endif %}
     </div>
+
+    <!-- REPLY-TO BOX -->
+    {% if comment.reply_to %}
+    <div class="reply-to-box">
+      <strong>{{ comment.reply_to }}</strong>:
+      <span class="reply-to-snippet">{{ comment.parent_text|truncatechars:50 }}</span>
+    </div>
+    {% endif %}
+
+    <!-- MAIN COMMENT TEXT -->
+    <div class="comment-box">
+      <p class="comment-text" id="comment-text-{{ comment.comment_id }}">
+        {{ comment.text }}
+      </p>
+    </div>
+
+    <!-- VOTING -->
+    <div class="comment-votes" data-comment-id="{{ comment.comment_id }}">
+      <button class="comment-upvote {% if comment.user_vote == 'upvote' %}active-upvote{% endif %}"
+              onclick="voteComment('{{ comment.comment_id }}', 'upvote', this)">⬆️</button>
+
+      <span class="comment-vote-count">{{ comment.net_votes }}</span>
+
+      <button class="comment-downvote {% if comment.user_vote == 'downvote' %}active-downvote{% endif %}"
+              onclick="voteComment('{{ comment.comment_id }}', 'downvote', this)">⬇️</button>
+    </div>
+
+    <!-- EDIT FORM -->
+    <form id="edit-form-{{ comment.comment_id }}"
+          class="edit-form"
+          method="POST"
+          action="{% url 'edit_comment' comment.comment_id %}"
+          style="display:none;">
+      {% csrf_token %}
+      <textarea name="comment" required>{{ comment.text }}</textarea>
+      <button type="submit">Save</button>
+      <button type="button" onclick="cancelEdit('{{ comment.comment_id }}')">Cancel</button>
+    </form>
+
+    <!-- REPLY BUTTON (always visible) -->
+    <button class="reply-btn"
+            onclick="showReplyForm('{{ comment.comment_id }}', '{{ comment.author }}')">
+      Reply
+    </button>
+
+    <!-- REPLY FORM -->
+    <form id="reply-form-{{ comment.comment_id }}"
+          class="reply-form"
+          method="POST"
+          action="{% url 'home' %}"
+          style="display:none;">
+      {% csrf_token %}
+      <input type="hidden" name="post_id" value="{{ post_id }}">
+      <input type="hidden" name="parent_id" value="{{ comment.comment_id }}">
+      <textarea name="comment" placeholder="Write a reply..." required></textarea>
+      <button type="submit">Reply</button>
+    </form>
+
+    <!-- VIEW REPLIES BUTTON -->
+    {% if comment.replies %}
+    <div class="more-replies"
+         id="more-replies-{{ comment.comment_id }}"
+         data-original-text="View All {{ comment.replies|length }} Replies"
+         onclick="toggleReplies('{{ comment.comment_id }}')">
+      View All {{ comment.replies|length }} Replies
+    </div>
+    {% endif %}
+
+  </div>
+
+  {% if comment.replies %}
+  <div class="replies-wrapper level-{{ level }}"
+       id="hidden-replies-{{ comment.comment_id }}"
+       style="display:none;">
+
+    {% for reply in comment.replies %}
+      {% include "comment_thread.html" with comment=reply post_id=post_id user_email=user_email level=level|add:1 %}
+    {% endfor %}
+
+  </div>
   {% endif %}
 
 </div>

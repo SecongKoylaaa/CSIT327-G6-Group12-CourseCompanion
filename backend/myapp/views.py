@@ -42,9 +42,6 @@ def safe_execute(request_fn, retries=3, delay=0.1):
 def root_redirect(request):
     return redirect("/login/")
 
-# --------------------------
-# Registration View
-# --------------------------
 def register_page(request):
     if request.method == "POST":
         MAX_EMAIL_LENGTH = 50
@@ -53,16 +50,19 @@ def register_page(request):
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "").strip()
         confirm = request.POST.get("confirmPassword", "").strip()
-        username = request.POST.get("username", "").strip()
-        role = request.POST.get("role", "").strip().lower()
 
         # ---------- Validation ----------
-        if not email or not password or not confirm_password or not role:
+        if not email or not password or not confirm:
             return render(request, "register.html", {"error": "All fields are required."})
-        if password != confirm_password:
+
+        if len(email) > MAX_EMAIL_LENGTH:
+            return render(request, "register.html", {"error": "Email is too long."})
+
+        if len(password) > MAX_PASSWORD_LENGTH:
+            return render(request, "register.html", {"error": "Password is too long."})
+
+        if password != confirm:
             return render(request, "register.html", {"error": "Passwords do not match."})
-        if role not in ["student", "teacher"]:
-            return render(request, "register.html", {"error": "Invalid role selected."})
 
         # ---------- Check if email exists ----------
         try:
@@ -75,25 +75,29 @@ def register_page(request):
         # ---------- Insert User ----------
         password_hash = make_password(password)
         date_joined = datetime.now(timezone.utc).isoformat()
+
         try:
             response = supabase.table("users").insert({
                 "email": email,
                 "password_hash": password_hash,
-                "role": role,
-                "username": username if username else None,
+                "username": None,
+                "role": "student",        # default role, or change as needed
                 "profile_picture": None,
                 "bio": None,
                 "last_login": None,
                 "date_joined": date_joined
             }).execute()
+
             if getattr(response, "error", None):
                 return render(request, "register.html", {"error": f"Error registering: {response.error}"})
+
         except Exception as e:
             return render(request, "register.html", {"error": f"Error registering: {str(e)}"})
 
         return redirect("/login/")
 
     return render(request, "register.html")
+
 
 # --------------------------
 # Login View
