@@ -1,16 +1,15 @@
 /* ===================================
-   ENHANCED POST CREATE DESIGN — SAFE VERSION
-   (NO NAVBAR SELECTORS INCLUDED)
+   ENHANCED POST CREATE DESIGN — FULLY SCOPED
 =================================== */
 
-* {
+/* Box sizing only inside container */
+.create-container * {
   box-sizing: border-box;
 }
 
 /* ===================================
    CONTAINER & WRAPPER
 =================================== */
-
 .create-container {
   background: linear-gradient(135deg, #e8ecf8 0%, #cdd4eb 100%);
   min-height: 100vh;
@@ -20,7 +19,7 @@
   align-items: flex-start;
 }
 
-.create-wrapper {
+.create-container .create-wrapper {
   width: 100%;
   max-width: 680px;
 }
@@ -28,13 +27,12 @@
 /* ===================================
    HEADER
 =================================== */
-
-.create-header {
+.create-container .create-header {
   text-align: center;
   margin-bottom: 32px;
 }
 
-.create-header h1 {
+.create-container .create-header h1 {
   font-size: 32px;
   font-weight: 700;
   color: #3b425a;
@@ -42,7 +40,7 @@
   letter-spacing: -0.5px;
 }
 
-.create-header .subtitle {
+.create-container .create-header .subtitle {
   font-size: 15px;
   color: #6b6f82;
   margin: 0;
@@ -51,8 +49,7 @@
 /* ===================================
    CARD
 =================================== */
-
-.create-card {
+.create-container .create-card {
   background: #ffffff;
   border: 1px solid #d5d7e3;
   border-radius: 8px;
@@ -63,8 +60,7 @@
 /* ===================================
    TABS
 =================================== */
-
-.tabs {
+.create-container .tabs {
   display: flex;
   gap: 4px;
   margin-bottom: 32px;
@@ -73,7 +69,7 @@
   border-radius: 8px;
 }
 
-.tab-item {
+.create-container .tab-item {
   flex: 1;
   display: flex;
   align-items: center;
@@ -89,17 +85,17 @@
   position: relative;
 }
 
-.tab-item:hover {
+.create-container .tab-item:hover {
   color: #3b425a;
   background: rgba(60, 70, 110, 0.06);
 }
 
-.tab-item.active {
+.create-container .tab-item.active {
   color: #5b7cff;
   background: rgba(91, 124, 255, 0.12);
 }
 
-.tab-icon {
+.create-container .tab-icon {
   width: 18px;
   height: 18px;
   stroke-width: 2;
@@ -108,12 +104,11 @@
 /* ===================================
    FORM GROUPS
 =================================== */
-
-.form-group {
+.create-container .form-group {
   margin-bottom: 24px;
 }
 
-.form-group label {
+.create-container .form-group label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -123,7 +118,7 @@
   margin-bottom: 10px;
 }
 
-.label-icon {
+.create-container .label-icon {
   width: 18px;
   height: 18px;
   color: #6e7490;
@@ -131,13 +126,12 @@
 }
 
 /* ===================================
-   INPUTS
+   INPUTS, TEXTAREAS, SELECTS
 =================================== */
-
-input[type="text"],
-input[type="url"],
-textarea,
-select {
+.create-container input[type="text"],
+.create-container input[type="url"],
+.create-container textarea,
+.create-container select {
   width: 100%;
   padding: 12px 16px;
   font-size: 14px;
@@ -150,32 +144,32 @@ select {
   outline: none;
 }
 
-input::placeholder,
-textarea::placeholder {
+.create-container input::placeholder,
+.create-container textarea::placeholder {
   color: #9aa1b8;
 }
 
-input:hover,
-textarea:hover,
-select:hover {
+.create-container input:hover,
+.create-container textarea:hover,
+.create-container select:hover {
   border-color: #b5bbd6;
 }
 
-input:focus,
-textarea:focus,
-select:focus {
+.create-container input:focus,
+.create-container textarea:focus,
+.create-container select:focus {
   background: #ffffff;
   border-color: #5b7cff;
   box-shadow: 0 0 0 3px rgba(91, 124, 255, 0.18);
 }
 
-textarea {
+.create-container textarea {
   resize: vertical;
   min-height: 100px;
   line-height: 1.5;
 }
 
-select {
+.create-container select {
   cursor: pointer;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236e7490' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
@@ -186,25 +180,13 @@ select {
 }
 
 /* ===================================
-   CHARACTER COUNT
+   TAG SELECTOR & DROPDOWN
 =================================== */
-
-.char-count {
-  text-align: right;
-  font-size: 12px;
-  color: #9aa1b8;
-  margin-top: 6px;
-}
-
-/* ===================================
-   TAG SELECTOR
-=================================== */
-
-.tag-selector {
+.create-container .tag-selector {
   position: relative;
 }
 
-.tag-dropdown-btn {
+.create-container .tag-dropdown-btn {
   width: 100%;
   display: flex;
   align-items: center;
@@ -219,20 +201,20 @@ select {
   font-size: 14px;
 }
 
-.tag-dropdown-btn:hover {
+.create-container .tag-dropdown-btn:hover {
   border-color: #b5bbd6;
 }
 
-.tag-dropdown-btn.active {
+.create-container .tag-dropdown-btn.active {
   border-color: #5b7cff;
   box-shadow: 0 0 0 3px rgba(91, 124, 255, 0.18);
 }
 
-.tag-placeholder {
+.create-container .tag-placeholder {
   color: #9aa1b8;
 }
 
-.dropdown-arrow {
+.create-container .dropdown-arrow {
   width: 18px;
   height: 18px;
   color: #6e7490;
@@ -240,11 +222,11 @@ select {
   transition: transform 0.2s ease;
 }
 
-.tag-dropdown-btn.active .dropdown-arrow {
+.create-container .tag-dropdown-btn.active .dropdown-arrow {
   transform: rotate(180deg);
 }
 
-.tag-dropdown {
+.create-container .tag-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
@@ -260,11 +242,11 @@ select {
   box-shadow: 0 8px 24px rgba(90, 100, 140, 0.25);
 }
 
-.tag-dropdown.show {
+.create-container .tag-dropdown.show {
   display: flex;
 }
 
-.tag-option {
+.create-container .tag-option {
   width: 100%;
   padding: 8px 12px;
   background: transparent;
@@ -276,15 +258,14 @@ select {
   font-family: inherit;
 }
 
-.tag-option:hover {
+.create-container .tag-option:hover {
   background: #f0f2fa;
 }
 
 /* ===================================
    TAG BADGES
 =================================== */
-
-.tag-badge {
+.create-container .tag-badge {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
@@ -294,29 +275,28 @@ select {
   letter-spacing: 0.3px;
 }
 
-.tag-question {
+.create-container .tag-question {
   background: rgba(91, 124, 255, 0.15);
   color: #5b7cff;
   border: 1px solid rgba(91, 124, 255, 0.3);
 }
 
-.tag-announcement {
+.create-container .tag-announcement {
   background: rgba(255, 110, 140, 0.15);
   color: #ff6e8c;
   border: 1px solid rgba(255, 110, 140, 0.35);
 }
 
-.tag-discussion {
+.create-container .tag-discussion {
   background: rgba(120, 175, 255, 0.15);
   color: #6aa7ff;
   border: 1px solid rgba(120, 175, 255, 0.35);
 }
 
 /* ===================================
-   MEDIA UPLOAD
+   MEDIA UPLOAD & PREVIEW
 =================================== */
-
-.upload-area {
+.create-container .upload-area {
   border: 2px dashed #cfd3e4;
   border-radius: 8px;
   padding: 40px 20px;
@@ -327,56 +307,52 @@ select {
   position: relative;
 }
 
-.upload-area:hover {
+.create-container .upload-area:hover {
   border-color: #5b7cff;
   background: rgba(91, 124, 255, 0.06);
 }
 
-.upload-area.drag-over {
+.create-container .upload-area.drag-over {
   border-color: #5b7cff;
   background: rgba(91, 124, 255, 0.12);
   transform: scale(1.01);
 }
 
-.upload-prompt {
+.create-container .upload-prompt {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
 }
 
-.upload-icon {
+.create-container .upload-icon {
   width: 48px;
   height: 48px;
   color: #6e7490;
   stroke-width: 1.5;
 }
 
-.upload-text {
+.create-container .upload-text {
   font-size: 15px;
   font-weight: 600;
   color: #3b425a;
   margin: 0;
 }
 
-.upload-hint {
+.create-container .upload-hint {
   font-size: 13px;
   color: #6e7490;
   margin: 0;
 }
 
-/* ===================================
-   MEDIA PREVIEW
-=================================== */
-
-.media-preview {
+.create-container .media-preview {
   position: relative;
   border-radius: 8px;
   overflow: hidden;
 }
 
-.media-preview img,
-.media-preview video {
+.create-container .media-preview img,
+.create-container .media-preview video {
   width: 100%;
   max-height: 400px;
   object-fit: contain;
@@ -384,7 +360,7 @@ select {
   background: #eef0f8;
 }
 
-.remove-media {
+.create-container .remove-media {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -402,12 +378,12 @@ select {
   z-index: 10;
 }
 
-.remove-media:hover {
+.create-container .remove-media:hover {
   background: #ff4d4d;
   transform: scale(1.1);
 }
 
-.remove-media svg {
+.create-container .remove-media svg {
   width: 16px;
   height: 16px;
   color: white;
@@ -417,8 +393,7 @@ select {
 /* ===================================
    ALERTS
 =================================== */
-
-.alert {
+.create-container .alert {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -429,7 +404,7 @@ select {
   line-height: 1.5;
 }
 
-.alert svg {
+.create-container .alert svg {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
@@ -437,31 +412,30 @@ select {
   margin-top: 1px;
 }
 
-.alert-error {
+.create-container .alert-error {
   background: rgba(255, 110, 110, 0.08);
   border: 1px solid rgba(255, 110, 110, 0.22);
   color: #e07676;
 }
 
-.alert-error svg {
+.create-container .alert-error svg {
   color: #e07676;
 }
 
-.alert-success {
+.create-container .alert-success {
   background: rgba(90, 200, 110, 0.1);
   border: 1px solid rgba(90, 200, 110, 0.25);
   color: #5fc76a;
 }
 
-.alert-success svg {
+.create-container .alert-success svg {
   color: #5fc76a;
 }
 
 /* ===================================
    ACTION BUTTONS
 =================================== */
-
-.form-actions {
+.create-container .form-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
@@ -470,7 +444,7 @@ select {
   border-top: 1px solid #d5d7e3;
 }
 
-.btn-cancel {
+.create-container .btn-cancel {
   padding: 10px 24px;
   font-size: 14px;
   font-weight: 600;
@@ -486,12 +460,12 @@ select {
   justify-content: center;
 }
 
-.btn-cancel:hover {
+.create-container .btn-cancel:hover {
   background: rgba(180, 190, 240, 0.1);
   border-color: #b5bbd6;
 }
 
-.btn-submit {
+.create-container .btn-submit {
   padding: 10px 28px;
   font-size: 14px;
   font-weight: 700;
@@ -507,53 +481,62 @@ select {
   font-family: inherit;
 }
 
-.btn-submit:hover {
+.create-container .btn-submit:hover {
   background: #6c8cff;
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(91, 124, 255, 0.35);
 }
 
-.btn-submit:active {
+.create-container .btn-submit:active {
   transform: translateY(0);
 }
 
-.btn-submit svg {
+.create-container .btn-submit svg {
   width: 16px;
   height: 16px;
   stroke-width: 2;
 }
 
 /* ===================================
+   CHARACTER COUNT
+=================================== */
+.create-container .char-count {
+  text-align: right;
+  font-size: 12px;
+  color: #9aa1b8;
+  margin-top: 6px;
+}
+
+/* ===================================
    RESPONSIVE
 =================================== */
-
 @media (max-width: 768px) {
   .create-container {
     padding: 60px 16px 40px;
   }
 
-  .create-card {
+  .create-container .create-card {
     padding: 24px 20px;
   }
 
-  .create-header h1 {
+  .create-container .create-header h1 {
     font-size: 24px;
   }
 
-  .tab-item span {
+  .create-container .tab-item span {
     display: none;
   }
 
-  .tab-item {
+  .create-container .tab-item {
     justify-content: center;
   }
 
-  .form-actions {
+  .create-container .form-actions {
     flex-direction: column-reverse;
   }
 
-  .btn-cancel,
-  .btn-submit {
+  .create-container .btn-cancel,
+  .create-container .btn-submit {
     width: 100%;
   }
 }

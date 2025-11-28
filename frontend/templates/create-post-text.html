@@ -22,7 +22,7 @@
       </div>
 
       <div class="create-card">
-        
+
         <!-- Post Type Tabs -->
         <div class="tabs">
           <a href="{% url 'create-post-text' %}" class="tab-item active">
@@ -52,21 +52,36 @@
         <form method="POST" id="post-form">
           {% csrf_token %}
 
-          <!-- Course Selector -->
+          <!-- SUBJECT SELECTOR (Replaces Course) -->
           <div class="form-group">
-            <label for="course">
+            <label for="subject">
+              <!-- Course icon reused -->
               <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
               </svg>
-              Course
+              Subject
             </label>
-            <select id="course" name="course" required>
-              <option value="" disabled {% if not course %}selected{% endif %}>Choose a course</option>
-              <option value="Computer Science 101" {% if course == "Computer Science 101" %}selected{% endif %}>Computer Science 101</option>
-              <option value="Information Technology 102" {% if course == "Information Technology 102" %}selected{% endif %}>Information Technology 102</option>
-              <option value="Software Engineering 103" {% if course == "Software Engineering 103" %}selected{% endif %}>Software Engineering 103</option>
-              <option value="Database Systems 104" {% if course == "Database Systems 104" %}selected{% endif %}>Database Systems 104</option>
+            <select id="subject" name="subject" required>
+              <option value="" disabled {% if not subject %}selected{% endif %}>Choose a subject</option>
+              <option value="Filipino" {% if subject == "Filipino" %}selected{% endif %}>Filipino</option>
+              <option value="Math" {% if subject == "Math" %}selected{% endif %}>Math</option>
+              <option value="Araling Panlipunan" {% if subject == "Araling Panlipunan" %}selected{% endif %}>Araling Panlipunan</option>
+              <option value="English" {% if subject == "English" %}selected{% endif %}>English</option>
+              <option value="Science" {% if subject == "Science" %}selected{% endif %}>Science</option>
+              <option value="Physics" {% if subject == "Physics" %}selected{% endif %}>Physics</option>
+              <option value="Chemistry" {% if subject == "Chemistry" %}selected{% endif %}>Chemistry</option>
+              <option value="Biology" {% if subject == "Biology" %}selected{% endif %}>Biology</option>
+              <option value="History" {% if subject == "History" %}selected{% endif %}>History</option>
+              <option value="Geography" {% if subject == "Geography" %}selected{% endif %}>Geography</option>
+              <option value="Edukasyon sa Pagpapakatao" {% if subject == "Edukasyon sa Pagpapakatao" %}selected{% endif %}>Edukasyon sa Pagpapakatao</option>
+              <option value="Economics" {% if subject == "Economics" %}selected{% endif %}>Economics</option>
+              <option value="Technology and Home Economics" {% if subject == "Technology and Home Economics" %}selected{% endif %}>Technology and Home Economics</option>
+              <option value="Integrated Science" {% if subject == "Integrated Science" %}selected{% endif %}>Integrated Science</option>
+              <option value="Health" {% if subject == "Health" %}selected{% endif %}>Health</option>
+              <option value="Music" {% if subject == "Music" %}selected{% endif %}>Music</option>
+              <option value="Art" {% if subject == "Art" %}selected{% endif %}>Art</option>
+              <option value="Physical Education" {% if subject == "Physical Education" %}selected{% endif %}>Physical Education</option>
             </select>
           </div>
 
@@ -112,6 +127,7 @@
               </svg>
               Tag
             </label>
+
             <div class="tag-selector">
               <button type="button" id="tag-btn" class="tag-dropdown-btn">
                 {% if post_type %}
@@ -140,7 +156,7 @@
             </div>
           </div>
 
-          <!-- Error/Success Messages -->
+          <!-- Messages -->
           {% if error %}
             <div class="alert alert-error">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -173,77 +189,78 @@
               Post
             </button>
           </div>
+
         </form>
       </div>
     </div>
   </div>
 
 <script>
-  // Character counters
-  const titleInput = document.getElementById('title');
-  const descInput = document.getElementById('description');
-  const titleCount = document.getElementById('title-count');
-  const descCount = document.getElementById('desc-count');
+// Character Counters
+const titleInput = document.getElementById('title');
+const descInput = document.getElementById('description');
+const titleCount = document.getElementById('title-count');
+const descCount = document.getElementById('desc-count');
 
-  titleCount.textContent = `${titleInput.value.length}/200`;
-  descCount.textContent = `${descInput.value.length}/300`;
+titleCount.textContent = `${titleInput.value.length}/200`;
+descCount.textContent = `${descInput.value.length}/300`;
 
-  titleInput.addEventListener('input', () => titleCount.textContent = `${titleInput.value.length}/200`);
-  descInput.addEventListener('input', () => descCount.textContent = `${descInput.value.length}/300`);
+titleInput.addEventListener('input', () => titleCount.textContent = `${titleInput.value.length}/200`);
+descInput.addEventListener('input', () => descCount.textContent = `${descInput.value.length}/300`);
 
-  // Tag dropdown
-  const tagBtn = document.getElementById("tag-btn");
-  const tagChoices = document.getElementById("tag-choices");
-  const postTypeInput = document.getElementById("post_type");
+// Tag dropdown
+const tagBtn = document.getElementById("tag-btn");
+const tagChoices = document.getElementById("tag-choices");
+const postTypeInput = document.getElementById("post_type");
 
-  tagBtn.addEventListener("click", e => {
-    e.stopPropagation();
-    tagChoices.classList.toggle("show");
-    tagBtn.classList.toggle("active");
+tagBtn.addEventListener("click", e => {
+  e.stopPropagation();
+  tagChoices.classList.toggle("show");
+  tagBtn.classList.toggle("active");
+});
+
+document.querySelectorAll(".tag-option").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const value = btn.getAttribute("data-value");
+    const badge = btn.querySelector(".tag-badge").cloneNode(true);
+
+    tagBtn.innerHTML = '';
+    tagBtn.appendChild(badge);
+
+    const arrow = document.createElement('svg');
+    arrow.className = 'dropdown-arrow';
+    arrow.setAttribute('viewBox', '0 0 24 24');
+    arrow.setAttribute('fill', 'none');
+    arrow.setAttribute('stroke', 'currentColor');
+    arrow.setAttribute('stroke-width', '2');
+    arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+    tagBtn.appendChild(arrow);
+
+    postTypeInput.value = value;
+    tagChoices.classList.remove("show");
+    tagBtn.classList.remove("active");
   });
+});
 
-  document.querySelectorAll(".tag-option").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const value = btn.getAttribute("data-value");
-      const badge = btn.querySelector(".tag-badge").cloneNode(true);
-      
-      tagBtn.innerHTML = '';
-      tagBtn.appendChild(badge);
-      
-      const arrow = document.createElement('svg');
-      arrow.className = 'dropdown-arrow';
-      arrow.setAttribute('viewBox', '0 0 24 24');
-      arrow.setAttribute('fill', 'none');
-      arrow.setAttribute('stroke', 'currentColor');
-      arrow.setAttribute('stroke-width', '2');
-      arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
-      tagBtn.appendChild(arrow);
-      
-      postTypeInput.value = value;
-      tagChoices.classList.remove("show");
-      tagBtn.classList.remove("active");
-    });
-  });
+document.addEventListener("click", e => {
+  if (!tagBtn.contains(e.target) && !tagChoices.contains(e.target)) {
+    tagChoices.classList.remove("show");
+    tagBtn.classList.remove("active");
+  }
+});
 
-  document.addEventListener("click", e => {
-    if (!tagBtn.contains(e.target) && !tagChoices.contains(e.target)) {
-      tagChoices.classList.remove("show");
-      tagBtn.classList.remove("active");
-    }
-  });
+// Form validation
+const form = document.getElementById("post-form");
+const subjectSelect = document.getElementById("subject");
 
-  // Form validation
-  const form = document.getElementById("post-form");
-  const courseSelect = document.getElementById("course");
-
-  form.addEventListener("submit", e => {
-    if (!postTypeInput.value || !courseSelect.value) {
-      e.preventDefault();
-      alert("Please select a course and a tag before posting!");
-      if (!courseSelect.value) courseSelect.focus();
-      else tagBtn.focus();
-    }
-  });
+form.addEventListener("submit", e => {
+  if (!postTypeInput.value || !subjectSelect.value) {
+    e.preventDefault();
+    alert("Please select a subject and a tag before posting!");
+    if (!subjectSelect.value) subjectSelect.focus();
+    else tagBtn.focus();
+  }
+});
 </script>
 
 </body>
