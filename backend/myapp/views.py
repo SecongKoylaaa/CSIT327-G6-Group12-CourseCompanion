@@ -386,6 +386,7 @@ def home_page(request):
         course_name = post.get("course_id") or "null"
         description = post.get("description", "")
         post_id = post.get("post_id")
+        author_id = post.get("user_id")
 
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
@@ -437,13 +438,17 @@ def home_page(request):
             "downvote_count": downvotes,
             "vote_count": net_votes,
             "user_vote": user_vote,
-            "comment_count": len(all_comments)
+            "comment_count": len(all_comments),
+            # owner of the post, used to control author-only UI (3-dots menu)
+            "user_id": author_id,
         })
 
     return render(request, "home.html", {
         "user_email": user_email,
         "role": request.session.get("role", "student"),
         "posts": formatted_posts,
+        # current logged-in user's id, used in template for author-only controls
+        "current_user_id": user_id,
     })
 
 
