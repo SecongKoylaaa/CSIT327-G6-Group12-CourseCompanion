@@ -3,80 +3,196 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Create Post (Link)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Post · Link</title>
   <link rel="stylesheet" href="{% static 'css/layout.css' %}">
   <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
   <link rel="stylesheet" href="{% static 'css/post-create.css' %}">
 </head>
 <body>
 
-<!-- ✅ NAVBAR (click logo/text to go home, layout intact) -->
-{% include "navbar.html" %}
+  {% include "navbar.html" %}
 
-
-<!-- ✅ MAIN CREATE POST SECTION -->
-<div class="create-container">
-  <div class="create-card">
-    <h1>Create a Post</h1>
-
-    <!-- Course Selector -->
-    <label>Select a Course <span class="required">*</span></label>
-    <select id="course" name="course" required>
-      <option value="" disabled {% if not course %}selected{% endif %}>Select a course</option>
-      <option value="Computer Science 101" {% if course == "Computer Science 101" %}selected{% endif %}>Computer Science 101</option>
-      <option value="Information Technology 102" {% if course == "Information Technology 102" %}selected{% endif %}>Information Technology 102</option>
-      <option value="Software Engineering 103" {% if course == "Software Engineering 103" %}selected{% endif %}>Software Engineering 103</option>
-      <option value="Database Systems 104" {% if course == "Database Systems 104" %}selected{% endif %}>Database Systems 104</option>
-    </select>
-
-    <!-- Tabs -->
-    <div class="tabs">
-      <a href="{% url 'create-post-text' %}">Text</a>
-      <a href="{% url 'create-post-image-video' %}">Images & Video</a>
-      <a href="{% url 'create-post-link' %}" class="active">Link</a>
-    </div>
-
-    <!-- Form -->
-    <form method="POST">
-      {% csrf_token %}
-
-      <label for="title">Title <span class="required">*</span></label>
-      <input id="title" name="title" type="text" maxlength="200" placeholder="Enter title" required>
-      <div class="char-count" id="title-count">0/200</div>
-
-      <!-- Tag Selector -->
-      <div class="tag-selector">
-        <label>Add Tag</label>
-        <button type="button" id="tag-btn">Add tags</button>
-        <div id="tag-choices" class="tag-choices-horizontal" style="display:none;">
-          <button type="button" class="tag-choice-btn" data-value="question">Question</button>
-          <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
-          <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
-        </div>
-        <input type="hidden" name="post_type" id="post_type" required>
+  <div class="create-container">
+    <div class="create-wrapper">
+      
+      <div class="create-header">
+        <h1>Create a post</h1>
+        <p class="subtitle">Share a link with the community</p>
       </div>
 
-      <!-- URL Input -->
-      <label for="url">Link URL <span class="required">*</span></label>
-      <input id="url" name="url" type="url" placeholder="https://example.com" required>
+      <div class="create-card">
+        
+        <!-- Post Type Tabs -->
+        <div class="tabs">
+          <a href="{% url 'create-post-text' %}" class="tab-item">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <span>Text</span>
+          </a>
+          <a href="{% url 'create-post-image-video' %}" class="tab-item">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span>Media</span>
+          </a>
+          <a href="{% url 'create-post-link' %}" class="tab-item active">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <span>Link</span>
+          </a>
+        </div>
 
-      {% if error %}
-        <div class="error">{{ error }}</div>
-      {% endif %}
-      {% if success %}
-        <div class="success">{{ success }}</div>
-      {% endif %}
+        <form method="POST">
+          {% csrf_token %}
 
-      <button type="submit" class="post-btn">Post</button>
-    </form>
+          <!-- SUBJECT SELECTOR -->
+          <div class="form-group">
+            <label for="subject">
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+              Subject
+            </label>
+            <select id="subject" name="subject" required>
+              <option value="" disabled {% if not subject %}selected{% endif %}>Choose a subject</option>
+              <option value="Filipino" {% if subject == "Filipino" %}selected{% endif %}>Filipino</option>
+              <option value="Math" {% if subject == "Math" %}selected{% endif %}>Math</option>
+              <option value="Araling Panlipunan" {% if subject == "Araling Panlipunan" %}selected{% endif %}>Araling Panlipunan</option>
+              <option value="English" {% if subject == "English" %}selected{% endif %}>English</option>
+              <option value="Science" {% if subject == "Science" %}selected{% endif %}>Science</option>
+              <option value="Physics" {% if subject == "Physics" %}selected{% endif %}>Physics</option>
+              <option value="Chemistry" {% if subject == "Chemistry" %}selected{% endif %}>Chemistry</option>
+              <option value="Biology" {% if subject == "Biology" %}selected{% endif %}>Biology</option>
+              <option value="History" {% if subject == "History" %}selected{% endif %}>History</option>
+              <option value="Geography" {% if subject == "Geography" %}selected{% endif %}>Geography</option>
+              <option value="Edukasyon sa Pagpapakatao" {% if subject == "Edukasyon sa Pagpapakatao" %}selected{% endif %}>Edukasyon sa Pagpapakatao</option>
+              <option value="Economics" {% if subject == "Economics" %}selected{% endif %}>Economics</option>
+              <option value="Technology and Home Economics" {% if subject == "Technology and Home Economics" %}selected{% endif %}>Technology and Home Economics</option>
+              <option value="Integrated Science" {% if subject == "Integrated Science" %}selected{% endif %}>Integrated Science</option>
+              <option value="Health" {% if subject == "Health" %}selected{% endif %}>Health</option>
+              <option value="Music" {% if subject == "Music" %}selected{% endif %}>Music</option>
+              <option value="Art" {% if subject == "Art" %}selected{% endif %}>Art</option>
+              <option value="Physical Education" {% if subject == "Physical Education" %}selected{% endif %}>Physical Education</option>
+            </select>
+          </div>
+
+          <!-- Title -->
+          <div class="form-group">
+            <label for="title">
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="17" y1="10" x2="3" y2="10"/>
+                <line x1="21" y1="6" x2="3" y2="6"/>
+                <line x1="21" y1="14" x2="3" y2="14"/>
+                <line x1="17" y1="18" x2="3" y2="18"/>
+              </svg>
+              Title
+            </label>
+            <input id="title" name="title" type="text" maxlength="200" placeholder="What's on your mind?" value="{{ title }}" required>
+            <div class="char-count" id="title-count">{{ title|length }}/200</div>
+          </div>
+
+          <!-- Tag Selector -->
+          <div class="form-group">
+            <label>
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              Tag
+            </label>
+            <div class="tag-selector">
+              <button type="button" id="tag-btn" class="tag-dropdown-btn">
+                {% if post_type %}
+                  <span class="tag-badge tag-{{ post_type }}">{{ post_type|capfirst }}</span>
+                {% else %}
+                  <span class="tag-placeholder">Select a tag</span>
+                {% endif %}
+                <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              <div id="tag-choices" class="tag-dropdown">
+                <button type="button" class="tag-option" data-value="question">
+                  <span class="tag-badge tag-question">Question</span>
+                </button>
+                <button type="button" class="tag-option" data-value="announcement">
+                  <span class="tag-badge tag-announcement">Announcement</span>
+                </button>
+                <button type="button" class="tag-option" data-value="discussion">
+                  <span class="tag-badge tag-discussion">Discussion</span>
+                </button>
+              </div>
+
+              <input type="hidden" name="post_type" id="post_type" value="{{ post_type }}" required>
+            </div>
+          </div>
+
+          <!-- URL Input -->
+          <div class="form-group">
+            <label for="url">
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              URL
+            </label>
+            <input id="url" name="url" type="url" placeholder="https://example.com" value="{{ url }}" required>
+          </div>
+
+          <!-- Messages -->
+          {% if error %}
+            <div class="alert alert-error">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+              <span>{{ error }}</span>
+            </div>
+          {% endif %}
+
+          {% if success %}
+            <div class="alert alert-success">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <span>{{ success }}</span>
+            </div>
+          {% endif %}
+
+          <!-- Action Buttons -->
+          <div class="form-actions">
+            <a href="/" class="btn-cancel">Cancel</a>
+            <button type="submit" class="btn-submit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              Post
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
   </div>
-</div>
 
-<!-- JS -->
 <script>
-  // Character counter for title only
+  // Character counter
   const titleInput = document.getElementById('title');
   const titleCount = document.getElementById('title-count');
+
+  titleCount.textContent = `${titleInput.value.length || 0}/200`;
 
   titleInput.addEventListener('input', () => {
     titleCount.textContent = `${titleInput.value.length}/200`;
@@ -85,32 +201,44 @@
   // Tag dropdown
   const tagBtn = document.getElementById('tag-btn');
   const tagChoices = document.getElementById('tag-choices');
+  const postTypeInput = document.getElementById('post_type');
 
   tagBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    tagChoices.style.display = tagChoices.style.display === 'flex' ? 'none' : 'flex';
+    tagChoices.classList.toggle('show');
+    tagBtn.classList.toggle('active');
   });
 
-  document.querySelectorAll('.tag-choice-btn').forEach(btn => {
+  document.querySelectorAll('.tag-option').forEach(btn => {
     btn.addEventListener('click', () => {
-      tagBtn.textContent = btn.textContent;
-      document.getElementById('post_type').value = btn.getAttribute('data-value');
-      tagChoices.style.display = 'none';
+      const value = btn.getAttribute('data-value');
+      const badge = btn.querySelector('.tag-badge').cloneNode(true);
+      
+      tagBtn.innerHTML = '';
+      tagBtn.appendChild(badge);
+      
+      const arrow = document.createElement('svg');
+      arrow.className = 'dropdown-arrow';
+      arrow.setAttribute('viewBox', '0 0 24 24');
+      arrow.setAttribute('fill', 'none');
+      arrow.setAttribute('stroke', 'currentColor');
+      arrow.setAttribute('stroke-width', '2');
+      arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+      tagBtn.appendChild(arrow);
+      
+      postTypeInput.value = value;
+      tagChoices.classList.remove('show');
+      tagBtn.classList.remove('active');
     });
   });
 
-  document.addEventListener('click', () => tagChoices.style.display = 'none');
-
-  // Profile dropdown toggle
-  document.addEventListener('click', function(e) {
-    const dropdown = document.querySelector('.dropdown-content');
-    const button = document.querySelector('.profile-btn');
-    if (button.contains(e.target)) {
-      dropdown.classList.toggle('show');
-    } else {
-      dropdown.classList.remove('show');
+  document.addEventListener('click', (e) => {
+    if (!tagBtn.contains(e.target) && !tagChoices.contains(e.target)) {
+      tagChoices.classList.remove('show');
+      tagBtn.classList.remove('active');
     }
   });
 </script>
+
 </body>
 </html>

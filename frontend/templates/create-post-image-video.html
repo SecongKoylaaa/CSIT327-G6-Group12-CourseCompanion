@@ -3,257 +3,366 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Create Post (Images & Video)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Post · Media</title>
   <link rel="stylesheet" href="{% static 'css/layout.css' %}">
   <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
   <link rel="stylesheet" href="{% static 'css/post-create.css' %}">
-
-  <style>
-    .upload-box {
-      border: 2px dashed #ccc;
-      border-radius: 10px;
-      padding: 30px;
-      text-align: center;
-      cursor: pointer;
-      margin: 15px 0;
-      transition: border-color 0.2s, background 0.2s;
-      position: relative;
-    }
-
-    .upload-box:hover {
-      border-color: #ff4500;
-      background-color: #fff8f0;
-    }
-
-    .upload-box img,
-    .upload-box video {
-      max-width: 100%;
-      max-height: 250px;
-      margin-top: 10px;
-      border-radius: 10px;
-    }
-
-    .remove-btn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: #ff3b30;
-      color: #fff;
-      width: 28px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 18px;
-      font-weight: bold;
-      z-index: 99;
-      display: none;
-    }
-
-    .remove-btn:hover {
-      background: #d32f2f;
-    }
-
-    .tag-choices-horizontal {
-      display: none;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .tag-choice-btn {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      cursor: pointer;
-      background: #f7f7f7;
-    }
-
-    .tag-choice-btn:hover {
-      background: #ffefd8;
-      border-color: #ffa042;
-    }
-  </style>
 </head>
 <body>
 
   {% include "navbar.html" %}
 
   <div class="create-container">
-    <div class="create-card">
-
-      <h1>Create a Post</h1>
-
-      <div class="tabs">
-        <a href="{% url 'create-post-text' %}">Text</a>
-        <a href="{% url 'create-post-image-video' %}" class="active">Images & Video</a>
-        <a href="{% url 'create-post-link' %}">Link</a>
+    <div class="create-wrapper">
+      
+      <div class="create-header">
+        <h1>Create a post</h1>
+        <p class="subtitle">Share images or videos with the community</p>
       </div>
 
-      <form method="POST" enctype="multipart/form-data" id="post-form">
-        {% csrf_token %}
+      <div class="create-card">
+        
+        <!-- Post Type Tabs -->
+        <div class="tabs">
+          <a href="{% url 'create-post-text' %}" class="tab-item">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <span>Text</span>
+          </a>
+          <a href="{% url 'create-post-image-video' %}" class="tab-item active">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span>Media</span>
+          </a>
+          <a href="{% url 'create-post-link' %}" class="tab-item">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <span>Link</span>
+          </a>
+        </div>
 
-        <label>Select a Course <span class="required">*</span></label>
-        <select id="course" name="course" required>
-          <option value="" disabled {% if not course %}selected{% endif %}>Select a course</option>
-          <option value="Computer Science 101" {% if course == "Computer Science 101" %}selected{% endif %}>Computer Science 101</option>
-          <option value="Information Technology 102" {% if course == "Information Technology 102" %}selected{% endif %}>Information Technology 102</option>
-          <option value="Software Engineering 103" {% if course == "Software Engineering 103" %}selected{% endif %}>Software Engineering 103</option>
-          <option value="Database Systems 104" {% if course == "Database Systems 104" %}selected{% endif %}>Database Systems 104</option>
-        </select>
+        <form method="POST" enctype="multipart/form-data" id="post-form">
+          {% csrf_token %}
 
-        <label>Title <span class="required">*</span></label>
-        <input type="text" name="title" id="title" maxlength="200"
-               value="{{ title|default:'' }}"
-               placeholder="Enter title" required>
-        <div class="char-count" id="title-count">{{ title|length|default:0 }}/200</div>
-
-        <label>Description <span class="required">*</span></label>
-        <textarea name="description" id="description" maxlength="300" placeholder="Write your post...">{{ description|default:'' }}</textarea>
-        <div class="char-count" id="desc-count">{{ description|length|default:0 }}/300</div>
-
-        <!-- TAG SELECTOR -->
-        <div class="tag-selector">
-          <label>Add Tag</label>
-          <button type="button" id="tag-btn">
-            {% if post_type %}
-              {{ post_type|title }}
-            {% else %}
-              Add tags
-            {% endif %}
-          </button>
-
-          <div id="tag-choices" class="tag-choices-horizontal">
-            <button type="button" class="tag-choice-btn" data-value="question">Question</button>
-            <button type="button" class="tag-choice-btn" data-value="announcement">Announcement</button>
-            <button type="button" class="tag-choice-btn" data-value="discussion">Discussion</button>
+          <!-- Subject Selector -->
+          <div class="form-group">
+            <label for="subject">
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+              Subject
+            </label>
+            <select id="subject" name="subject" required>
+              <option value="" disabled {% if not subject %}selected{% endif %}>Choose a subject</option>
+              <option value="Filipino" {% if subject == "Filipino" %}selected{% endif %}>Filipino</option>
+              <option value="Math" {% if subject == "Math" %}selected{% endif %}>Math</option>
+              <option value="Araling Panlipunan" {% if subject == "Araling Panlipunan" %}selected{% endif %}>Araling Panlipunan</option>
+              <option value="English" {% if subject == "English" %}selected{% endif %}>English</option>
+              <option value="Science" {% if subject == "Science" %}selected{% endif %}>Science</option>
+              <option value="Physics" {% if subject == "Physics" %}selected{% endif %}>Physics</option>
+              <option value="Chemistry" {% if subject == "Chemistry" %}selected{% endif %}>Chemistry</option>
+              <option value="Biology" {% if subject == "Biology" %}selected{% endif %}>Biology</option>
+              <option value="History" {% if subject == "History" %}selected{% endif %}>History</option>
+              <option value="Geography" {% if subject == "Geography" %}selected{% endif %}>Geography</option>
+              <option value="Edukasyon sa Pagpapakatao" {% if subject == "Edukasyon sa Pagpapakatao" %}selected{% endif %}>Edukasyon sa Pagpapakatao</option>
+              <option value="Economics" {% if subject == "Economics" %}selected{% endif %}>Economics</option>
+              <option value="Technology and Home Economics" {% if subject == "Technology and Home Economics" %}selected{% endif %}>Technology and Home Economics</option>
+              <option value="Integrated Science" {% if subject == "Integrated Science" %}selected{% endif %}>Integrated Science</option>
+              <option value="Health" {% if subject == "Health" %}selected{% endif %}>Health</option>
+              <option value="Music" {% if subject == "Music" %}selected{% endif %}>Music</option>
+              <option value="Art" {% if subject == "Art" %}selected{% endif %}>Art</option>
+              <option value="Physical Education" {% if subject == "Physical Education" %}selected{% endif %}>Physical Education</option>
+            </select>
           </div>
 
-          <input type="hidden" name="post_type" id="post_type" value="{{ post_type|default:'' }}">
-        </div>
+          <!-- Title -->
+          <div class="form-group">
+            <label for="title">
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="17" y1="10" x2="3" y2="10"/>
+                <line x1="21" y1="6" x2="3" y2="6"/>
+                <line x1="21" y1="14" x2="3" y2="14"/>
+                <line x1="17" y1="18" x2="3" y2="18"/>
+              </svg>
+              Title
+            </label>
+            <input type="text" name="title" id="title" maxlength="200"
+                   value="{{ title|default:'' }}"
+                   placeholder="What's on your mind?" required>
+            <div class="char-count" id="title-count">{{ title|length|default:0 }}/200</div>
+          </div>
 
-        <label>Upload Image or Video <span class="required">*</span></label>
+          <!-- Description -->
+          <div class="form-group">
+            <label for="description">
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              Description
+            </label>
+            <textarea name="description" id="description" maxlength="300" placeholder="Share more details...">{{ description|default:'' }}</textarea>
+            <div class="char-count" id="desc-count">{{ description|length|default:0 }}/300</div>
+          </div>
 
-        <div class="upload-box" id="uploadBox">
-          <p id="uploadText" style="{% if preview_url %}display:none;{% endif %}">Drag and Drop or Upload Media</p>
+          <!-- Tag Selector -->
+          <div class="form-group">
+            <label>
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              Tag
+            </label>
+            <div class="tag-selector">
+              <button type="button" id="tag-btn" class="tag-dropdown-btn">
+                {% if post_type %}
+                  <span class="tag-badge tag-{{ post_type }}">{{ post_type|title }}</span>
+                {% else %}
+                  <span class="tag-placeholder">Select a tag</span>
+                {% endif %}
+                <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
 
-          <div id="removeMediaBtn" class="remove-btn" style="{% if preview_url %}display:flex{% else %}display:none{% endif %}">✖</div>
+              <div id="tag-choices" class="tag-dropdown">
+                <button type="button" class="tag-option" data-value="question">
+                  <span class="tag-badge tag-question">Question</span>
+                </button>
+                <button type="button" class="tag-option" data-value="announcement">
+                  <span class="tag-badge tag-announcement">Announcement</span>
+                </button>
+                <button type="button" class="tag-option" data-value="discussion">
+                  <span class="tag-badge tag-discussion">Discussion</span>
+                </button>
+              </div>
 
-          {% if preview_type == "image" %}
-            <img id="previewImage" src="{{ preview_url }}" style="display:block;">
-            <video id="previewVideo" style="display:none;" controls></video>
+              <input type="hidden" name="post_type" id="post_type" value="{{ post_type|default:'' }}">
+            </div>
+          </div>
 
-          {% elif preview_type == "video" %}
-            <video id="previewVideo" src="{{ preview_url }}" style="display:block;" controls></video>
-            <img id="previewImage" style="display:none;">
+          <!-- Media Upload -->
+          <div class="form-group">
+            <label>
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              Media
+            </label>
 
-          {% else %}
-            <img id="previewImage" style="display:none;">
-            <video id="previewVideo" style="display:none;" controls></video>
+            <div class="upload-area" id="uploadBox">
+              <input type="file" id="fileUpload" name="fileUpload" accept="image/*,video/*" style="display:none;">
+              
+              <div class="upload-prompt" id="uploadPrompt" style="{% if preview_url %}display:none;{% endif %}">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <p class="upload-text">Drag & drop or click to upload</p>
+                <p class="upload-hint">Images and videos accepted</p>
+              </div>
+
+              <div class="media-preview" id="mediaPreview" style="{% if not preview_url %}display:none;{% endif %}">
+                <button type="button" class="remove-media" id="removeMediaBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+
+                {% if preview_type == "image" %}
+                  <img id="previewImage" src="{{ preview_url }}" style="display:block;">
+                  <video id="previewVideo" style="display:none;" controls></video>
+                {% elif preview_type == "video" %}
+                  <video id="previewVideo" src="{{ preview_url }}" style="display:block;" controls></video>
+                  <img id="previewImage" style="display:none;">
+                {% else %}
+                  <img id="previewImage" style="display:none;">
+                  <video id="previewVideo" style="display:none;" controls></video>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Error/Success Messages -->
+          {% if error %}
+            <div class="alert alert-error">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+              <span>{{ error }}</span>
+            </div>
           {% endif %}
 
-          <input type="file" id="fileUpload" name="fileUpload" accept="image/*,video/*" style="display:none;">
-        </div>
+          {% if success %}
+            <div class="alert alert-success">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <span>{{ success }}</span>
+            </div>
+          {% endif %}
 
-        {% if error %}<div class="error">{{ error }}</div>{% endif %}
-        {% if success %}<div class="success">{{ success }}</div>{% endif %}
-
-        <button type="submit" class="post-btn">Post</button>
-      </form>
-
+          <!-- Action Buttons -->
+          <div class="form-actions">
+            <a href="/" class="btn-cancel">Cancel</a>
+            <button type="submit" class="btn-submit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              Post
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
-  <script>
-    /* CHARACTER COUNTS */
-    const titleInput = document.getElementById('title');
-    const descInput = document.getElementById('description');
-    document.getElementById('title-count').textContent = `${titleInput.value.length}/200`;
-    document.getElementById('desc-count').textContent = `${descInput.value.length}/300`;
+<script>
+  // Character counters
+  const titleInput = document.getElementById('title');
+  const descInput = document.getElementById('description');
+  document.getElementById('title-count').textContent = `${titleInput.value.length}/200`;
+  document.getElementById('desc-count').textContent = `${descInput.value.length}/300`;
 
-    titleInput.addEventListener('input', () =>
-      document.getElementById('title-count').textContent = `${titleInput.value.length}/200`
-    );
+  titleInput.addEventListener('input', () =>
+    document.getElementById('title-count').textContent = `${titleInput.value.length}/200`
+  );
+  descInput.addEventListener('input', () =>
+    document.getElementById('desc-count').textContent = `${descInput.value.length}/300`
+  );
 
-    descInput.addEventListener('input', () =>
-      document.getElementById('desc-count').textContent = `${descInput.value.length}/300`
-    );
+  // Tag dropdown
+  const tagBtn = document.getElementById("tag-btn");
+  const tagChoices = document.getElementById("tag-choices");
+  const postTypeInput = document.getElementById("post_type");
 
-    /* TAG DROPDOWN */
-    const tagBtn = document.getElementById("tag-btn");
-    const tagChoices = document.getElementById("tag-choices");
+  tagBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    tagChoices.classList.toggle("show");
+    tagBtn.classList.toggle("active");
+  });
 
-    tagBtn.addEventListener("click", e => {
-      e.stopPropagation();
-      tagChoices.style.display = tagChoices.style.display === "block" ? "none" : "block";
+  document.querySelectorAll(".tag-option").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const value = btn.getAttribute("data-value");
+      const badge = btn.querySelector(".tag-badge").cloneNode(true);
+      
+      tagBtn.innerHTML = '';
+      tagBtn.appendChild(badge);
+      
+      const arrow = document.createElement('svg');
+      arrow.className = 'dropdown-arrow';
+      arrow.setAttribute('viewBox', '0 0 24 24');
+      arrow.setAttribute('fill', 'none');
+      arrow.setAttribute('stroke', 'currentColor');
+      arrow.setAttribute('stroke-width', '2');
+      arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+      tagBtn.appendChild(arrow);
+      
+      postTypeInput.value = value;
+      tagChoices.classList.remove("show");
+      tagBtn.classList.remove("active");
     });
+  });
 
-    document.querySelectorAll(".tag-choice-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const value = btn.getAttribute("data-value");
-        tagBtn.textContent = btn.textContent;
-        document.getElementById("post_type").value = value;
-        tagChoices.style.display = "none";
-      });
-    });
+  document.addEventListener("click", e => {
+    if (!tagBtn.contains(e.target) && !tagChoices.contains(e.target)) {
+      tagChoices.classList.remove("show");
+      tagBtn.classList.remove("active");
+    }
+  });
 
-    document.addEventListener("click", () => {
-      tagChoices.style.display = "none";
-    });
+  // Media upload
+  const uploadBox = document.getElementById("uploadBox");
+  const fileInput = document.getElementById("fileUpload");
+  const uploadPrompt = document.getElementById("uploadPrompt");
+  const mediaPreview = document.getElementById("mediaPreview");
+  const previewImage = document.getElementById("previewImage");
+  const previewVideo = document.getElementById("previewVideo");
+  const removeBtn = document.getElementById("removeMediaBtn");
 
-    /* UPLOAD PREVIEW */
-    const uploadBox = document.getElementById("uploadBox");
-    const fileInput = document.getElementById("fileUpload");
-    const previewImage = document.getElementById("previewImage");
-    const previewVideo = document.getElementById("previewVideo");
-    const uploadText = document.getElementById("uploadText");
-    const removeBtn = document.getElementById("removeMediaBtn");
+  uploadBox.addEventListener("click", (e) => {
+    if (!e.target.closest('.remove-media')) {
+      fileInput.click();
+    }
+  });
 
-    uploadBox.addEventListener("click", () => fileInput.click());
+  // Drag and drop
+  uploadBox.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    uploadBox.classList.add("drag-over");
+  });
 
-    fileInput.addEventListener("change", function () {
-      const file = this.files[0];
-      if (!file) return;
+  uploadBox.addEventListener("dragleave", () => {
+    uploadBox.classList.remove("drag-over");
+  });
 
-      previewImage.style.display = "none";
-      previewVideo.style.display = "none";
+  uploadBox.addEventListener("drop", (e) => {
+    e.preventDefault();
+    uploadBox.classList.remove("drag-over");
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      fileInput.files = files;
+      handleFileSelect(files[0]);
+    }
+  });
 
-      const reader = new FileReader();
-      reader.onload = e => {
-        if (file.type.startsWith("image/")) {
-          previewImage.src = e.target.result;
-          previewImage.style.display = "block";
-        } else if (file.type.startsWith("video/")) {
-          previewVideo.src = e.target.result;
-          previewVideo.style.display = "block";
-        }
-        uploadText.style.display = "none";
-        removeBtn.style.display = "flex";
-      };
-      reader.readAsDataURL(file);
-    });
+  fileInput.addEventListener("change", function () {
+    const file = this.files[0];
+    if (file) handleFileSelect(file);
+  });
 
-    removeBtn.addEventListener("click", () => {
-      previewImage.style.display = "none";
-      previewVideo.style.display = "none";
-      previewImage.src = "";
-      previewVideo.src = "";
-      uploadText.style.display = "block";
-      removeBtn.style.display = "none";
-      fileInput.value = "";
-    });
+  function handleFileSelect(file) {
+    previewImage.style.display = "none";
+    previewVideo.style.display = "none";
 
-    // FORCE CLOSE TAG MENU ON PAGE LOAD
-    window.addEventListener("DOMContentLoaded", () => {
-      const tagChoices = document.getElementById("tag-choices");
-      const tagBtn = document.getElementById("tag-btn");
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (file.type.startsWith("image/")) {
+        previewImage.src = e.target.result;
+        previewImage.style.display = "block";
+      } else if (file.type.startsWith("video/")) {
+        previewVideo.src = e.target.result;
+        previewVideo.style.display = "block";
+      }
+      uploadPrompt.style.display = "none";
+      mediaPreview.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  }
 
-      tagChoices.style.display = "none";
-      tagBtn.setAttribute("aria-expanded", "false");
-    });
-
-  </script>
+  removeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    previewImage.style.display = "none";
+    previewVideo.style.display = "none";
+    previewImage.src = "";
+    previewVideo.src = "";
+    uploadPrompt.style.display = "block";
+    mediaPreview.style.display = "none";
+    fileInput.value = "";
+  });
+</script>
 
 </body>
 </html>

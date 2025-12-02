@@ -1,0 +1,370 @@
+/* ===================================
+   REDDIT-INSPIRED AUTH DESIGN
+=================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  background: #030303;
+  color: #d7dadc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.5;
+}
+
+/* ===================================
+   AUTH WRAPPER & CARD
+=================================== */
+
+.auth-wrapper {
+  width: 100%;
+  max-width: 420px;
+  padding: 20px;
+}
+
+.auth-card {
+  background: #1a1a1b;
+  border: 1px solid #343536;
+  border-radius: 4px;
+  padding: 40px 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.auth-icon {
+  width: 48px;
+  height: 48px;
+  color: #ff4500;
+  margin-bottom: 16px;
+}
+
+.auth-header h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #d7dadc;
+  letter-spacing: -0.2px;
+}
+
+.auth-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #818384;
+  font-weight: 400;
+}
+
+/* ===================================
+   FORM ELEMENTS
+=================================== */
+
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #d7dadc;
+  margin-bottom: 6px;
+  letter-spacing: 0.2px;
+}
+
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #d7dadc;
+  background: #272729;
+  border: 1px solid #343536;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="text"]::placeholder {
+  color: #565758;
+}
+
+input:hover {
+  border-color: #4a4a4b;
+}
+
+input:focus {
+  background: #1a1a1b;
+  border-color: #d7dadc;
+}
+
+/* ===================================
+   PASSWORD WRAPPER & TOGGLE
+=================================== */
+
+.password-wrapper {
+  position: relative;
+}
+
+.password-wrapper input {
+  padding-right: 44px;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  bottom: 2px;
+  width: 40px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 4px 4px 0;
+  transition: background 0.15s ease;
+  padding: 0;
+}
+
+.toggle-password:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.toggle-password:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.eye-icon {
+  width: 20px;
+  height: 20px;
+  color: #818384;
+  transition: color 0.15s ease;
+}
+
+.toggle-password:hover .eye-icon,
+.toggle-password.active .eye-icon {
+  color: #d7dadc;
+}
+
+/* ===================================
+   PASSWORD REQUIREMENTS
+=================================== */
+
+.password-requirements {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #818384;
+}
+
+.password-requirements li {
+  padding: 4px 0 4px 24px;
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.password-requirements li::before {
+  content: "○";
+  position: absolute;
+  left: 8px;
+  transition: all 0.2s ease;
+}
+
+.password-requirements li.met {
+  color: #46d160;
+}
+
+.password-requirements li.met::before {
+  content: "✓";
+  color: #46d160;
+}
+
+/* ===================================
+   BUTTONS
+=================================== */
+
+.btn-primary {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  background: #ff4500;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: none;
+  letter-spacing: 0.3px;
+  margin-top: 8px;
+}
+
+.btn-primary:hover {
+  background: #ff5414;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 69, 0, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #d7dadc;
+  background: transparent;
+  border: 1px solid #343536;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #4a4a4b;
+}
+
+.btn-secondary:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ===================================
+   DIVIDER
+=================================== */
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 24px 0 20px;
+  color: #818384;
+  font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #343536;
+}
+
+.divider span {
+  padding: 0 16px;
+}
+
+/* ===================================
+   LINKS & FORM FOOTER
+=================================== */
+
+.form-footer {
+  margin-bottom: 4px;
+  text-align: right;
+}
+
+.link-subtle {
+  color: #818384;
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.link-subtle:hover {
+  color: #d7dadc;
+  text-decoration: underline;
+}
+
+/* ===================================
+   ALERTS
+=================================== */
+
+.alert {
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.alert svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.alert-error {
+  background: rgba(234, 67, 53, 0.1);
+  border: 1px solid rgba(234, 67, 53, 0.3);
+  color: #f28b82;
+}
+
+.alert-error svg {
+  color: #f28b82;
+}
+
+.alert-success {
+  background: rgba(70, 209, 96, 0.1);
+  border: 1px solid rgba(70, 209, 96, 0.3);
+  color: #46d160;
+}
+
+.alert-success svg {
+  color: #46d160;
+}
+
+/* ===================================
+   FIELD ERRORS
+=================================== */
+
+.field-error {
+  color: #f28b82;
+  font-size: 12px;
+  margin-top: 6px;
+  min-height: 18px;
+}
+
+/* ===================================
+   RESPONSIVE
+=================================== */
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 32px 24px;
+  }
+  
+  .auth-wrapper {
+    padding: 16px;
+  }
+}

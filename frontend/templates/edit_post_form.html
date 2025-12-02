@@ -1,0 +1,53 @@
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'css/post_form.css' %}">
+
+<!-- Overlay -->
+<div class="modal-overlay" id="editPostModal" onclick="closeEditModal()">
+
+    <!-- Modal Box -->
+    <div class="modal-content-edit" onclick="event.stopPropagation();">
+
+        <!-- Close Button -->
+        <span class="close-btn" onclick="closeEditModal()">&times;</span>
+
+        <!-- Form -->
+        <form method="POST" action="{% url 'delete_post' post.post_id %}">
+            {% csrf_token %}
+
+            <label>Title</label>
+            <input type="text" name="title" value="{{ post.title }}" required>
+
+            <label>Description</label>
+            <textarea name="description" rows="4" required>{{ post.description }}</textarea>
+
+          
+        </form>
+
+    </div>
+</div>
+
+<script>
+/* Auto-resize textareas */
+const textarea = document.querySelector("textarea[name='description']");
+if (textarea) {
+    textarea.style.height = textarea.scrollHeight + "px";
+    textarea.addEventListener("input", () => {
+        textarea.style.height = "auto";
+        textarea.style.height = textarea.scrollHeight + "px";
+    });
+}
+
+/* Close modal */
+function closeEditModal() {
+    const modal = document.getElementById("editPostModal");
+    if (modal) modal.style.display = "none";
+}
+
+/* ESC key support */
+document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+        closeEditModal();
+    }
+});
+</script>

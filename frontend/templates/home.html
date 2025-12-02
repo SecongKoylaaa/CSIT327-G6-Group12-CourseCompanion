@@ -3,129 +3,160 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Course Companion</title>
+
+  <!-- Stylesheets -->
   <link rel="stylesheet" href="{% static 'css/layout.css' %}">
   <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
   <link rel="stylesheet" href="{% static 'css/post.css' %}">
   <link rel="stylesheet" href="{% static 'css/comments.css' %}">
+  <link rel="stylesheet" href="{% static 'css/edit_modal.css' %}">
 </head>
 <body>
 
-<!-- NAVBAR -->
-{% include "navbar.html" %}
+  <!-- NAVBAR -->
+  {% include "navbar.html" %}
 
-<!-- MAIN LAYOUT -->
-<div class="main-layout">
-  <div class="container">
-    {% for post in posts %}
-    <div class="post">
-      <div class="post-content">
-        <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
-        <h3>{{ post.title }}</h3>
+  <!-- MAIN LAYOUT -->
+  <div class="main-layout">
+    <div class="container">
 
-        {% if post.post_type %}
-          <p class="post-type">Type: {{ post.post_type }}</p> 
-        {% endif %}
+      {% for post in posts %}
+      <div class="post">
+        <div class="post-content">
 
-        {% if post.description %}
-          <p class="post-description">{{ post.description }}</p>
-        {% endif %}
+          <!-- POST HEADER -->
+          <div class="post-header" style="display:flex; justify-content: space-between; align-items: center;">
+            <div>
+              <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
+              <h3>{{ post.title }}</h3>
+            </div>
 
-        {% if post.is_image %}
-          <img src="{{ post.url }}" alt="Post Image" class="post-thumbnail clickable-media">
-        {% elif post.is_video %}
-          <video src="{{ post.url }}" class="post-thumbnail clickable-media" controls muted></video>
-        {% elif post.url %}
-          <a href="{{ post.url }}" target="_blank">{{ post.url }}</a>
-        {% endif %}
+            <!-- POST MENU -->
+            {% if user_id == post.user_id %}
+            <div class="post-menu-wrapper">
+              <span class="post-menu-btn" onclick="togglePostMenu('{{ post.id }}')">⋯</span>
+              <div class="post-menu" id="post-menu-{{ post.id }}">
+                <button class="edit-btn" onclick="openEditModal({{ post.id }})">Edit</button>
+                <form method="POST" action="{% url 'delete_post' post.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="delete-btn" onclick="return confirm('Delete this post?')">Delete</button>
+                </form>
+              </div>
+            </div>
+            {% endif %}
+          </div>
 
-        <!-- ACTIONS -->
-        <div class="actions" data-post-id="{{ post.id }}" data-user-vote="{{ post.user_vote|default:'' }}">
-          <button class="vote-btn upvote {% if post.user_vote == 'upvote' %}active-upvote{% endif %}"
-                  onclick="votePost('{{ post.id }}', 'upvote', this)">⬆️</button>
+          <!-- POST CONTENT -->
+          {% if post.post_type %}
+            <p class="post-type">Type: {{ post.post_type }}</p>
+          {% endif %}
 
-          <span class="vote-count" id="vote-count-{{ post.id }}">{{ post.vote_count }}</span>
+          {% if post.description %}
+            <p class="post-description">{{ post.description }}</p>
+          {% endif %}
 
-          <button class="vote-btn downvote {% if post.user_vote == 'downvote' %}active-downvote{% endif %}"
-                  onclick="votePost('{{ post.id }}', 'downvote', this)">⬇️</button>
+          {% if post.is_image %}
+            <img src="{{ post.url }}" class="post-thumbnail clickable-media" alt="Post Image">
+          {% elif post.is_video %}
+            <video src="{{ post.url }}" class="post-thumbnail clickable-media" controls muted></video>
+          {% elif post.url %}
+            <a href="{{ post.url }}" target="_blank" rel="noopener noreferrer">{{ post.url }}</a>
+          {% endif %}
 
-          <span class="comment-toggle" onclick="toggleComments(this)">
-            <span class="icon">💬</span> {{ post.comment_count }}
-          </span>
+          <!-- POST ACTIONS -->
+          <div class="actions" data-post-id="{{ post.id }}" data-user-vote="{{ post.user_vote|default:'' }}">
+            <button class="vote-btn upvote {% if post.user_vote == 'upvote' %}active-upvote{% endif %}" 
+                    onclick="votePost('{{ post.id }}', 'upvote', this)" 
+                    aria-label="Upvote">⬆️</button>
+            
+            <span class="vote-count" id="vote-count-{{ post.id }}">{{ post.vote_count }}</span>
+            
+            <button class="vote-btn downvote {% if post.user_vote == 'downvote' %}active-downvote{% endif %}" 
+                    onclick="votePost('{{ post.id }}', 'downvote', this)" 
+                    aria-label="Downvote">⬇️</button>
+            
+            <span class="comment-toggle" onclick="toggleComments(this)">
+              💬 {{ post.comment_count }}
+            </span>
+            
+            <span class="share-btn" onclick="sharePost('{{ post.id }}')">
+              🔗 Share
+            </span>
+          </div>
 
-          <span class="share-btn" onclick="sharePost('{{ post.id }}')">
-            <span class="icon">🔗</span> Share
-          </span>
-        </div>
+          <!-- COMMENTS SECTION -->
+          <div class="expanded-section">
+            {% include "comments.html" with post=post %}
+          </div>
 
-        <!-- COMMENTS SECTION (hidden by default) -->
-        <div class="expanded-section">
-          {% include "comments.html" with post=post %}
         </div>
       </div>
+      {% empty %}
+        <p style="text-align: center; padding: 40px; color: #7c7c7c;">No posts available.</p>
+      {% endfor %}
     </div>
-    {% empty %}
-      <p>No posts available.</p>
-    {% endfor %}
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <h3>Communities</h3>
+      <ul>
+        <li>r/Psychology</li>
+        <li>r/HowToProgramming</li>
+        <li>r/ThisIsATest</li>
+        <li>r/HelloWorld</li>
+        <li>r/Nursing</li>
+        <li>r/Engineering</li>
+      </ul>
+    </aside>
   </div>
 
-  <aside class="sidebar">
-    <h3>Communities</h3>
-    <ul>
-      <li>r/Psychology</li>
-      <li>r/HowToProgramming</li>
-      <li>r/ThisIsATest</li>
-      <li>r/HelloWorld</li>
-      <li>r/Nursing</li>
-      <li>r/Engineering</li>
-    </ul>
-  </aside>
-</div>
+  <!-- MEDIA MODAL -->
+  <div id="mediaModal" class="media-modal">
+    <span class="close-modal" aria-label="Close">&times;</span>
+    <img id="modalImage" class="modal-content" style="display:none;" alt="Full size image">
+    <video id="modalVideo" class="modal-content" controls style="display:none;"></video>
+  </div>
 
-<!-- IMAGE & VIDEO MODAL -->
-<div id="mediaModal" class="media-modal">
-  <span class="close-modal">&times;</span>
-  <img id="modalImage" class="modal-content" style="display:none;">
-  <video id="modalVideo" class="modal-content" controls style="display:none;"></video>
-</div>
+  <!-- EDIT POST MODAL -->
+  <div id="editPostModal" class="edit-modal" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+    <div class="modal-content-edit">
 
-<!-- ------------------- SCRIPTS ------------------- -->
-<script src="{% static 'js/comments.js' %}"></script>
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <h3 id="modal-title">Edit Post</h3>
+        <button class="close-edit-modal" onclick="closeEditModal()" aria-label="Close modal">&times;</button>
+      </div>
 
-<script>
-const modal = document.getElementById('mediaModal');
-const modalImg = document.getElementById('modalImage');
-const modalVideo = document.getElementById('modalVideo');
-const closeModal = document.querySelector('.close-modal');
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <form id="editPostForm" method="POST" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div id="edit-form-fields">
+            <!-- Form fields dynamically inserted by JavaScript -->
+          </div>
+        </form>
+      </div>
 
-document.querySelectorAll('.clickable-media').forEach(el => {
-  el.addEventListener('click', () => {
-    modal.classList.add('show');
-    if (el.tagName.toLowerCase() === 'img') {
-      modalImg.src = el.src;
-      modalImg.style.display = 'block';
-      modalVideo.style.display = 'none';
-    } else if (el.tagName.toLowerCase() === 'video') {
-      modalVideo.src = el.src;
-      modalVideo.style.display = 'block';
-      modalImg.style.display = 'none';
-      modalVideo.play();
-    }
-  });
-});
+      <!-- Modal Footer -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">
+          Cancel
+        </button>
+        <button type="submit" form="editPostForm" class="btn btn-primary">
+          Save Changes
+        </button>
+      </div>
 
-closeModal.addEventListener('click', () => {
-  modal.classList.remove('show');
-  modalVideo.pause();
-});
+    </div>
+  </div>
 
-modal.addEventListener('click', e => {
-  if (e.target === modal) {
-    modal.classList.remove('show');
-    modalVideo.pause();
-  }
-});
-</script>
+  <!-- JavaScript Files -->
+  <script src="{% static 'js/comments.js' %}"></script>
+  <script src="{% static 'js/media_modal.js' %}"></script>
+  <script src="{% static 'js/post_menu.js' %}"></script>
+  <script src="{% static 'js/edit_modal.js' %}"></script>
 
 </body>
 </html>

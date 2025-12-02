@@ -12,7 +12,6 @@ body {
 }
 
 
-
 /* ======================= MAIN LAYOUT ======================= */
 .main-layout {
   display: flex;
@@ -58,4 +57,129 @@ body {
 .sidebar li:hover {
   color: #0056a3;
   transform: translateX(4px);
+}
+
+
+/* ======================= POST MENU ======================= */
+.post-menu-wrapper {
+  display: inline-block;
+  position: relative;
+  margin-left: 10px;
+}
+
+.post-menu-btn {
+  cursor: pointer;
+  font-size: 20px;
+  padding: 2px 6px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.post-menu-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.post-menu {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 8px 0;
+  min-width: 120px;
+  z-index: 1000;
+  display: none; /* Hidden by default */
+}
+
+.post-menu a,
+.post-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #1a1a1b;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.post-menu a:hover,
+.post-menu button:hover {
+  background-color: #f0f0f0;
+  color: #0079d3;
+  border-radius: 4px;
+}
+
+.delete-btn {
+  color: #d32f2f;
+}
+
+.delete-btn:hover {
+  background-color: #fbeaea;
+}
+
+
+/* ======================= POST THUMBNAILS ======================= */
+.post-thumbnail {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  margin-top: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.post-thumbnail:hover {
+  opacity: 0.95;
+}
+
+/* ======================= ACTION BUTTONS ======================= */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.vote-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.vote-btn:hover {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.active-upvote {
+  color: #ff4500;
+}
+
+.active-downvote {
+  color: #7193ff;
+}
+
+.comment-toggle,
+.share-btn {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.comment-toggle:hover,
+.share-btn:hover {
+  background-color: rgba(0,0,0,0.05);
 }

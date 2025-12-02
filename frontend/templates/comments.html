@@ -2,7 +2,6 @@
   <div class="comments-area">
     <h4>Comments</h4>
 
-    <!-- Sort toggle -->
     <div class="comment-sort">
       <div class="sort-dropdown">
         <button class="sort-btn" onclick="toggleSortMenu(this)">
@@ -16,16 +15,14 @@
       </div>
     </div>
 
-    <!-- Comments list -->
     <div class="comments-list" id="comments-list-{{ post.id }}">
       {% for comment in post.comments %}
-        {% include "comment_thread.html" with comment=comment post_id=post.id %}
+        {% include "comment_thread.html" with comment=comment post_id=post.id level=1 %}
       {% empty %}
         <p class="no-comments">No comments yet.</p>
       {% endfor %}
     </div>
 
-    <!-- Comment form -->
     <form class="comment-form" method="POST" action="{% url 'home' %}">
       {% csrf_token %}
       <input type="hidden" name="post_id" value="{{ post.id }}">

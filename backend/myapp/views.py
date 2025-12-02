@@ -42,9 +42,6 @@ def safe_execute(request_fn, retries=3, delay=0.1):
 def root_redirect(request):
     return redirect("/login/")
 
-# --------------------------
-# Registration View
-# --------------------------
 def register_page(request):
     if request.method == "POST":
         MAX_EMAIL_LENGTH = 50
@@ -53,16 +50,19 @@ def register_page(request):
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "").strip()
         confirm = request.POST.get("confirmPassword", "").strip()
-        username = request.POST.get("username", "").strip()
-        role = request.POST.get("role", "").strip().lower()
 
         # ---------- Validation ----------
-        if not email or not password or not confirm_password or not role:
+        if not email or not password or not confirm:
             return render(request, "register.html", {"error": "All fields are required."})
-        if password != confirm_password:
+
+        if len(email) > MAX_EMAIL_LENGTH:
+            return render(request, "register.html", {"error": "Email is too long."})
+
+        if len(password) > MAX_PASSWORD_LENGTH:
+            return render(request, "register.html", {"error": "Password is too long."})
+
+        if password != confirm:
             return render(request, "register.html", {"error": "Passwords do not match."})
-        if role not in ["student", "teacher"]:
-            return render(request, "register.html", {"error": "Invalid role selected."})
 
         # ---------- Check if email exists ----------
         try:
@@ -75,25 +75,29 @@ def register_page(request):
         # ---------- Insert User ----------
         password_hash = make_password(password)
         date_joined = datetime.now(timezone.utc).isoformat()
+
         try:
             response = supabase.table("users").insert({
                 "email": email,
                 "password_hash": password_hash,
-                "role": role,
-                "username": username if username else None,
+                "username": None,
+                "role": "student",        # default role, or change as needed
                 "profile_picture": None,
                 "bio": None,
                 "last_login": None,
                 "date_joined": date_joined
             }).execute()
+
             if getattr(response, "error", None):
                 return render(request, "register.html", {"error": f"Error registering: {response.error}"})
+
         except Exception as e:
             return render(request, "register.html", {"error": f"Error registering: {str(e)}"})
 
         return redirect("/login/")
 
     return render(request, "register.html")
+
 
 # --------------------------
 # Login View
@@ -595,12 +599,18 @@ def vote_post(request, post_id, vote_type):
     # Process voting
     if existing_vote:
         if existing_vote["vote_type"] == vote_type:
-            # Same vote → remove it
-            supabase.table("post_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute()
+            # Same vote → remove
+            supabase.table("post_votes") \
+                .delete() \
+                .eq("vote_id", existing_vote["vote_id"]) \
+                .execute()
             message = "Vote removed"
         else:
             # Switch vote
-            supabase.table("post_votes").update({"vote_type": vote_type}).eq("vote_id", existing_vote["vote_id"]).execute()
+            supabase.table("post_votes") \
+                .update({"vote_type": vote_type}) \
+                .eq("vote_id", existing_vote["vote_id"]) \
+                .execute()
             message = "Vote updated"
     else:
         # New vote
@@ -611,13 +621,25 @@ def vote_post(request, post_id, vote_type):
         }).execute()
         message = "Vote added"
 
-    # Compute net votes
-    votes_resp = supabase.table("post_votes").select("vote_type").eq("post_id", post_id).execute()
-    total_votes = sum(1 if v["vote_type"] == "up" else -1 for v in (votes_resp.data or []))
+    # ---- FIX: Read updated counts from posts table ----
+    post_resp = supabase.table("posts") \
+        .select("upvote_count, downvote_count") \
+        .eq("post_id", post_id) \
+        .maybe_single() \
+        .execute()
+
+    if not post_resp or not post_resp.data:
+        return JsonResponse({"error": "Post not found after vote"}, status=404)
+
+    upvotes = post_resp.data["upvote_count"]
+    downvotes = post_resp.data["downvote_count"]
+    net_votes = upvotes - downvotes
 
     return JsonResponse({
         "message": message,
-        "net_votes": total_votes,       # Matches frontend key
+        "net_votes": net_votes,
+        "upvotes": upvotes,
+        "downvotes": downvotes,
         "user_vote": vote_type if message != "Vote removed" else None
     })
 
@@ -746,7 +768,6 @@ from django.shortcuts import render, redirect
 from django.conf import settings
 
 
-
 # --------------------------
 # Create Post - Text
 # --------------------------
@@ -764,19 +785,19 @@ def create_post_text(request):
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
-        course = request.POST.get("course", "").strip()  # just text
+        subject = request.POST.get("subject", "").strip()
 
         # Validate
-        if not title or not description or not post_type or not course:
+        if not title or not description or not post_type or not subject:
             return render(request, "create-post-text.html", {
                 "error": "All fields are required.",
                 "title": title,
                 "description": description,
                 "post_type": post_type,
-                "course": course
+                "subject": subject
             })
 
-        # Insert post (course just a string)
+        # Insert post
         try:
             supabase.table("posts").insert({
                 "title": title,
@@ -784,7 +805,7 @@ def create_post_text(request):
                 "content": "",
                 "post_type": post_type,
                 "user_id": user_id,
-                "course_id": None  # leave null, just like Images & Video
+                "subject": subject
             }).execute()
 
             return render(request, "create-post-text.html", {
@@ -792,7 +813,7 @@ def create_post_text(request):
                 "title": "",
                 "description": "",
                 "post_type": "",
-                "course": ""
+                "subject": ""
             })
 
         except Exception as e:
@@ -801,12 +822,10 @@ def create_post_text(request):
                 "title": title,
                 "description": description,
                 "post_type": post_type,
-                "course": course
+                "subject": subject
             })
 
     return render(request, "create-post-text.html")
-
-
 
 
 # --------------------------
@@ -818,6 +837,7 @@ def create_post_image(request):
     if "user_email" not in request.session:
         return redirect("/login/")
 
+    # Get user
     user_email = request.session.get("user_email")
     user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
     if not user_resp.data:
@@ -829,57 +849,65 @@ def create_post_image(request):
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
-        course = request.POST.get("course", "").strip()
+        subject = request.POST.get("subject", "").strip()   # changed from course → subject
         uploaded_file = request.FILES.get("fileUpload")
 
-        # Validate fields (course required but NOT inserted into posts table)
-        if not title or not post_type or not course or not uploaded_file:
+        # Validate
+        if not title or not post_type or not subject or not uploaded_file:
             return render(request, "create-post-image-video.html", {
                 "error": "All fields are required.",
                 "title": title,
                 "description": description,
                 "post_type": post_type,
-                "course": course,
+                "subject": subject,
             })
 
-        # Upload to Supabase Storage
+        # Upload file to Supabase Storage
         try:
             file_path = f"{user_email}/{uploaded_file.name}"
-            # read bytes (uploaded_file may be InMemoryUploadedFile or TemporaryUploadedFile)
             file_bytes = uploaded_file.read()
-            supabase.storage.from_(settings.SUPABASE_BUCKET).upload(file_path, file_bytes)
-            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET).get_public_url(file_path).split("?")[0]
+
+            supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
+                file_path,
+                file_bytes
+            )
+
+            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET)\
+                        .get_public_url(file_path)\
+                        .split("?")[0]
+
         except Exception as e:
             return render(request, "create-post-image-video.html", {
                 "error": f"File upload failed: {str(e)}",
                 "title": title,
                 "description": description,
                 "post_type": post_type,
-                "course": course,
+                "subject": subject,
             })
 
-        # Insert post record (DO NOT include `course` in insert unless your table has that column)
+        # Insert post record
         try:
             supabase.table("posts").insert({
                 "title": title,
                 "description": description,
                 "content": file_url,
                 "post_type": post_type,
+                "subject": subject,       # SAVE SUBJECT HERE
                 "user_id": user_id
             }).execute()
 
-            # determine preview type for template (image/video)
             preview_type = "video" if uploaded_file.content_type.startswith("video") else "image"
 
             return render(request, "create-post-image-video.html", {
                 "success": "Post created successfully!",
                 "preview_url": file_url,
                 "preview_type": preview_type,
-                # keep other values blank so form looks clean after success
+
+                # Clear form after success
                 "title": "",
                 "description": "",
                 "post_type": "",
-                "course": ""
+                "subject": ""
             })
 
         except Exception as e:
@@ -888,12 +916,11 @@ def create_post_image(request):
                 "title": title,
                 "description": description,
                 "post_type": post_type,
-                "course": course,
+                "subject": subject,
             })
 
     # GET
     return render(request, "create-post-image-video.html")
-
 
 
 # --------------------------
@@ -903,8 +930,10 @@ def create_post_link(request):
     if "user_email" not in request.session:
         return redirect("/login/")
 
+    # Get logged-in user
     user_email = request.session.get("user_email")
     user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+
     if not user_resp.data:
         return render(request, "create-post-link.html", {"error": "User not found."})
 
@@ -912,27 +941,170 @@ def create_post_link(request):
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
+        subject = request.POST.get("subject", "").strip()
         url = request.POST.get("url", "").strip()
 
-        if not title or not post_type or not url:
-            return render(request, "create-post-link.html", {"error": "All fields are required."})
+        # Required fields check
+        if not title or not post_type or not subject or not url:
+            return render(
+                request,
+                "create-post-link.html",
+                {
+                    "error": "All fields are required.",
+                    "title": title,
+                    "post_type": post_type,
+                    "subject": subject,
+                    "url": url
+                }
+            )
 
         try:
-            supabase.table("posts").insert({
-                "title": title,
-                "description": description,
-                "content": url,
-                "post_type": post_type,
-                "user_id": user_id
-            }).execute()
-            return render(request, "create-post-link.html", {"success": "Link post created successfully!"})
-        except Exception as e:
-            return render(request, "create-post-link.html", {"error": f"Error creating post: {str(e)}"})
+            # Insert post
+            supabase.table("posts").insert(
+                {
+                    "title": title,
+                    "content": url,  # For link posts, URL = content
+                    "post_type": post_type,
+                    "subject": subject,
+                    "user_id": user_id
+                }
+            ).execute()
 
+            return render(
+                request,
+                "create-post-link.html",
+                {"success": "Link post created successfully!"}
+            )
+
+        except Exception as e:
+            return render(
+                request,
+                "create-post-link.html",
+                {
+                    "error": f"Error creating post: {str(e)}",
+                    "title": title,
+                    "post_type": post_type,
+                    "subject": subject,
+                    "url": url
+                }
+            )
+
+    # GET request
     return render(request, "create-post-link.html")
 
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
+from .models import Post
+from .forms import PostForm
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpResponseForbidden
+from django.contrib.auth.decorators import login_required
+from .models import Post
+from .forms import PostForm
+
+# ============================
+# 🔵 HOME PAGE
+# ============================
+@login_required
+def home(request):
+    posts = Post.objects.all().order_by('-created_at')  # newest first
+    context = {
+        "posts": posts,
+        "user_id": request.user.id,  # pass logged-in user's ID
+    }
+    return render(request, "home.html", context)
+
+# ============================
+# 🔵 EDIT POST
+# ============================
+from django.http import HttpResponse, HttpResponseForbidden
+from django.template.loader import render_to_string
+
+def edit_post(request, post_id):
+
+    # 1. Get logged-in user
+    user_email = request.session.get("user_email")
+    if not user_email:
+        return HttpResponseForbidden("You must be logged in.")
+
+    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    user_id = user_resp.data["id"]
+
+    # 2. Fetch post from Supabase
+    post_resp = supabase.table("posts").select("*").eq("post_id", post_id).maybe_single().execute()
+    post = post_resp.data
+
+    if not post:
+        return HttpResponseForbidden("Post not found.")
+
+    # 3. Check ownership
+    if post["user_id"] != user_id:
+        return HttpResponseForbidden("You are not allowed to edit this post.")
+
+    # ==========================
+    # GET → Return form HTML snippet
+    # ==========================
+    if request.method == "GET":
+        html = render_to_string("edit_post_form.html", {"post": post})
+        return HttpResponse(html)
+
+    # ==========================
+    # POST → Save changes to Supabase
+    # ==========================
+
+    new_title = request.POST.get("title")
+    new_description = request.POST.get("description")
+
+    # UPDATE
+    supabase.table("posts").update({
+        "title": new_title,
+        "description": new_description,
+        "updated_at": "now()"
+    }).eq("post_id", post_id).execute()
+
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+# ============================
+# 🔴 DELETE POST
+# ============================
+def delete_post(request, post_id):
+    if request.method != "POST":
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    # Check session user
+    user_email = request.session.get("user_email")
+    if not user_email:
+        return HttpResponseForbidden("You must be logged in.")
+
+    # Get logged-in user ID
+    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    user_id = user_resp.data["id"] if user_resp.data else None
+
+    # Fetch post (IMPORTANT: use post_id column)
+    post_resp = supabase.table("posts").select("*").eq("post_id", post_id).maybe_single().execute()
+    post = post_resp.data
+    if not post:
+        return HttpResponseForbidden("Post not found.")
+
+    # Check ownership
+    if post["user_id"] != user_id:
+        return HttpResponseForbidden("You are not allowed to delete this post.")
+
+    # Delete post (IMPORTANT: use post_id column)
+    try:
+        supabase.table("posts").delete().eq("post_id", post_id).execute()
+    except Exception as e:
+        if "Missing response" not in str(e):
+            raise e
+
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 
