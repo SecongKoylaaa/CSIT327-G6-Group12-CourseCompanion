@@ -362,8 +362,8 @@ def home_page(request):
 
     user_email = request.session.get("user_email")
 
-    # Optional subject filter from query string, e.g. /home/?subject=English
-    selected_subject = request.GET.get("subject") or None
+    # Optional subject filter from query string or POST (for comment submissions)
+    selected_subject = request.GET.get("subject") or request.POST.get("subject") or None
 
     # -----------------------------
     # Handle new comment or reply
@@ -386,6 +386,9 @@ def home_page(request):
                 "created_at": datetime.now(timezone.utc).isoformat()
             }).execute()
 
+        # Redirect back to the same subject view if available
+        if selected_subject:
+            return redirect(f"/home/?subject={selected_subject}")
         return redirect("/home/")
 
     # -----------------------------
