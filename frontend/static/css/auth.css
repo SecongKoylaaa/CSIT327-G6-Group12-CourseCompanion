@@ -11,8 +11,8 @@ body {
   padding: 0;
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  background: #030303;
-  color: #d7dadc;
+  background: #f8f9fa;
+  color: #1c1c1c;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -30,11 +30,11 @@ body {
 }
 
 .auth-card {
-  background: #1a1a1b;
-  border: 1px solid #343536;
-  border-radius: 4px;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
   padding: 40px 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .auth-header {
@@ -51,16 +51,16 @@ body {
 
 .auth-header h1 {
   margin: 0 0 8px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
-  color: #d7dadc;
+  color: #1c1c1c;
   letter-spacing: -0.2px;
 }
 
 .auth-subtitle {
   margin: 0;
   font-size: 14px;
-  color: #818384;
+  color: #6c757d;
   font-weight: 400;
 }
 
@@ -80,8 +80,8 @@ form {
 label {
   display: block;
   font-size: 13px;
-  font-weight: 500;
-  color: #d7dadc;
+  font-weight: 600;
+  color: #1c1c1c;
   margin-bottom: 6px;
   letter-spacing: 0.2px;
 }
@@ -93,9 +93,9 @@ input[type="text"] {
   padding: 12px 14px;
   font-size: 14px;
   font-family: inherit;
-  color: #d7dadc;
-  background: #272729;
-  border: 1px solid #343536;
+  color: #1c1c1c;
+  background: #ffffff;
+  border: 1px solid #ced4da;
   border-radius: 4px;
   transition: all 0.15s ease;
   outline: none;
@@ -104,16 +104,17 @@ input[type="text"] {
 input[type="email"]::placeholder,
 input[type="password"]::placeholder,
 input[type="text"]::placeholder {
-  color: #565758;
+  color: #6c757d;
 }
 
 input:hover {
-  border-color: #4a4a4b;
+  border-color: #adb5bd;
 }
 
 input:focus {
-  background: #1a1a1b;
-  border-color: #d7dadc;
+  background: #ffffff;
+  border-color: #ff4500;
+  box-shadow: 0 0 0 3px rgba(255, 69, 0, 0.1);
 }
 
 /* ===================================
@@ -146,23 +147,23 @@ input:focus {
 }
 
 .toggle-password:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .toggle-password:active {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .eye-icon {
   width: 20px;
   height: 20px;
-  color: #818384;
+  color: #6c757d;
   transition: color 0.15s ease;
 }
 
 .toggle-password:hover .eye-icon,
 .toggle-password.active .eye-icon {
-  color: #d7dadc;
+  color: #1c1c1c;
 }
 
 /* ===================================
@@ -174,7 +175,7 @@ input:focus {
   padding: 0;
   margin: 10px 0 0;
   font-size: 12px;
-  color: #818384;
+  color: #6c757d;
 }
 
 .password-requirements li {
@@ -237,9 +238,9 @@ input:focus {
   font-size: 14px;
   font-weight: 700;
   font-family: inherit;
-  color: #d7dadc;
+  color: #1c1c1c;
   background: transparent;
-  border: 1px solid #343536;
+  border: 1px solid #ced4da;
   border-radius: 9999px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -249,12 +250,12 @@ input:focus {
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: #4a4a4b;
+  background: #f8f9fa;
+  border-color: #adb5bd;
 }
 
 .btn-secondary:active {
-  background: rgba(255, 255, 255, 0.08);
+  background: #e9ecef;
 }
 
 /* ===================================
@@ -266,7 +267,7 @@ input:focus {
   align-items: center;
   text-align: center;
   margin: 24px 0 20px;
-  color: #818384;
+  color: #6c757d;
   font-size: 13px;
 }
 
@@ -274,7 +275,7 @@ input:focus {
 .divider::after {
   content: '';
   flex: 1;
-  border-bottom: 1px solid #343536;
+  border-bottom: 1px solid #e9ecef;
 }
 
 .divider span {
@@ -291,14 +292,14 @@ input:focus {
 }
 
 .link-subtle {
-  color: #818384;
+  color: #6c757d;
   font-size: 13px;
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
 .link-subtle:hover {
-  color: #d7dadc;
+  color: #1c1c1c;
   text-decoration: underline;
 }
 
@@ -325,13 +326,13 @@ input:focus {
 }
 
 .alert-error {
-  background: rgba(234, 67, 53, 0.1);
-  border: 1px solid rgba(234, 67, 53, 0.3);
-  color: #f28b82;
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  color: #dc3545;
 }
 
 .alert-error svg {
-  color: #f28b82;
+  color: #dc3545;
 }
 
 .alert-success {
@@ -349,7 +350,7 @@ input:focus {
 =================================== */
 
 .field-error {
-  color: #f28b82;
+  color: #dc3545;
   font-size: 12px;
   margin-top: 6px;
   min-height: 18px;
