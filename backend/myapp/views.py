@@ -1095,24 +1095,70 @@ def edit_post(request, post_id):
     # GET → Return form HTML snippet
     # ==========================
     if request.method == "GET":
-        html = render_to_string("edit_post_form.html", {"post": post})
+        html = render_to_string("edit_post_form.html", {"post": post, "subjects": SUBJECTS})
         return HttpResponse(html)
 
     # ==========================
     # POST → Save changes to Supabase
     # ==========================
+    # Always allow updating the title
+    new_title = (request.POST.get("title") or "").strip()
 
-    new_title = request.POST.get("title")
-    new_description = request.POST.get("description")
+    # Respect original post_type: Text, Media, or Link
+    post_type = post.get("post_type")
 
-    # UPDATE
-    supabase.table("posts").update({
+    update_data = {
         "title": new_title,
-        "description": new_description,
-        "updated_at": "now()"
-    }).eq("post_id", post_id).execute()
+        "updated_at": "now()",
+    }
 
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    # Common subject handling (all post types have a subject)
+    new_subject = (request.POST.get("subject") or post.get("subject") or "").strip()
+    if new_subject:
+        update_data["subject"] = new_subject
+
+    # Text posts → title, subject, body/description (300 chars max)
+    if post_type == "Text":
+        new_description = (request.POST.get("description") or "").strip()
+        if len(new_description) > 300:
+            new_description = new_description[:300]
+        update_data["description"] = new_description
+
+    # Media posts → title, subject, optional description, optional media replacement
+    elif post_type == "Media":
+        new_description = (request.POST.get("description") or "").strip()
+        update_data["description"] = new_description
+
+        # If a new file is uploaded, replace the existing media
+        uploaded_file = request.FILES.get("fileUpload")
+        if uploaded_file:
+            try:
+                file_path = f"{user_email}/{uploaded_file.name}"
+                file_bytes = uploaded_file.read()
+
+                supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
+                    file_path,
+                    file_bytes
+                )
+
+                file_url = supabase.storage.from_(settings.SUPABASE_BUCKET) \
+                    .get_public_url(file_path) \
+                    .split("?")[0]
+
+                update_data["content"] = file_url
+            except Exception:
+                # Fail gracefully: keep existing media if upload fails
+                pass
+
+    # Link posts → title, subject, URL stored in content
+    elif post_type == "Link":
+        new_url = (request.POST.get("url") or post.get("content") or "").strip()
+        update_data["content"] = new_url
+
+    # Perform update without changing post_type
+    supabase.table("posts").update(update_data).eq("post_id", post_id).execute()
+
+    return redirect(request.META.get("HTTP_REFERER", "/"))
 
 
 # ============================
