@@ -27,10 +27,11 @@ body {
 
 .sidebar {
   width: 25%;
-  background: #fff;
+  background: #ffffff;
   border-radius: 14px;
   padding: 25px 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border: 1px solid #d8dee4;
   height: auto;
   max-height: calc(100vh - 110px);
   position: sticky;
@@ -81,24 +82,24 @@ body {
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  color: #0079d3;
-  background: #f5f7f9;
+  color: #212121;
+  background: #f7f8fa;
   border: 1px solid transparent;
   transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .community-link:hover {
-  background: #e3f2ff;
-  color: #0056a3;
+  background: #fff3eb;
+  color: #ff5b00;
   transform: translateX(2px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .community-item.active .community-link {
-  background: #0079d3;
-  color: #fff;
-  border-color: #0060a8;
-  box-shadow: 0 3px 8px rgba(0, 121, 211, 0.35);
+  background: #ff5b00;
+  color: #ffffff;
+  border-color: #ff5b00;
+  box-shadow: 0 3px 10px rgba(255, 91, 0, 0.35);
 }
 
 

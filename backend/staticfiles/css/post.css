@@ -54,17 +54,17 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-/* Per-subject color variants */
+/* Warm, Reddit-like palette variants per subject */
 .subject-filipino {
-  background: rgba(255, 159, 64, 0.16);
-  color: #d46a00;
-  border: 1px solid rgba(255, 159, 64, 0.45);
+  background: rgba(255, 91, 0, 0.12);
+  color: #c64800;
+  border: 1px solid rgba(255, 91, 0, 0.45);
 }
 
 .subject-math {
-  background: rgba(91, 124, 255, 0.15);
-  color: #3856d4;
-  border: 1px solid rgba(91, 124, 255, 0.4);
+  background: rgba(255, 159, 64, 0.15);
+  color: #d46a00;
+  border: 1px solid rgba(255, 159, 64, 0.4);
 }
 
 .subject-araling-panlipunan {
