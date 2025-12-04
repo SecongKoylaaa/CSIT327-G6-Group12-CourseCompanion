@@ -29,7 +29,10 @@
           <!-- POST HEADER -->
           <div class="post-header" style="display:flex; justify-content: space-between; align-items: center;">
             <div>
-              <p><b>{{ post.course }}</b> • {{ post.author }} • {{ post.created_at }}</p>
+              <p>
+                <span class="subject-tag subject-{{ post.course|slugify }}">{{ post.course }}</span>
+                • {{ post.author }} • {{ post.created_at }}
+              </p>
               <h3>{{ post.title }}</h3>
             </div>
 

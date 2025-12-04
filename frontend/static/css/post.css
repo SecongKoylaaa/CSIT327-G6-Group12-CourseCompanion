@@ -35,6 +35,134 @@
   word-break: break-word;
 }
 
+/* ======================= SUBJECT TAGS ======================= */
+.subject-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-right: 6px;
+  vertical-align: middle;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.subject-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* Per-subject color variants */
+.subject-filipino {
+  background: rgba(255, 159, 64, 0.16);
+  color: #d46a00;
+  border: 1px solid rgba(255, 159, 64, 0.45);
+}
+
+.subject-math {
+  background: rgba(91, 124, 255, 0.15);
+  color: #3856d4;
+  border: 1px solid rgba(91, 124, 255, 0.4);
+}
+
+.subject-araling-panlipunan {
+  background: rgba(255, 206, 86, 0.2);
+  color: #a48300;
+  border: 1px solid rgba(255, 206, 86, 0.5);
+}
+
+.subject-english {
+  background: rgba(76, 175, 80, 0.16);
+  color: #2e7d32;
+  border: 1px solid rgba(76, 175, 80, 0.45);
+}
+
+.subject-science {
+  background: rgba(33, 150, 243, 0.16);
+  color: #1565c0;
+  border: 1px solid rgba(33, 150, 243, 0.45);
+}
+
+.subject-physics {
+  background: rgba(156, 39, 176, 0.16);
+  color: #7b1fa2;
+  border: 1px solid rgba(156, 39, 176, 0.45);
+}
+
+.subject-chemistry {
+  background: rgba(0, 188, 212, 0.16);
+  color: #00838f;
+  border: 1px solid rgba(0, 188, 212, 0.45);
+}
+
+.subject-biology {
+  background: rgba(76, 175, 80, 0.16);
+  color: #1b5e20;
+  border: 1px solid rgba(76, 175, 80, 0.45);
+}
+
+.subject-history {
+  background: rgba(121, 85, 72, 0.18);
+  color: #4e342e;
+  border: 1px solid rgba(121, 85, 72, 0.5);
+}
+
+.subject-geography {
+  background: rgba(33, 150, 243, 0.12);
+  color: #01579b;
+  border: 1px solid rgba(33, 150, 243, 0.35);
+}
+
+.subject-edukasyon-sa-pagpapakatao {
+  background: rgba(244, 143, 177, 0.18);
+  color: #ad1457;
+  border: 1px solid rgba(244, 143, 177, 0.5);
+}
+
+.subject-economics {
+  background: rgba(129, 199, 132, 0.18);
+  color: #2e7d32;
+  border: 1px solid rgba(129, 199, 132, 0.5);
+}
+
+.subject-technology-and-home-economics {
+  background: rgba(100, 181, 246, 0.18);
+  color: #0d47a1;
+  border: 1px solid rgba(100, 181, 246, 0.5);
+}
+
+.subject-integrated-science {
+  background: rgba(0, 150, 136, 0.18);
+  color: #004d40;
+  border: 1px solid rgba(0, 150, 136, 0.5);
+}
+
+.subject-health {
+  background: rgba(244, 67, 54, 0.16);
+  color: #b71c1c;
+  border: 1px solid rgba(244, 67, 54, 0.5);
+}
+
+.subject-music {
+  background: rgba(171, 71, 188, 0.18);
+  color: #6a1b9a;
+  border: 1px solid rgba(171, 71, 188, 0.5);
+}
+
+.subject-art {
+  background: rgba(255, 138, 101, 0.18);
+  color: #d84315;
+  border: 1px solid rgba(255, 138, 101, 0.5);
+}
+
+.subject-physical-education {
+  background: rgba(102, 187, 106, 0.18);
+  color: #1b5e20;
+  border: 1px solid rgba(102, 187, 106, 0.5);
+}
+
 /* ======================= POST IMAGE/VIDEO ======================= */
 .post-thumbnail {
   width: 100%;
