@@ -1,0 +1,58 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CourseCompanion - Your Academic Resource Hub</title>
+  <link rel="stylesheet" href="{% static 'css/splash.css' %}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="splash-body">
+  <div class="splash-container">
+    <header class="splash-header">
+      <div class="brand-mark">
+        <div class="brand-icon">CC</div>
+        <div class="brand-text">
+          <span class="brand-name">CourseCompanion</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="{% url 'login' %}" class="btn btn-ghost">Log in</a>
+        <a href="{% url 'register' %}" class="btn btn-primary">Get Started</a>
+      </div>
+    </header>
+
+    <main class="splash-main">
+      <section class="hero-copy">
+        <div class="hero-content">
+          <h1>Your Academic Resource Hub</h1>
+          <p class="hero-lead">
+            CourseCompanion is a web application designed to act as a centralized hub for academic
+            resources shared by students. Inspired by platforms like Reddit, it allows users to post,
+            discover, and rate useful materials organized by university courses.
+          </p>
+
+          <div class="hero-cta">
+            <a href="{% url 'register' %}" class="btn btn-primary btn-large">Get Started</a>
+            <a href="{% url 'login' %}" class="btn btn-secondary btn-large">Log In</a>
+          </div>
+        </div>
+        
+        <div class="hero-visual">
+          <div class="accent-shape"></div>
+          <div class="accent-shape-2"></div>
+          <div class="accent-shape-3"></div>
+        </div>
+
+      </section>
+    </main>
+
+    <footer class="splash-footer">
+      <div class="footer-content">
+        <span>© {% now "Y" %} CourseCompanion</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

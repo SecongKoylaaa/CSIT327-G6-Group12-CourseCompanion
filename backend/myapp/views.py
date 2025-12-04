@@ -59,10 +59,15 @@ def safe_execute(request_fn, retries=3, delay=0.1):
     return request_fn()
 
 # --------------------------
-# Redirect root to login
+# Root: splash / landing page
 # --------------------------
 def root_redirect(request):
-    return redirect("/login/")
+    # If already logged in, go straight to home feed
+    if request.session.get("user_email"):
+        return redirect("/home/")
+
+    # Otherwise show the splash / landing page
+    return render(request, "splash_page.html")
 
 def register_page(request):
     if request.method == "POST":
