@@ -16,6 +16,28 @@ import secrets
 # --------------------------
 supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
+# Available academic subjects used across post creation and communities
+SUBJECTS = [
+    "Filipino",
+    "Math",
+    "Araling Panlipunan",
+    "English",
+    "Science",
+    "Physics",
+    "Chemistry",
+    "Biology",
+    "History",
+    "Geography",
+    "Edukasyon sa Pagpapakatao",
+    "Economics",
+    "Technology and Home Economics",
+    "Integrated Science",
+    "Health",
+    "Music",
+    "Art",
+    "Physical Education",
+]
+
 # --------------------------
 # Utility: Safe Supabase execute with retries
 # --------------------------
@@ -340,6 +362,9 @@ def home_page(request):
 
     user_email = request.session.get("user_email")
 
+    # Optional subject filter from query string, e.g. /home/?subject=English
+    selected_subject = request.GET.get("subject") or None
+
     # -----------------------------
     # Handle new comment or reply
     # -----------------------------
@@ -364,9 +389,13 @@ def home_page(request):
         return redirect("/home/")
 
     # -----------------------------
-    # Fetch posts
+    # Fetch posts (optionally filtered by subject)
     # -----------------------------
-    response = supabase.table("posts").select("*").order("created_at", desc=True).execute()
+    posts_query = supabase.table("posts").select("*")
+    if selected_subject:
+        posts_query = posts_query.eq("subject", selected_subject)
+
+    response = posts_query.order("created_at", desc=True).execute()
     posts = response.data if response.data else []
 
     # Get current user ID for vote detection
@@ -383,13 +412,20 @@ def home_page(request):
     for post in posts:
         title = post.get("title") or "(No Title)"
         url = post.get("content", "").rstrip("?")
-        course_name = post.get("course_id") or "null"
+        course_name = post.get("subject") or "General"
         description = post.get("description", "")
         post_id = post.get("post_id")
         author_id = post.get("user_id")
 
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+        # Fetch author email for display
+        author_email = "anonymous@example.com"
+        if author_id:
+            author_resp = supabase.table("users").select("email").eq("id", author_id).maybe_single().execute()
+            if author_resp.data and "email" in author_resp.data:
+                author_email = author_resp.data["email"]
 
         # -----------------------------
         # Fetch votes for this post
@@ -429,8 +465,8 @@ def home_page(request):
             "url": url,
             "description": description,
             "created_at": time_since(post.get("created_at")),
-            "author": post.get("author", "Unknown"),
-            "course": f"c/{course_name}",
+            "author": author_email,
+            "course": course_name,
             "is_image": is_image,
             "is_video": is_video,
             "comments": nested_comments,
@@ -449,6 +485,9 @@ def home_page(request):
         "posts": formatted_posts,
         # current logged-in user's id, used in template for author-only controls
         "current_user_id": user_id,
+        # Communities / subjects sidebar data
+        "subjects": SUBJECTS,
+        "selected_subject": selected_subject,
     })
 
 
@@ -1052,28 +1091,88 @@ def edit_post(request, post_id):
     if post["user_id"] != user_id:
         return HttpResponseForbidden("You are not allowed to edit this post.")
 
+    # 4. Infer content kind (Text / Media / Link) from stored content URL
+    content = (post.get("content") or "").strip()
+    lower_content = content.lower()
+
+    media_exts = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".mp4", ".webm", ".ogg")
+    if not content:
+        post_kind = "Text"
+    elif lower_content.endswith(media_exts):
+        post_kind = "Media"
+    else:
+        post_kind = "Link"
+
     # ==========================
     # GET → Return form HTML snippet
     # ==========================
     if request.method == "GET":
-        html = render_to_string("edit_post_form.html", {"post": post})
+        html = render_to_string("edit_post_form.html", {"post": post, "subjects": SUBJECTS, "post_kind": post_kind})
         return HttpResponse(html)
 
     # ==========================
     # POST → Save changes to Supabase
     # ==========================
+    # Always allow updating the title
+    new_title = (request.POST.get("title") or "").strip()
 
-    new_title = request.POST.get("title")
-    new_description = request.POST.get("description")
-
-    # UPDATE
-    supabase.table("posts").update({
+    update_data = {
         "title": new_title,
-        "description": new_description,
-        "updated_at": "now()"
-    }).eq("post_id", post_id).execute()
+        "updated_at": "now()",
+    }
 
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    # Common subject handling (all post types have a subject)
+    new_subject = (request.POST.get("subject") or post.get("subject") or "").strip()
+    if new_subject:
+        update_data["subject"] = new_subject
+
+    # Tag handling: post_type column stores tag (question/announcement/discussion)
+    new_tag = (request.POST.get("post_type") or post.get("post_type") or "").strip()
+    if new_tag:
+        update_data["post_type"] = new_tag
+
+    # Text posts → title, subject, body/description (300 chars max)
+    if post_kind == "Text":
+        new_description = (request.POST.get("description") or "").strip()
+        if len(new_description) > 300:
+            new_description = new_description[:300]
+        update_data["description"] = new_description
+
+    # Media posts → title, subject, optional description, optional media replacement
+    elif post_kind == "Media":
+        new_description = (request.POST.get("description") or "").strip()
+        update_data["description"] = new_description
+
+        # If a new file is uploaded, replace the existing media
+        uploaded_file = request.FILES.get("fileUpload")
+        if uploaded_file:
+            try:
+                file_path = f"{user_email}/{uploaded_file.name}"
+                file_bytes = uploaded_file.read()
+
+                supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
+                    file_path,
+                    file_bytes
+                )
+
+                file_url = supabase.storage.from_(settings.SUPABASE_BUCKET) \
+                    .get_public_url(file_path) \
+                    .split("?")[0]
+
+                update_data["content"] = file_url
+            except Exception:
+                # Fail gracefully: keep existing media if upload fails
+                pass
+
+    # Link posts → title, subject, URL stored in content
+    elif post_kind == "Link":
+        new_url = (request.POST.get("url") or post.get("content") or "").strip()
+        update_data["content"] = new_url
+
+    # Perform update without changing inferred content kind
+    supabase.table("posts").update(update_data).eq("post_id", post_id).execute()
+
+    return redirect(request.META.get("HTTP_REFERER", "/"))
 
 
 # ============================

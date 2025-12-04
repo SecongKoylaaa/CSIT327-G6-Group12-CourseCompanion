@@ -29,7 +29,10 @@
           <!-- POST HEADER -->
           <div class="post-header" style="display:flex; justify-content: space-between; align-items: center;">
             <div>
-              <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
+              <p>
+                <span class="subject-tag subject-{{ post.course|slugify }}">{{ post.course }}</span>
+                • {{ post.author }} • {{ post.created_at }}
+              </p>
               <h3>{{ post.title }}</h3>
             </div>
 
@@ -100,14 +103,16 @@
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
-      <h3>Communities</h3>
-      <ul>
-        <li>r/Psychology</li>
-        <li>r/HowToProgramming</li>
-        <li>r/ThisIsATest</li>
-        <li>r/HelloWorld</li>
-        <li>r/Nursing</li>
-        <li>r/Engineering</li>
+      <h3>Subjects</h3>
+      <ul class="community-list">
+        <li class="community-item {% if not selected_subject %}active{% endif %}">
+          <a href="/home/" class="community-link">All Subjects</a>
+        </li>
+        {% for subj in subjects %}
+        <li class="community-item {% if selected_subject == subj %}active{% endif %}">
+          <a href="/home/?subject={{ subj|urlencode }}" class="community-link">{{ subj }}</a>
+        </li>
+        {% endfor %}
       </ul>
     </aside>
   </div>

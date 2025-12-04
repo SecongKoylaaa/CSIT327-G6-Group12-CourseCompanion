@@ -3,6 +3,26 @@
 <link rel="stylesheet" href="{% static 'css/post_form.css' %}">
 
 <div class="post-form-container">
+    <!-- Post type indicator (Text / Media / Link, inferred and read-only) -->
+    <div>
+        <span class="post-form-label">Post Type</span>
+        <div class="post-type-pill">{{ post_kind }}</div>
+    </div>
+
+    <!-- Subject (shared across all post types) -->
+    <label class="post-form-label" for="edit-subject">Subject</label>
+    <select
+        id="edit-subject"
+        class="post-form-input"
+        name="subject"
+        required
+    >
+        {% for subj in subjects %}
+            <option value="{{ subj }}" {% if post.subject == subj %}selected{% endif %}>{{ subj }}</option>
+        {% endfor %}
+    </select>
+
+    <!-- Title (shared) -->
     <label class="post-form-label" for="edit-title">Title</label>
     <input
         id="edit-title"
@@ -13,12 +33,68 @@
         required
     >
 
-    <label class="post-form-label" for="edit-description">Description</label>
-    <textarea
-        id="edit-description"
-        class="post-form-textarea"
-        name="description"
-        rows="4"
+    <!-- Tag selector (maps to post_type column: question / announcement / discussion) -->
+    <label class="post-form-label" for="edit-tag">Tag</label>
+    <select
+        id="edit-tag"
+        class="post-form-input"
+        name="post_type"
         required
-    >{{ post.description }}</textarea>
+    >
+        <option value="question" {% if post.post_type == "question" %}selected{% endif %}>Question</option>
+        <option value="announcement" {% if post.post_type == "announcement" %}selected{% endif %}>Announcement</option>
+        <option value="discussion" {% if post.post_type == "discussion" %}selected{% endif %}>Discussion</option>
+    </select>
+
+    {% if post_kind == "Text" %}
+        <!-- Text post: body/description (up to 300 characters) -->
+        <label class="post-form-label" for="edit-description">Body</label>
+        <textarea
+            id="edit-description"
+            class="post-form-textarea"
+            name="description"
+            rows="5"
+            maxlength="300"
+            required
+        >{{ post.description }}</textarea>
+
+    {% elif post_kind == "Media" %}
+        <!-- Media post: optional description and media preview/upload -->
+        <label class="post-form-label" for="edit-description">Description (optional)</label>
+        <textarea
+            id="edit-description"
+            class="post-form-textarea"
+            name="description"
+            rows="4"
+        >{{ post.description }}</textarea>
+
+        {% if post.content %}
+            <div class="form-helper">Current media</div>
+            <div class="media-preview">
+                <img src="{{ post.content }}" alt="Current media">
+            </div>
+        {% endif %}
+
+        <label class="post-form-label" for="edit-file">Change Media (optional)</label>
+        <input
+            id="edit-file"
+            class="post-form-input"
+            type="file"
+            name="fileUpload"
+            accept="image/*,video/*"
+        >
+
+    {% elif post_kind == "Link" %}
+        <!-- Link post: URL field -->
+        <label class="post-form-label" for="edit-url">URL</label>
+        <input
+            id="edit-url"
+            class="post-form-input"
+            type="url"
+            name="url"
+            value="{{ post.content }}"
+            required
+        >
+
+    {% endif %}
 </div>
