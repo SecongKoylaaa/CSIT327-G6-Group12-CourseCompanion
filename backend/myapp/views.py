@@ -59,10 +59,15 @@ def safe_execute(request_fn, retries=3, delay=0.1):
     return request_fn()
 
 # --------------------------
-# Redirect root to login
+# Root: splash / landing page
 # --------------------------
 def root_redirect(request):
-    return redirect("/login/")
+    # If already logged in, go straight to home feed
+    if request.session.get("user_email"):
+        return redirect("/home/")
+
+    # Otherwise show the splash / landing page
+    return render(request, "splash_page.html")
 
 def register_page(request):
     if request.method == "POST":
@@ -362,8 +367,8 @@ def home_page(request):
 
     user_email = request.session.get("user_email")
 
-    # Optional subject filter from query string, e.g. /home/?subject=English
-    selected_subject = request.GET.get("subject") or None
+    # Optional subject filter from query string or POST (for comment submissions)
+    selected_subject = request.GET.get("subject") or request.POST.get("subject") or None
 
     # -----------------------------
     # Handle new comment or reply
@@ -386,6 +391,9 @@ def home_page(request):
                 "created_at": datetime.now(timezone.utc).isoformat()
             }).execute()
 
+        # Redirect back to the same subject view if available
+        if selected_subject:
+            return redirect(f"/home/?subject={selected_subject}")
         return redirect("/home/")
 
     # -----------------------------
@@ -831,6 +839,12 @@ def create_post_text(request):
         post_type = request.POST.get("post_type", "").strip()
         subject = request.POST.get("subject", "").strip()
 
+        # Enforce max lengths
+        if len(title) > 300:
+            title = title[:300]
+        if len(description) > 1000:
+            description = description[:1000]
+
         # Validate
         if not title or not description or not post_type or not subject:
             return render(request, "create-post-text.html", {
@@ -1131,16 +1145,18 @@ def edit_post(request, post_id):
     if new_tag:
         update_data["post_type"] = new_tag
 
-    # Text posts → title, subject, body/description (300 chars max)
+    # Text posts → title, subject, body/description (1000 chars max)
     if post_kind == "Text":
         new_description = (request.POST.get("description") or "").strip()
-        if len(new_description) > 300:
-            new_description = new_description[:300]
+        if len(new_description) > 1000:
+            new_description = new_description[:1000]
         update_data["description"] = new_description
 
-    # Media posts → title, subject, optional description, optional media replacement
+    # Media posts → title, subject, optional description (1000 chars max), optional media replacement
     elif post_kind == "Media":
         new_description = (request.POST.get("description") or "").strip()
+        if len(new_description) > 1000:
+            new_description = new_description[:1000]
         update_data["description"] = new_description
 
         # If a new file is uploaded, replace the existing media
@@ -1217,4 +1233,4 @@ def delete_post(request, post_id):
 # --------------------------
 def logout_page(request):
     request.session.flush()
-    return redirect("/login/")
+    return redirect("/")

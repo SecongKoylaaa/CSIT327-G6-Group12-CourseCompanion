@@ -29,6 +29,7 @@
         class="post-form-input"
         type="text"
         name="title"
+        maxlength="300"
         value="{{ post.title }}"
         required
     >
@@ -54,7 +55,7 @@
             class="post-form-textarea"
             name="description"
             rows="5"
-            maxlength="300"
+            maxlength="1000"
             required
         >{{ post.description }}</textarea>
 
@@ -66,6 +67,7 @@
             class="post-form-textarea"
             name="description"
             rows="4"
+            maxlength="1000"
         >{{ post.description }}</textarea>
 
         {% if post.content %}

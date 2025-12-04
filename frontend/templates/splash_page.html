@@ -1,0 +1,91 @@
+<!-- frontend/templates/splash_page.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CourseCompanion - Your Academic Resource Hub</title>
+  <link rel="stylesheet" href="{% static 'css/splash.css' %}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="splash-body">
+  <div class="splash-container">
+    <header class="splash-header">
+      <div class="brand-mark">
+        <div class="brand-icon">CC</div>
+        <div class="brand-text">
+          <span class="brand-name">CourseCompanion</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="{% url 'login' %}" class="btn btn-ghost">Log in</a>
+        <a href="{% url 'register' %}" class="btn btn-primary">Get Started</a>
+      </div>
+    </header>
+
+    <main class="splash-main">
+      <section class="hero-section">
+        <div class="description-box">
+          <div class="description-icon">🎓</div>
+          <h1>Welcome to CourseCompanion</h1>
+          <p class="description-text">
+            CourseCompanion is a web application designed to act as a centralized hub for academic 
+            resources shared by students. Inspired by platforms like Reddit, it allows users to post, 
+            discover, and rate useful materials organized by university courses.
+          </p>
+        </div>
+
+        <div class="action-boxes">
+          <a href="{% url 'register' %}" class="action-box primary-action">
+            <i class="fas fa-user-plus"></i>
+            <h3>Sign Up</h3>
+            <p>Create your account and start sharing resources</p>
+            <span class="action-arrow">→</span>
+          </a>
+          
+          <a href="{% url 'login' %}" class="action-box secondary-action">
+            <i class="fas fa-sign-in-alt"></i>
+            <h3>Log In</h3>
+            <p>Access your account and continue learning</p>
+            <span class="action-arrow">→</span>
+          </a>
+        </div>
+
+        <div class="feature-highlights">
+          <div class="feature-box">
+            <div class="feature-icon">
+              <i class="fas fa-book"></i>
+            </div>
+            <h4>Discover Course Materials</h4>
+            <p>Find resources shared by students in your courses</p>
+          </div>
+          
+          <div class="feature-box">
+            <div class="feature-icon">
+              <i class="fas fa-star"></i>
+            </div>
+            <h4>Rate & Review</h4>
+            <p>Help others by rating useful academic resources</p>
+          </div>
+          
+          <div class="feature-box">
+            <div class="feature-icon">
+              <i class="fas fa-users"></i>
+            </div>
+            <h4>Collaborate</h4>
+            <p>Connect and learn with your classmates</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="splash-footer">
+      <div class="footer-content">
+        <span>© {% now "Y" %} CourseCompanion - Empowering Students Through Shared Knowledge</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

@@ -26,6 +26,9 @@
     <form class="comment-form" method="POST" action="{% url 'home' %}">
       {% csrf_token %}
       <input type="hidden" name="post_id" value="{{ post.id }}">
+      {% if selected_subject %}
+        <input type="hidden" name="subject" value="{{ selected_subject }}">
+      {% endif %}
       <textarea name="comment" placeholder="Add a comment..." required></textarea>
       <button type="submit">Post</button>
     </form>

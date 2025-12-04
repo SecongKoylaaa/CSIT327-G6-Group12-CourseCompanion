@@ -95,10 +95,10 @@
               </svg>
               Title
             </label>
-            <input type="text" name="title" id="title" maxlength="200"
+            <input type="text" name="title" id="title" maxlength="300"
                    value="{{ title|default:'' }}"
                    placeholder="What's on your mind?" required>
-            <div class="char-count" id="title-count">{{ title|length|default:0 }}/200</div>
+            <div class="char-count" id="title-count">{{ title|length|default:0 }}/300</div>
           </div>
 
           <!-- Description -->
@@ -113,8 +113,8 @@
               </svg>
               Description
             </label>
-            <textarea name="description" id="description" maxlength="300" placeholder="Share more details...">{{ description|default:'' }}</textarea>
-            <div class="char-count" id="desc-count">{{ description|length|default:0 }}/300</div>
+            <textarea name="description" id="description" maxlength="1000" placeholder="Share more details...">{{ description|default:'' }}</textarea>
+            <div class="char-count" id="desc-count">{{ description|length|default:0 }}/1000</div>
           </div>
 
           <!-- Tag Selector -->
@@ -242,15 +242,39 @@
   // Character counters
   const titleInput = document.getElementById('title');
   const descInput = document.getElementById('description');
-  document.getElementById('title-count').textContent = `${titleInput.value.length}/200`;
-  document.getElementById('desc-count').textContent = `${descInput.value.length}/300`;
+  const titleCount = document.getElementById('title-count');
+  const descCount = document.getElementById('desc-count');
 
-  titleInput.addEventListener('input', () =>
-    document.getElementById('title-count').textContent = `${titleInput.value.length}/200`
-  );
-  descInput.addEventListener('input', () =>
-    document.getElementById('desc-count').textContent = `${descInput.value.length}/300`
-  );
+  const MAX_TITLE = 300;
+  const MAX_DESC = 1000;
+
+  const updateTitleCount = () => {
+    if (!titleInput) return;
+    let val = titleInput.value || '';
+    if (val.length > MAX_TITLE) {
+      val = val.slice(0, MAX_TITLE);
+      titleInput.value = val;
+    }
+    titleCount.textContent = `${val.length}/${MAX_TITLE}`;
+    titleCount.classList.toggle('char-limit-reached', val.length >= MAX_TITLE);
+  };
+
+  const updateDescCount = () => {
+    if (!descInput) return;
+    let val = descInput.value || '';
+    if (val.length > MAX_DESC) {
+      val = val.slice(0, MAX_DESC);
+      descInput.value = val;
+    }
+    descCount.textContent = `${val.length}/${MAX_DESC}`;
+    descCount.classList.toggle('char-limit-reached', val.length >= MAX_DESC);
+  };
+
+  updateTitleCount();
+  updateDescCount();
+
+  titleInput.addEventListener('input', updateTitleCount);
+  descInput.addEventListener('input', updateDescCount);
 
   // Tag dropdown
   const tagBtn = document.getElementById("tag-btn");
