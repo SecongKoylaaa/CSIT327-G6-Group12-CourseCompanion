@@ -26,7 +26,11 @@
         
         // Add file input change listener
         addFileInputListener();
+
+        // Initialize character counter for description field (300 chars)
+        setupCharCounter();
       })
+
       .catch(error => {
         console.error('Error loading edit form:', error);
         editFormFields.innerHTML = '<p style="text-align: center; padding: 40px; color: #e74c3c;">Failed to load form. Please try again.</p>';
@@ -79,6 +83,41 @@
         }
       }
     });
+  }
+
+  // Character counter for description textarea (300 characters)
+  function setupCharCounter() {
+    const descriptionField = editFormFields.querySelector('textarea[name="description"], textarea#description');
+    if (!descriptionField) return;
+
+    const MAX_LENGTH = 300;
+
+    let counter = descriptionField.closest('.form-group')?.querySelector('.char-count');
+    if (!counter) {
+      counter = document.createElement('div');
+      counter.className = 'char-count';
+      descriptionField.parentNode.appendChild(counter);
+    }
+
+    const updateCounter = () => {
+      let value = descriptionField.value || '';
+      if (value.length > MAX_LENGTH) {
+        value = value.slice(0, MAX_LENGTH);
+        descriptionField.value = value;
+      }
+
+      const used = value.length;
+      counter.textContent = `${used}/${MAX_LENGTH} characters`;
+      if (used >= MAX_LENGTH) {
+        counter.classList.add('char-limit-reached');
+      } else {
+        counter.classList.remove('char-limit-reached');
+      }
+    };
+
+    descriptionField.addEventListener('input', updateCounter);
+    // Initialize on open with existing content
+    updateCounter();
   }
 
   // Add file input change listener to show selected filename

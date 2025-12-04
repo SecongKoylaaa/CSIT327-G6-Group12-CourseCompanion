@@ -29,9 +29,9 @@
 .modal-content-edit {
   background: #ffffff;
   border-radius: 16px;
-  width: 600px;
-  max-width: 92%;
-  max-height: 85vh;
+  width: 960px;
+  max-width: 96%;
+  max-height: 92vh;
   overflow: hidden;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
   transform: scale(0.95) translateY(20px);
@@ -244,6 +244,19 @@
   margin-top: 6px;
 }
 
+/* Character Counter */
+.char-count {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #9aa1b8;
+  text-align: right;
+}
+
+.char-count.char-limit-reached {
+  color: #e74c3c;
+  font-weight: 600;
+}
+
 /* Media Preview */
 .media-preview {
   margin-top: 12px;
@@ -378,8 +391,8 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .modal-content-edit {
-    width: 96%;
-    max-height: 92vh;
+    width: 100%;
+    max-height: 96vh;
     border-radius: 12px;
   }
   
