@@ -31,9 +31,11 @@ body {
   border-radius: 14px;
   padding: 25px 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  height: fit-content;
+  height: auto;
+  max-height: calc(100vh - 110px);
   position: sticky;
   top: 90px;
+  overflow-y: auto;
 }
 
 .sidebar h3 {
