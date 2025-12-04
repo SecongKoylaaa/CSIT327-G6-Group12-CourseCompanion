@@ -101,13 +101,15 @@
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <h3>Communities</h3>
-      <ul>
-        <li>r/Psychology</li>
-        <li>r/HowToProgramming</li>
-        <li>r/ThisIsATest</li>
-        <li>r/HelloWorld</li>
-        <li>r/Nursing</li>
-        <li>r/Engineering</li>
+      <ul class="community-list">
+        <li class="community-item {% if not selected_subject %}active{% endif %}">
+          <a href="/home/" class="community-link">All Subjects</a>
+        </li>
+        {% for subj in subjects %}
+        <li class="community-item {% if selected_subject == subj %}active{% endif %}">
+          <a href="/home/?subject={{ subj|urlencode }}" class="community-link">{{ subj }}</a>
+        </li>
+        {% endfor %}
       </ul>
     </aside>
   </div>

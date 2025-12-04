@@ -16,6 +16,28 @@ import secrets
 # --------------------------
 supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
+# Available academic subjects used across post creation and communities
+SUBJECTS = [
+    "Filipino",
+    "Math",
+    "Araling Panlipunan",
+    "English",
+    "Science",
+    "Physics",
+    "Chemistry",
+    "Biology",
+    "History",
+    "Geography",
+    "Edukasyon sa Pagpapakatao",
+    "Economics",
+    "Technology and Home Economics",
+    "Integrated Science",
+    "Health",
+    "Music",
+    "Art",
+    "Physical Education",
+]
+
 # --------------------------
 # Utility: Safe Supabase execute with retries
 # --------------------------
@@ -340,6 +362,9 @@ def home_page(request):
 
     user_email = request.session.get("user_email")
 
+    # Optional subject filter from query string, e.g. /home/?subject=English
+    selected_subject = request.GET.get("subject") or None
+
     # -----------------------------
     # Handle new comment or reply
     # -----------------------------
@@ -364,9 +389,13 @@ def home_page(request):
         return redirect("/home/")
 
     # -----------------------------
-    # Fetch posts
+    # Fetch posts (optionally filtered by subject)
     # -----------------------------
-    response = supabase.table("posts").select("*").order("created_at", desc=True).execute()
+    posts_query = supabase.table("posts").select("*")
+    if selected_subject:
+        posts_query = posts_query.eq("subject", selected_subject)
+
+    response = posts_query.order("created_at", desc=True).execute()
     posts = response.data if response.data else []
 
     # Get current user ID for vote detection
@@ -456,6 +485,9 @@ def home_page(request):
         "posts": formatted_posts,
         # current logged-in user's id, used in template for author-only controls
         "current_user_id": user_id,
+        # Communities / subjects sidebar data
+        "subjects": SUBJECTS,
+        "selected_subject": selected_subject,
     })
 
 
