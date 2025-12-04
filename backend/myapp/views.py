@@ -383,13 +383,20 @@ def home_page(request):
     for post in posts:
         title = post.get("title") or "(No Title)"
         url = post.get("content", "").rstrip("?")
-        course_name = post.get("course_id") or "null"
+        course_name = post.get("subject") or "General"
         description = post.get("description", "")
         post_id = post.get("post_id")
         author_id = post.get("user_id")
 
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+        # Fetch author email for display
+        author_email = "anonymous@example.com"
+        if author_id:
+            author_resp = supabase.table("users").select("email").eq("id", author_id).maybe_single().execute()
+            if author_resp.data and "email" in author_resp.data:
+                author_email = author_resp.data["email"]
 
         # -----------------------------
         # Fetch votes for this post
@@ -429,8 +436,8 @@ def home_page(request):
             "url": url,
             "description": description,
             "created_at": time_since(post.get("created_at")),
-            "author": post.get("author", "Unknown"),
-            "course": f"c/{course_name}",
+            "author": author_email,
+            "course": course_name,
             "is_image": is_image,
             "is_video": is_video,
             "comments": nested_comments,
