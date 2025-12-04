@@ -831,6 +831,12 @@ def create_post_text(request):
         post_type = request.POST.get("post_type", "").strip()
         subject = request.POST.get("subject", "").strip()
 
+        # Enforce max lengths
+        if len(title) > 300:
+            title = title[:300]
+        if len(description) > 1000:
+            description = description[:1000]
+
         # Validate
         if not title or not description or not post_type or not subject:
             return render(request, "create-post-text.html", {
@@ -1131,16 +1137,18 @@ def edit_post(request, post_id):
     if new_tag:
         update_data["post_type"] = new_tag
 
-    # Text posts → title, subject, body/description (300 chars max)
+    # Text posts → title, subject, body/description (1000 chars max)
     if post_kind == "Text":
         new_description = (request.POST.get("description") or "").strip()
-        if len(new_description) > 300:
-            new_description = new_description[:300]
+        if len(new_description) > 1000:
+            new_description = new_description[:1000]
         update_data["description"] = new_description
 
-    # Media posts → title, subject, optional description, optional media replacement
+    # Media posts → title, subject, optional description (1000 chars max), optional media replacement
     elif post_kind == "Media":
         new_description = (request.POST.get("description") or "").strip()
+        if len(new_description) > 1000:
+            new_description = new_description[:1000]
         update_data["description"] = new_description
 
         # If a new file is uploaded, replace the existing media

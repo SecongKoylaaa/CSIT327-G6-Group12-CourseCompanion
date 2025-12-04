@@ -95,8 +95,8 @@
               </svg>
               Title
             </label>
-            <input id="title" name="title" type="text" maxlength="200" placeholder="What's on your mind?" value="{{ title }}" required>
-            <div class="char-count" id="title-count">{{ title|length }}/200</div>
+            <input id="title" name="title" type="text" maxlength="300" placeholder="What's on your mind?" value="{{ title }}" required>
+            <div class="char-count" id="title-count">{{ title|length }}/300</div>
           </div>
 
           <!-- Tag Selector -->
@@ -192,11 +192,21 @@
   const titleInput = document.getElementById('title');
   const titleCount = document.getElementById('title-count');
 
-  titleCount.textContent = `${titleInput.value.length || 0}/200`;
+  const MAX_TITLE = 300;
 
-  titleInput.addEventListener('input', () => {
-    titleCount.textContent = `${titleInput.value.length}/200`;
-  });
+  const updateTitleCount = () => {
+    if (!titleInput) return;
+    let val = titleInput.value || '';
+    if (val.length > MAX_TITLE) {
+      val = val.slice(0, MAX_TITLE);
+      titleInput.value = val;
+    }
+    titleCount.textContent = `${val.length}/${MAX_TITLE}`;
+    titleCount.classList.toggle('char-limit-reached', val.length >= MAX_TITLE);
+  };
+
+  updateTitleCount();
+  titleInput.addEventListener('input', updateTitleCount);
 
   // Tag dropdown
   const tagBtn = document.getElementById('tag-btn');

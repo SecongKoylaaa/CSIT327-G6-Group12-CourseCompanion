@@ -85,39 +85,59 @@
     });
   }
 
-  // Character counter for description textarea (300 characters)
+  // Character counter for title and description fields
   function setupCharCounter() {
-    const descriptionField = editFormFields.querySelector('textarea[name="description"], textarea#description');
-    if (!descriptionField) return;
+    const titleField = editFormFields.querySelector('input[name="title"], #edit-title');
+    const descField = editFormFields.querySelector('textarea[name="description"], #edit-description');
 
-    const MAX_LENGTH = 300;
+    const MAX_TITLE = 300;
+    const MAX_DESC = 1000;
 
-    let counter = descriptionField.closest('.form-group')?.querySelector('.char-count');
-    if (!counter) {
-      counter = document.createElement('div');
-      counter.className = 'char-count';
-      descriptionField.parentNode.appendChild(counter);
-    }
-
-    const updateCounter = () => {
-      let value = descriptionField.value || '';
-      if (value.length > MAX_LENGTH) {
-        value = value.slice(0, MAX_LENGTH);
-        descriptionField.value = value;
+    const ensureCounter = (field) => {
+      if (!field) return null;
+      let counter = field.closest('.form-group')?.querySelector('.char-count');
+      if (!counter) {
+        counter = document.createElement('div');
+        counter.className = 'char-count';
+        field.parentNode.appendChild(counter);
       }
-
-      const used = value.length;
-      counter.textContent = `${used}/${MAX_LENGTH} characters`;
-      if (used >= MAX_LENGTH) {
-        counter.classList.add('char-limit-reached');
-      } else {
-        counter.classList.remove('char-limit-reached');
-      }
+      return counter;
     };
 
-    descriptionField.addEventListener('input', updateCounter);
-    // Initialize on open with existing content
-    updateCounter();
+    const titleCounter = ensureCounter(titleField);
+    const descCounter = ensureCounter(descField);
+
+    const updateTitle = () => {
+      if (!titleField || !titleCounter) return;
+      let val = titleField.value || '';
+      if (val.length > MAX_TITLE) {
+        val = val.slice(0, MAX_TITLE);
+        titleField.value = val;
+      }
+      titleCounter.textContent = `${val.length}/${MAX_TITLE} characters`;
+      titleCounter.classList.toggle('char-limit-reached', val.length >= MAX_TITLE);
+    };
+
+    const updateDesc = () => {
+      if (!descField || !descCounter) return;
+      let val = descField.value || '';
+      if (val.length > MAX_DESC) {
+        val = val.slice(0, MAX_DESC);
+        descField.value = val;
+      }
+      descCounter.textContent = `${val.length}/${MAX_DESC} characters`;
+      descCounter.classList.toggle('char-limit-reached', val.length >= MAX_DESC);
+    };
+
+    if (titleField) {
+      titleField.addEventListener('input', updateTitle);
+      updateTitle();
+    }
+
+    if (descField) {
+      descField.addEventListener('input', updateDesc);
+      updateDesc();
+    }
   }
 
   // Add file input change listener to show selected filename
