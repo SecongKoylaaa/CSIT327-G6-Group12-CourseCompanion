@@ -3,10 +3,10 @@
 <link rel="stylesheet" href="{% static 'css/post_form.css' %}">
 
 <div class="post-form-container">
-    <!-- Post type indicator (read-only, no switching) -->
+    <!-- Post type indicator (Text / Media / Link, inferred and read-only) -->
     <div>
         <span class="post-form-label">Post Type</span>
-        <div class="post-type-pill">{{ post.post_type }}</div>
+        <div class="post-type-pill">{{ post_kind }}</div>
     </div>
 
     <!-- Subject (shared across all post types) -->
@@ -33,7 +33,20 @@
         required
     >
 
-    {% if post.post_type == "Text" %}
+    <!-- Tag selector (maps to post_type column: question / announcement / discussion) -->
+    <label class="post-form-label" for="edit-tag">Tag</label>
+    <select
+        id="edit-tag"
+        class="post-form-input"
+        name="post_type"
+        required
+    >
+        <option value="question" {% if post.post_type == "question" %}selected{% endif %}>Question</option>
+        <option value="announcement" {% if post.post_type == "announcement" %}selected{% endif %}>Announcement</option>
+        <option value="discussion" {% if post.post_type == "discussion" %}selected{% endif %}>Discussion</option>
+    </select>
+
+    {% if post_kind == "Text" %}
         <!-- Text post: body/description (up to 300 characters) -->
         <label class="post-form-label" for="edit-description">Body</label>
         <textarea
@@ -45,7 +58,7 @@
             required
         >{{ post.description }}</textarea>
 
-    {% elif post.post_type == "Media" %}
+    {% elif post_kind == "Media" %}
         <!-- Media post: optional description and media preview/upload -->
         <label class="post-form-label" for="edit-description">Description (optional)</label>
         <textarea
@@ -71,7 +84,7 @@
             accept="image/*,video/*"
         >
 
-    {% elif post.post_type == "Link" %}
+    {% elif post_kind == "Link" %}
         <!-- Link post: URL field -->
         <label class="post-form-label" for="edit-url">URL</label>
         <input

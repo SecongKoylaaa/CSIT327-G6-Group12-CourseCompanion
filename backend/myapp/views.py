@@ -1091,11 +1091,23 @@ def edit_post(request, post_id):
     if post["user_id"] != user_id:
         return HttpResponseForbidden("You are not allowed to edit this post.")
 
+    # 4. Infer content kind (Text / Media / Link) from stored content URL
+    content = (post.get("content") or "").strip()
+    lower_content = content.lower()
+
+    media_exts = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".mp4", ".webm", ".ogg")
+    if not content:
+        post_kind = "Text"
+    elif lower_content.endswith(media_exts):
+        post_kind = "Media"
+    else:
+        post_kind = "Link"
+
     # ==========================
     # GET → Return form HTML snippet
     # ==========================
     if request.method == "GET":
-        html = render_to_string("edit_post_form.html", {"post": post, "subjects": SUBJECTS})
+        html = render_to_string("edit_post_form.html", {"post": post, "subjects": SUBJECTS, "post_kind": post_kind})
         return HttpResponse(html)
 
     # ==========================
@@ -1103,9 +1115,6 @@ def edit_post(request, post_id):
     # ==========================
     # Always allow updating the title
     new_title = (request.POST.get("title") or "").strip()
-
-    # Respect original post_type: Text, Media, or Link
-    post_type = post.get("post_type")
 
     update_data = {
         "title": new_title,
@@ -1117,15 +1126,20 @@ def edit_post(request, post_id):
     if new_subject:
         update_data["subject"] = new_subject
 
+    # Tag handling: post_type column stores tag (question/announcement/discussion)
+    new_tag = (request.POST.get("post_type") or post.get("post_type") or "").strip()
+    if new_tag:
+        update_data["post_type"] = new_tag
+
     # Text posts → title, subject, body/description (300 chars max)
-    if post_type == "Text":
+    if post_kind == "Text":
         new_description = (request.POST.get("description") or "").strip()
         if len(new_description) > 300:
             new_description = new_description[:300]
         update_data["description"] = new_description
 
     # Media posts → title, subject, optional description, optional media replacement
-    elif post_type == "Media":
+    elif post_kind == "Media":
         new_description = (request.POST.get("description") or "").strip()
         update_data["description"] = new_description
 
@@ -1151,11 +1165,11 @@ def edit_post(request, post_id):
                 pass
 
     # Link posts → title, subject, URL stored in content
-    elif post_type == "Link":
+    elif post_kind == "Link":
         new_url = (request.POST.get("url") or post.get("content") or "").strip()
         update_data["content"] = new_url
 
-    # Perform update without changing post_type
+    # Perform update without changing inferred content kind
     supabase.table("posts").update(update_data).eq("post_id", post_id).execute()
 
     return redirect(request.META.get("HTTP_REFERER", "/"))
