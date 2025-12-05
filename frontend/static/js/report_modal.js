@@ -4,7 +4,8 @@ function reportPost(postId) {
     document.getElementById('report_post_id').value = postId;
     
     // Show the report modal
-    document.getElementById('reportPostModal').style.display = 'block';
+    const modal = document.getElementById('reportPostModal');
+    modal.classList.add('active');
     
     // Close any open post menus
     document.querySelectorAll('.post-menu').forEach(menu => {
@@ -13,7 +14,8 @@ function reportPost(postId) {
 }
 
 function closeReportModal() {
-    document.getElementById('reportPostModal').style.display = 'none';
+    const modal = document.getElementById('reportPostModal');
+    modal.classList.remove('active');
     
     // Reset form
     document.getElementById('reportPostForm').reset();

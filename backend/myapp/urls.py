@@ -23,6 +23,9 @@ urlpatterns = [
     path('post/<int:post_id>/edit/', views.edit_post, name='edit_post'),
     path('post/<int:post_id>/delete/', views.delete_post, name='delete_post'),
 
+    # REPORTING
+    path('report_post/', views.report_post, name='report_post'),
+
     # POST VOTING
     path("vote_post/<int:post_id>/<str:vote_type>/", views.vote_post, name="vote_post"),
 
