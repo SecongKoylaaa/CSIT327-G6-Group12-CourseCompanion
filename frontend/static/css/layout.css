@@ -157,6 +157,52 @@ body {
   border-radius: 4px;
 }
 
+/* ======================= REPORT BUTTON ======================= */
+.report-btn {
+  color: #e74c3c !important;
+}
+
+.report-btn:hover {
+  background-color: #fee !important;
+  color: #c0392b !important;
+}
+
+/* ======================= REPORT FORM STYLING ======================= */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #1a1a1b;
+  font-size: 14px;
+}
+
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #0079d3;
+  box-shadow: 0 0 0 2px rgba(0, 121, 211, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
 .delete-btn {
   color: #d32f2f;
 }

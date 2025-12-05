@@ -36,19 +36,24 @@
               <h3>{{ post.title }}</h3>
             </div>
 
-            <!-- POST MENU (visible only to post author) -->
-            {% if current_user_id == post.user_id %}
+            <!-- POST MENU (visible to all users with different options) -->
             <div class="post-menu-wrapper">
               <span class="post-menu-btn" onclick="togglePostMenu('{{ post.id }}')">⋯</span>
               <div class="post-menu" id="post-menu-{{ post.id }}">
-                <button class="edit-btn" onclick="openEditModal({{ post.id }})">Edit</button>
-                <form method="POST" action="{% url 'delete_post' post.id %}">
-                  {% csrf_token %}
-                  <button type="submit" class="delete-btn" onclick="return confirm('Delete this post?')">Delete</button>
-                </form>
+                {% if current_user_id == post.user_id %}
+                  <!-- Author options -->
+                  <button class="edit-btn" onclick="openEditModal('{{ post.id }}')">Edit</button>
+                  <form method="POST" action="{% url 'delete_post' post.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="delete-btn" onclick="return confirm('Delete this post?')">Delete</button>
+                  </form>
+                  <button class="report-btn" onclick="reportPost('{{ post.id }}')">Report</button>
+                {% else %}
+                  <!-- Non-author options -->
+                  <button class="report-btn" onclick="reportPost('{{ post.id }}')">Report</button>
+                {% endif %}
               </div>
             </div>
-            {% endif %}
           </div>
 
           <!-- POST CONTENT -->
@@ -157,11 +162,64 @@
     </div>
   </div>
 
+  <!-- REPORT POST MODAL -->
+  <div id="reportPostModal" class="edit-modal" role="dialog" aria-labelledby="report-modal-title" aria-modal="true">
+    <div class="modal-content-edit">
+
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <h3 id="report-modal-title">Report Post</h3>
+        <button class="close-edit-modal" onclick="closeReportModal()" aria-label="Close modal">&times;</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <form id="reportPostForm" method="POST">
+          {% csrf_token %}
+          <input type="hidden" id="report_post_id" name="post_id">
+          
+          <div class="form-group">
+            <label for="violation_type">Reason for reporting:</label>
+            <select id="violation_type" name="violation_type" required>
+              <option value="">Please select a reason...</option>
+              <option value="inappropriate_content">Inappropriate Content</option>
+              <option value="harassment">Harassment</option>
+              <option value="spam">Spam</option>
+              <option value="plagiarism">Plagiarism</option>
+              <option value="misinformation">Misinformation</option>
+              <option value="hate_speech">Hate Speech</option>
+              <option value="violence">Violence or Threats</option>
+              <option value="copyright">Copyright Violation</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="report_details">Additional details (optional):</label>
+            <textarea id="report_details" name="details" rows="4" placeholder="Please provide any additional context that might help us review this report..."></textarea>
+          </div>
+        </form>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeReportModal()">
+          Cancel
+        </button>
+        <button type="submit" form="reportPostForm" class="btn btn-primary" onclick="submitReport()">
+          Submit Report
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- JavaScript Files -->
   <script src="{% static 'js/comments.js' %}"></script>
   <script src="{% static 'js/media_modal.js' %}"></script>
   <script src="{% static 'js/post_menu.js' %}"></script>
   <script src="{% static 'js/edit_modal.js' %}"></script>
+  <script src="{% static 'js/report_modal.js' %}"></script>
 
 </body>
 </html>

@@ -175,3 +175,95 @@ class ProfileSettings(models.Model):
 
     def __str__(self):
         return f"Settings for {self.user}"
+
+
+class ViolationType(models.Model):
+    """Predefined violation types for reporting system"""
+    violation_id = models.BigAutoField(primary_key=True)
+    name = models.TextField(unique=True)  # e.g., "inappropriate_content", "harassment"
+    display_name = models.TextField()  # e.g., "Inappropriate Content", "Harassment"
+    description = models.TextField(null=True, blank=True)
+    severity_level = models.IntegerField(default=1)  # 1=low, 2=medium, 3=high
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = 'violation_types'
+
+    def __str__(self):
+        return self.display_name
+
+
+class PostReport(models.Model):
+    """Reports submitted by users against posts"""
+    report_id = models.BigAutoField(primary_key=True)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='reports')
+    reporter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='filed_reports')
+    violation_type = models.ForeignKey(ViolationType, on_delete=models.SET_NULL, null=True)
+    details = models.TextField(null=True, blank=True)  # Optional additional details
+    status = models.TextField(
+        default='pending',
+        choices=[
+            ('pending', 'Pending'),
+            ('under_review', 'Under Review'),
+            ('resolved', 'Resolved'),
+            ('dismissed', 'Dismissed'),
+            ('action_taken', 'Action Taken')
+        ]
+    )
+    admin_notes = models.TextField(null=True, blank=True)  # For moderator/admin use
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='reviewed_reports'
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'post_reports'
+        unique_together = ('post', 'reporter')  # One report per user per post
+
+    def __str__(self):
+        return f"Report by {self.reporter} on Post {self.post.post_id}"
+
+
+class CommentReport(models.Model):
+    """Reports submitted by users against comments"""
+    report_id = models.BigAutoField(primary_key=True)
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='reports')
+    reporter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_reports')
+    violation_type = models.ForeignKey(ViolationType, on_delete=models.SET_NULL, null=True)
+    details = models.TextField(null=True, blank=True)
+    status = models.TextField(
+        default='pending',
+        choices=[
+            ('pending', 'Pending'),
+            ('under_review', 'Under Review'),
+            ('resolved', 'Resolved'),
+            ('dismissed', 'Dismissed'),
+            ('action_taken', 'Action Taken')
+        ]
+    )
+    admin_notes = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_comment_reports'
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'comment_reports'
+        unique_together = ('comment', 'reporter')
+
+    def __str__(self):
+        return f"Report by {self.reporter} on Comment {self.comment.comment_id}"

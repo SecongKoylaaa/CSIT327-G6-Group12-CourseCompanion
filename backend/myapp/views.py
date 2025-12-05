@@ -62,11 +62,7 @@ def safe_execute(request_fn, retries=3, delay=0.1):
 # Root: splash / landing page
 # --------------------------
 def root_redirect(request):
-    # If already logged in, go straight to home feed
-    if request.session.get("user_email"):
-        return redirect("/home/")
-
-    # Otherwise show the splash / landing page
+    # Always show the splash page first
     return render(request, "splash_page.html")
 
 def register_page(request):
@@ -1226,6 +1222,114 @@ def delete_post(request, post_id):
 
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
+
+
+# --------------------------
+# Report Post
+# --------------------------
+@csrf_exempt
+def report_post(request):
+    """Handle post reporting functionality"""
+    if "user_email" not in request.session:
+        return JsonResponse({"error": "Login required"}, status=403)
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    user_email = request.session.get("user_email")
+    
+    try:
+        # Get form data
+        post_id = int(request.POST.get("post_id"))
+        violation_type = request.POST.get("violation_type")
+        details = request.POST.get("details", "").strip()
+
+        # Validate required fields
+        if not post_id or not violation_type:
+            return JsonResponse({"error": "Missing required fields"}, status=400)
+
+        # Get user ID
+        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+        if not user_resp.data:
+            return JsonResponse({"error": "User not found"}, status=404)
+        user_id = user_resp.data["id"]
+
+        # Check if post exists
+        post_resp = supabase.table("posts").select("*").eq("post_id", post_id).maybe_single().execute()
+        if not post_resp.data:
+            return JsonResponse({"error": "Post not found"}, status=404)
+
+        # Check if user already reported this post
+        existing_report_resp = supabase.table("post_reports") \
+            .select("*") \
+            .eq("post_id", post_id) \
+            .eq("reporter_id", user_id) \
+            .maybe_single() \
+            .execute()
+        
+        if existing_report_resp.data:
+            return JsonResponse({"error": "You have already reported this post"}, status=409)
+
+        # Create violation type if it doesn't exist
+        violation_display_names = {
+            "inappropriate_content": "Inappropriate Content",
+            "harassment": "Harassment", 
+            "spam": "Spam",
+            "plagiarism": "Plagiarism",
+            "misinformation": "Misinformation",
+            "hate_speech": "Hate Speech",
+            "violence": "Violence or Threats",
+            "copyright": "Copyright Violation",
+            "other": "Other"
+        }
+
+        violation_display_name = violation_display_names.get(violation_type, "Other")
+        
+        # Check if violation type exists in database
+        violation_resp = supabase.table("violation_types") \
+            .select("violation_id") \
+            .eq("name", violation_type) \
+            .maybe_single() \
+            .execute()
+
+        if not violation_resp.data:
+            # Create new violation type
+            new_violation = supabase.table("violation_types").insert({
+                "name": violation_type,
+                "display_name": violation_display_name,
+                "description": f"Report: {violation_display_name}",
+                "severity_level": 2,
+                "is_active": True
+            }).execute()
+            violation_id = new_violation.data[0]["violation_id"]
+        else:
+            violation_id = violation_resp.data["violation_id"]
+
+        # Create the report
+        report_data = {
+            "post_id": post_id,
+            "reporter_id": user_id,
+            "violation_type_id": violation_id,
+            "details": details if details else None,
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        report_resp = supabase.table("post_reports").insert(report_data).execute()
+        
+        if report_resp.data:
+            return JsonResponse({
+                "success": True,
+                "message": "Report submitted successfully. Thank you for helping keep our community safe."
+            })
+        else:
+            return JsonResponse({"error": "Failed to submit report"}, status=500)
+
+    except ValueError as e:
+        return JsonResponse({"error": "Invalid post ID"}, status=400)
+    except Exception as e:
+        print(f"Error submitting report: {str(e)}")
+        return JsonResponse({"error": "An error occurred while submitting the report"}, status=500)
 
 
 # --------------------------
