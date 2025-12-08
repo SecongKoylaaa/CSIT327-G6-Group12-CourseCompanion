@@ -1,0 +1,289 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>Admin Dashboard - Course Companion</title>
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="{% static 'css/layout.css' %}">
+  <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
+  <link rel="stylesheet" href="{% static 'css/admin.css' %}">
+  
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- ADMIN NAVBAR -->
+  <nav class="admin-navbar">
+    <div class="admin-nav-container">
+      <div class="admin-nav-brand">
+        <i class="fas fa-shield-alt"></i>
+        <span>Admin Dashboard</span>
+      </div>
+      
+      <div class="admin-nav-menu">
+        <a href="#dashboard" class="nav-link active" onclick="showTab('dashboard', event)">
+          <i class="fas fa-tachometer-alt"></i> Dashboard
+        </a>
+        <a href="#users" class="nav-link" onclick="showTab('users', event)">
+          <i class="fas fa-users"></i> Users
+        </a>
+        <a href="#subjects" class="nav-link" onclick="showTab('subjects', event)">
+          <i class="fas fa-book"></i> Subjects
+        </a>
+        <a href="#reports" class="nav-link" onclick="showTab('reports', event)">
+          <i class="fas fa-flag"></i> Reports
+        </a>
+      </div>
+      
+      <div class="admin-nav-actions">
+        <a href="{% url 'home' %}" class="btn btn-secondary">
+          <i class="fas fa-home"></i> Back to Site
+        </a>
+        <a href="{% url 'logout' %}" class="btn btn-danger">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN ADMIN CONTENT -->
+  <div class="admin-container">
+    
+    <!-- DASHBOARD TAB -->
+    <div id="dashboard-tab" class="tab-content active">
+      <h1 class="admin-page-title">Dashboard Overview</h1>
+      
+      <div class="dashboard-grid">
+        <!-- Total Users Box -->
+        <div class="dashboard-box users-box">
+          <div class="box-icon">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="box-content">
+            <h3>{{ total_users }}</h3>
+            <p>Total Users</p>
+          </div>
+        </div>
+        
+        <!-- Total Posts Box -->
+        <div class="dashboard-box posts-box">
+          <div class="box-icon">
+            <i class="fas fa-file-alt"></i>
+          </div>
+          <div class="box-content">
+            <h3>{{ total_posts }}</h3>
+            <p>Total Posts</p>
+          </div>
+        </div>
+        
+        <!-- Total Reports Box -->
+        <div class="dashboard-box reports-box">
+          <div class="box-icon">
+            <i class="fas fa-flag"></i>
+          </div>
+          <div class="box-content">
+            <h3>{{ total_reports }}</h3>
+            <p>Total Reports</p>
+          </div>
+        </div>
+        
+        <!-- Active Subjects Box -->
+        <div class="dashboard-box subjects-box">
+          <div class="box-icon">
+            <i class="fas fa-book"></i>
+          </div>
+          <div class="box-content">
+            <h3>{{ active_subjects }}</h3>
+            <p>Active Subjects</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Recent Activity Section -->
+      <div class="dashboard-section">
+        <h2 class="section-title">Recent Activity</h2>
+        <div class="recent-activity">
+          <div class="recent-posts">
+            <h3>Latest Posts</h3>
+            <div id="recent-posts" class="posts-list">
+              <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i> Loading recent posts...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {% if error %}
+      <div class="error-message">
+        <i class="fas fa-exclamation-triangle"></i>
+        {{ error }}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- USERS TAB -->
+    <div id="users-tab" class="tab-content">
+      <h1 class="admin-page-title">User Management</h1>
+      
+      <div class="users-container">
+        <div class="users-header">
+          <h2>All Users ({{ total_users }})</h2>
+          <div class="search-box">
+            <input type="text" id="user-search" placeholder="Search users..." onkeyup="searchUsers()">
+          </div>
+        </div>
+        
+        <div class="users-list">
+          {% for user in users %}
+          <div class="user-card" data-username="{{ user.username|lower }}" data-email="{{ user.email|lower }}">
+            <div class="user-avatar">
+              <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="user-info">
+              <h4>{{ user.username|default:"Anonymous" }}</h4>
+              <p>{{ user.email }}</p>
+              <small>Joined: {{ user.created_at|date:"M d, Y" }}</small>
+            </div>
+            <div class="user-actions">
+              <button class="btn btn-sm btn-secondary" onclick="viewUserDetails('{{ user.id }}')">
+                <i class="fas fa-eye"></i> View
+              </button>
+            </div>
+          </div>
+          {% empty %}
+          <div class="no-data">
+            <i class="fas fa-users"></i>
+            <p>No users found.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- SUBJECTS TAB -->
+    <div id="subjects-tab" class="tab-content">
+      <h1 class="admin-page-title">Posts by Subject</h1>
+      
+      <div class="subjects-grid">
+        {% for subject, posts in posts_by_subject.items %}
+        <div class="subject-box" onclick="showSubjectDetails('{{ subject }}')">
+          <div class="subject-icon">
+            <i class="fas fa-book"></i>
+          </div>
+          <div class="subject-content">
+            <h3>{{ subject }}</h3>
+            <p>{{ posts|length }} posts</p>
+          </div>
+          <div class="subject-arrow">
+            <i class="fas fa-arrow-right"></i>
+          </div>
+        </div>
+        {% empty %}
+        <div class="no-data">
+          <i class="fas fa-book"></i>
+          <p>No posts found.</p>
+        </div>
+        {% endfor %}
+      </div>
+      
+      <!-- Subject Details Modal -->
+      <div id="subjectModal" class="modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="subjectModalTitle">Subject Posts</h3>
+            <button class="close-modal" onclick="closeSubjectModal()">&times;</button>
+          </div>
+          <div class="modal-body" id="subjectModalBody">
+            <!-- Posts will be loaded here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS TAB -->
+    <div id="reports-tab" class="tab-content">
+      <h1 class="admin-page-title">Reports & Moderation</h1>
+      
+      <div class="reports-container">
+        <div class="reports-header">
+          <h2>All Reports ({{ total_reports }})</h2>
+          <div class="filter-box">
+            <select id="report-filter" onchange="filterReports()">
+              <option value="all">All Reports</option>
+              <option value="pending">Pending</option>
+              <option value="under_review">Under Review</option>
+              <option value="resolved">Resolved</option>
+              <option value="dismissed">Dismissed</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="reports-list">
+          {% for report in reports %}
+          <div class="report-card" data-status="{{ report.status }}" data-report-id="{{ report.report_id }}">
+            <div class="report-header">
+              <div class="report-info">
+                <h4>{{ report.post_title }}</h4>
+                <span class="report-status status-{{ report.status }}">{{ report.status|title }}</span>
+              </div>
+              <div class="report-date">
+                {{ report.created_at|date:"M d, Y H:i" }}
+              </div>
+            </div>
+            
+            <div class="report-details">
+              <div class="detail-row">
+                <strong>Subject:</strong> {{ report.post_subject }}
+              </div>
+              <div class="detail-row">
+                <strong>Post Author:</strong> {{ report.post_author }}
+              </div>
+              <div class="detail-row">
+                <strong>Reported by:</strong> {{ report.reporter_username }} ({{ report.reporter_email }})
+              </div>
+              <div class="detail-row">
+                <strong>Violation Type:</strong> {{ report.violation_label|default:"Unknown" }}
+              </div>
+              {% if report.user_description %}
+              <div class="detail-row">
+                <strong>User Description:</strong> {{ report.user_description }}
+              </div>
+              {% endif %}
+            </div>
+            
+            <!-- Status update actions are disabled for now because the post_reports
+                 table does not have a status column. If you later extend the schema
+                 to include status, buttons can be re-enabled to call updateReportStatus. -->
+          </div>
+          {% empty %}
+          <div class="no-data">
+            <i class="fas fa-flag"></i>
+            <p>No reports found.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Supabase Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- JavaScript -->
+  <script>
+    // Pass Supabase credentials from Django to JavaScript
+    const SUPABASE_CONFIG = {
+      url: '{{ SUPABASE_URL|default:"" }}',
+      anonKey: '{{ SUPABASE_ANON_KEY|default:"" }}'
+    };
+  </script>
+  <script src="{% static 'js/admin.js' %}"></script>
+</body>
+</html>

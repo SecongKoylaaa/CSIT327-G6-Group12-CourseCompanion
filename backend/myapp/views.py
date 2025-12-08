@@ -142,6 +142,12 @@ def login_page(request):
         if not email or not password:
             return render(request, "login.html", {"error": "Email and password are required."})
 
+        # Check for admin credentials first
+        if email == "admin@gmail.com" and password == "admin123#password":
+            request.session["user_email"] = email
+            request.session["role"] = "admin"
+            return redirect("/dashboard/")
+
         try:
             response = supabase.table("users").select("*").eq("email", email).execute()
         except Exception as e:
@@ -548,6 +554,45 @@ def delete_comment(request, comment_id):
     # Delete comment
     supabase.table("comments").delete().eq("comment_id", comment_id).execute()
     return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@csrf_exempt
+def report_comment(request):
+    """Handle comment reporting. Stores into comment_reports for admin review later."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+    user_email = request.session.get('user_email')
+    if not user_email:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+
+    try:
+        # Get reporting user ID
+        user_resp = supabase.table('users').select('id').eq('email', user_email).maybe_single().execute()
+        if not user_resp.data:
+            return JsonResponse({'error': 'User not found'}, status=404)
+        user_id = user_resp.data['id']
+
+        comment_id = request.POST.get('comment_id')
+        violation_type = request.POST.get('violation_type') or 'other'
+        details = request.POST.get('details', '')
+
+        if not comment_id:
+            return JsonResponse({'error': 'Missing comment_id'}, status=400)
+
+        # Combine violation type and details into a single details field
+        full_details = f"[{violation_type}] {details}" if details else f"[{violation_type}]"
+
+        supabase.table('comment_reports').insert({
+            'comment_id': int(comment_id),
+            'reporter_id': user_id,
+            'details': full_details
+        }).execute()
+
+        return JsonResponse({'success': True})
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 # --------------------------
@@ -1237,26 +1282,33 @@ def report_post(request):
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
     user_email = request.session.get("user_email")
-    
+
+    # Validate and normalize incoming form fields before DB operations
+    post_id_raw = request.POST.get("post_id")
+    violation_type = (request.POST.get("violation_type") or "").strip()
+    details = (request.POST.get("details") or "").strip()
+
+    if not post_id_raw:
+        return JsonResponse({"error": "Missing post_id"}, status=400)
+
     try:
-        # Get form data
-        post_id = int(request.POST.get("post_id"))
-        violation_type = request.POST.get("violation_type")
-        details = request.POST.get("details", "").strip()
+        post_id = int(post_id_raw)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Invalid post ID"}, status=400)
 
-        # Validate required fields
-        if not post_id or not violation_type:
-            return JsonResponse({"error": "Missing required fields"}, status=400)
+    if not violation_type:
+        return JsonResponse({"error": "Missing violation type"}, status=400)
 
+    try:
         # Get user ID
         user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
-        if not user_resp.data:
+        if not user_resp or not getattr(user_resp, "data", None):
             return JsonResponse({"error": "User not found"}, status=404)
         user_id = user_resp.data["id"]
 
         # Check if post exists
         post_resp = supabase.table("posts").select("*").eq("post_id", post_id).maybe_single().execute()
-        if not post_resp.data:
+        if not post_resp or not getattr(post_resp, "data", None):
             return JsonResponse({"error": "Post not found"}, status=404)
 
         # Check if user already reported this post
@@ -1266,58 +1318,26 @@ def report_post(request):
             .eq("reporter_id", user_id) \
             .maybe_single() \
             .execute()
-        
-        if existing_report_resp.data:
+
+        existing_report = existing_report_resp.data if existing_report_resp and getattr(existing_report_resp, "data", None) else None
+        if existing_report:
             return JsonResponse({"error": "You have already reported this post"}, status=409)
 
-        # Create violation type if it doesn't exist
-        violation_display_names = {
-            "inappropriate_content": "Inappropriate Content",
-            "harassment": "Harassment", 
-            "spam": "Spam",
-            "plagiarism": "Plagiarism",
-            "misinformation": "Misinformation",
-            "hate_speech": "Hate Speech",
-            "violence": "Violence or Threats",
-            "copyright": "Copyright Violation",
-            "other": "Other"
-        }
+        # Store violation type together with user description in the existing 'reason' column
+        # Example: "[spam] This is spam"
+        details_tagged = f"[{violation_type}] {details}" if details else f"[{violation_type}]"
 
-        violation_display_name = violation_display_names.get(violation_type, "Other")
-        
-        # Check if violation type exists in database
-        violation_resp = supabase.table("violation_types") \
-            .select("violation_id") \
-            .eq("name", violation_type) \
-            .maybe_single() \
-            .execute()
-
-        if not violation_resp.data:
-            # Create new violation type
-            new_violation = supabase.table("violation_types").insert({
-                "name": violation_type,
-                "display_name": violation_display_name,
-                "description": f"Report: {violation_display_name}",
-                "severity_level": 2,
-                "is_active": True
-            }).execute()
-            violation_id = new_violation.data[0]["violation_id"]
-        else:
-            violation_id = violation_resp.data["violation_id"]
-
-        # Create the report
+        # Create the report using only real columns from Supabase post_reports
         report_data = {
             "post_id": post_id,
             "reporter_id": user_id,
-            "violation_type_id": violation_id,
-            "details": details if details else None,
-            "status": "pending",
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "reason": details_tagged,
+            "created_at": datetime.now(timezone.utc).isoformat(),  # optional; Supabase also has a default
         }
 
         report_resp = supabase.table("post_reports").insert(report_data).execute()
         
-        if report_resp.data:
+        if report_resp and getattr(report_resp, "data", None):
             return JsonResponse({
                 "success": True,
                 "message": "Report submitted successfully. Thank you for helping keep our community safe."
@@ -1325,12 +1345,348 @@ def report_post(request):
         else:
             return JsonResponse({"error": "Failed to submit report"}, status=500)
 
-    except ValueError as e:
-        return JsonResponse({"error": "Invalid post ID"}, status=400)
     except Exception as e:
         print(f"Error submitting report: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return JsonResponse({"error": "An error occurred while submitting the report"}, status=500)
 
+
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from datetime import datetime, timezone
+
+# --------------------------
+# Admin Page
+# --------------------------
+def admin_page(request):
+    """Admin dashboard page"""
+    # Check if user is logged in and is admin
+    if "user_email" not in request.session:
+        return redirect("login")
+    
+    user_email = request.session.get("user_email")
+    if user_email != "admin@gmail.com":
+        return redirect("home")  # Redirect non-admin users
+    
+    try:
+        # Get total users count
+        print("Fetching users from Supabase...")
+        users_resp = supabase.table("users").select("*").execute()
+        print(f"Users response: {users_resp}")
+        users = users_resp.data if users_resp.data else []
+        total_users = len(users)
+        print(f"Total users found: {total_users}")
+        
+        # Get posts by subject
+        print("Fetching posts from Supabase...")
+        posts_resp = supabase.table("posts").select("*").execute()
+        print(f"Posts response: {posts_resp}")
+        posts = posts_resp.data if posts_resp.data else []
+        print(f"Total posts found: {len(posts)}")
+        
+        # Count posts by subject
+        posts_by_subject = {}
+        for post in posts:
+            subject = post.get("course", post.get("subject", "Unknown"))
+            if subject not in posts_by_subject:
+                posts_by_subject[subject] = []
+            posts_by_subject[subject].append(post)
+        
+        # Get reports with user and post details
+        print("Fetching reports from Supabase...")
+        reports_resp = supabase.table("post_reports") \
+            .select("*") \
+            .order("created_at", desc=True) \
+            .execute()
+        print(f"Reports response: {reports_resp}")
+        reports = reports_resp.data if reports_resp.data else []
+        print(f"Total reports found: {len(reports)}")
+
+        violation_labels = {
+            "inappropriate_content": "Inappropriate Content",
+            "harassment": "Harassment",
+            "spam": "Spam",
+            "plagiarism": "Plagiarism",
+            "misinformation": "Misinformation",
+            "hate_speech": "Hate Speech",
+            "violence": "Violence or Threats",
+            "copyright": "Copyright Violation",
+            "other": "Other",
+        }
+        
+        # Enhance reports with user and post details
+        enhanced_reports = []
+        for report in reports:
+            print(f"Processing report: {report}")
+            
+            # Get post details - try different column names
+            post_id = report.get("post_id")
+            if not post_id:
+                print("No post_id found in report")
+                continue
+                
+            post_resp = supabase.table("posts") \
+                .select("*") \
+                .eq("post_id", post_id) \
+                .maybe_single() \
+                .execute()
+            
+            # Get reporter details
+            reporter_id = report.get("reporter_id")
+            reporter_resp = None
+            if reporter_id:
+                reporter_resp = supabase.table("users") \
+                    .select("username, email") \
+                    .eq("id", reporter_id) \
+                    .maybe_single() \
+                    .execute()
+            
+            # Get post author details
+            post_author_resp = None
+            if post_resp and post_resp.data:
+                author_id = post_resp.data.get("user_id")
+                if author_id:
+                    post_author_resp = supabase.table("users") \
+                        .select("username, email") \
+                        .eq("id", author_id) \
+                        .maybe_single() \
+                        .execute()
+
+            # Our Supabase schema uses 'reason' to store the violation code and user description
+            raw_details = (report.get("reason") or "").strip()
+            violation_code = None
+            violation_label = "Unknown"
+            user_description = ""
+
+            if raw_details.startswith("[") and "]" in raw_details:
+                end_idx = raw_details.find("]")
+                violation_code = raw_details[1:end_idx]
+                violation_label = violation_labels.get(
+                    violation_code,
+                    violation_code.replace("_", " ").title() if violation_code else "Unknown",
+                )
+                user_description = raw_details[end_idx + 1 :].strip()
+            else:
+                user_description = raw_details
+            
+            # Provide a display-only status; current schema has no status column
+            status_val = report.get("status") or "pending"
+
+            enhanced_report = {
+                **report,
+                "post_title": post_resp.data.get("title", "Untitled Post") if post_resp and post_resp.data else "Post not found",
+                "post_subject": post_resp.data.get("course", post_resp.data.get("subject", "Unknown")) if post_resp and post_resp.data else "Unknown",
+                "post_author": post_author_resp.data.get("username", "Unknown") if post_author_resp and post_author_resp.data else "Unknown",
+                "reporter_username": reporter_resp.data.get("username", "Unknown") if reporter_resp and reporter_resp.data else "Unknown",
+                "reporter_email": reporter_resp.data.get("email", "Unknown") if reporter_resp and reporter_resp.data else "Unknown",
+                "violation_code": violation_code,
+                "violation_label": violation_label,
+                "user_description": user_description,
+                "status": status_val,
+            }
+            enhanced_reports.append(enhanced_report)
+            print(f"Enhanced report: {enhanced_report}")
+        
+        context = {
+            "total_users": total_users,
+            "users": users,
+            "posts_by_subject": posts_by_subject,
+            "total_posts": len(posts),
+            "reports": enhanced_reports,
+            "total_reports": len(enhanced_reports),
+            "subjects": SUBJECTS,  # Make sure SUBJECTS is defined
+            "active_subjects": len(SUBJECTS),
+        }
+        
+        return render(request, "admin.html", context)
+        
+    except Exception as e:
+        print(f"Error loading admin page: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return render(request, "admin.html", {
+            "total_users": 0,
+            "users": [],
+            "posts_by_subject": {},
+            "total_posts": 0,
+            "reports": [],
+            "total_reports": 0,
+            "subjects": SUBJECTS,
+            "active_subjects": len(SUBJECTS),
+            "error": f"Failed to load admin data: {str(e)}"
+        })
+
+
+# --------------------------
+# Admin API Endpoints
+# --------------------------
+@csrf_exempt
+def admin_subject_posts(request):
+    """API endpoint to get posts by subject for admin"""
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+    
+    subject = request.GET.get("subject", "")
+    if not subject:
+        return JsonResponse({"error": "Subject parameter required"}, status=400)
+    
+    try:
+        # Get posts for the subject (text column 'subject')
+        posts_resp = supabase.table("posts") \
+            .select("*") \
+            .eq("subject", subject) \
+            .order("created_at", desc=True) \
+            .execute()
+
+        raw_posts = posts_resp.data if posts_resp.data else []
+
+        # Build full objects matching home.html needs
+        full_posts = []
+        for p in raw_posts:
+            author_email = "unknown@example.com"
+            if p.get("user_id") is not None:
+                u = supabase.table("users").select("email").eq("id", p["user_id"]).maybe_single().execute()
+                if u and u.data and "email" in u.data:
+                    author_email = u.data["email"]
+
+            url = (p.get("content") or "").rstrip("?")
+            is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
+            is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+            full_posts.append({
+                "id": p.get("post_id"),
+                "title": p.get("title") or "(No Title)",
+                "description": p.get("description") or "",
+                "url": url,
+                "created_at": p.get("created_at"),
+                "subject": p.get("subject") or p.get("course") or "Unknown",
+                "user_id": p.get("user_id"),
+                "author": author_email,
+                "is_image": is_image,
+                "is_video": is_video,
+            })
+
+        return JsonResponse({"posts": full_posts})
+        
+    except Exception as e:
+        print(f"Error fetching subject posts: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": f"Failed to fetch posts: {str(e)}"}, status=500)
+
+@csrf_exempt
+def admin_update_report(request):
+    """API endpoint to update report status"""
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+    
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+    
+    try:
+        report_id = request.POST.get("report_id")
+        new_status = request.POST.get("status")
+        
+        if not report_id or not new_status:
+            return JsonResponse({"error": "Missing required fields"}, status=400)
+        
+        # Convert report_id to int
+        try:
+            report_id = int(report_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Invalid report ID format"}, status=400)
+        
+        # Validate status
+        valid_statuses = ["pending", "under_review", "resolved", "dismissed"]
+        if new_status not in valid_statuses:
+            return JsonResponse({"error": "Invalid status value"}, status=400)
+        
+        # Update report status
+        update_resp = supabase.table("post_reports") \
+            .update({
+                "status": new_status,
+                "reviewed_at": datetime.now(timezone.utc).isoformat()
+            }) \
+            .eq("report_id", report_id) \
+            .execute()
+        
+        if update_resp.data:
+            return JsonResponse({"success": True, "message": "Report updated successfully"})
+        else:
+            return JsonResponse({"error": "Failed to update report - no data returned"}, status=500)
+            
+    except Exception as e:
+        print(f"Error updating report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": f"Failed to update report: {str(e)}"}, status=500)
+
+
+# --------------------------
+# Admin: All Posts API (for dashboard Recent Activity full list)
+# --------------------------
+@csrf_exempt
+def admin_all_posts(request):
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    try:
+        posts_resp = supabase.table("posts").select("*").order("created_at", desc=True).execute()
+        raw_posts = posts_resp.data if posts_resp.data else []
+
+        full_posts = []
+        for p in raw_posts:
+            author_email = "unknown@example.com"
+            if p.get("user_id") is not None:
+                u = supabase.table("users").select("email").eq("id", p["user_id"]).maybe_single().execute()
+                if u and u.data and "email" in u.data:
+                    author_email = u.data["email"]
+
+            url = (p.get("content") or "").rstrip("?")
+            is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
+            is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+            full_posts.append({
+                "id": p.get("post_id"),
+                "title": p.get("title") or "(No Title)",
+                "description": p.get("description") or "",
+                "url": url,
+                "created_at": p.get("created_at"),
+                "subject": p.get("subject") or p.get("course") or "Unknown",
+                "user_id": p.get("user_id"),
+                "author": author_email,
+                "is_image": is_image,
+                "is_video": is_video,
+            })
+
+        return JsonResponse({"posts": full_posts})
+    except Exception as e:
+        return JsonResponse({"error": f"Failed to fetch posts: {str(e)}"}, status=500)
+
+
+# --------------------------
+# Admin-only delete post
+# --------------------------
+@csrf_exempt
+def admin_delete_post(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    try:
+        post_id = int(request.POST.get("post_id"))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Invalid post ID"}, status=400)
+
+    try:
+        supabase.table("posts").delete().eq("post_id", post_id).execute()
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 # --------------------------
 # Logout

@@ -21,7 +21,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://tkyztssepvewbmgsaaeq.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRreXp0c3NlcHZld2JtZ3NhYWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODQ4NjMsImV4cCI6MjA3NDk2MDg2M30.uwxitzioVAWuNENFGnVwuXcQyvbXi6AdfjwYg-suoA8")
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "post_media")
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 

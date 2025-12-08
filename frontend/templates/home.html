@@ -162,6 +162,45 @@
     </div>
   </div>
 
+  <!-- REPORT COMMENT MODAL -->
+  <div id="reportCommentModal" class="edit-modal" role="dialog" aria-labelledby="report-comment-modal-title" aria-modal="true">
+    <div class="modal-content-edit">
+      <div class="modal-header">
+        <h3 id="report-comment-modal-title">Report Comment</h3>
+        <button class="close-edit-modal" onclick="closeReportCommentModal()" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="reportCommentForm" method="POST">
+          {% csrf_token %}
+          <input type="hidden" id="report_comment_id" name="comment_id">
+          <div class="form-group">
+            <label for="comment_violation_type">Reason for reporting:</label>
+            <select id="comment_violation_type" name="violation_type" required>
+              <option value="">Please select a reason...</option>
+              <option value="inappropriate_content">Inappropriate Content</option>
+              <option value="harassment">Harassment</option>
+              <option value="spam">Spam</option>
+              <option value="plagiarism">Plagiarism</option>
+              <option value="misinformation">Misinformation</option>
+              <option value="hate_speech">Hate Speech</option>
+              <option value="violence">Violence or Threats</option>
+              <option value="copyright">Copyright Violation</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="report_comment_details">Additional details (optional):</label>
+            <textarea id="report_comment_details" name="details" rows="4" placeholder="Please provide any additional context that might help us review this report..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeReportCommentModal()">Cancel</button>
+        <button type="submit" form="reportCommentForm" class="btn btn-primary" onclick="submitCommentReport()">Submit Report</button>
+      </div>
+    </div>
+  </div>
+
   <!-- REPORT POST MODAL -->
   <div id="reportPostModal" class="edit-modal" role="dialog" aria-labelledby="report-modal-title" aria-modal="true">
     <div class="modal-content-edit">
