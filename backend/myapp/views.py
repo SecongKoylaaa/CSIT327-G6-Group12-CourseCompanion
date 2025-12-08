@@ -1416,7 +1416,7 @@ def admin_page(request):
             "other": "Other",
         }
         
-        # Enhance reports with user and post details
+        # Enhance reports with user, post, and parsed reason/details
         enhanced_reports = []
         for report in reports:
             print(f"Processing report: {report}")
@@ -1454,6 +1454,16 @@ def admin_page(request):
                         .maybe_single() \
                         .execute()
 
+            # Derive basic media info for the reported post (image/video/link)
+            post_url = ""
+            post_is_image = False
+            post_is_video = False
+            if post_resp and post_resp.data:
+                post_url = (post_resp.data.get("content") or "").rstrip("?")
+                url_lower = post_url.lower()
+                post_is_image = url_lower.endswith((".jpg", ".jpeg", ".png", ".gif"))
+                post_is_video = url_lower.endswith((".mp4", ".webm", ".ogg"))
+
             # Our Supabase schema uses 'reason' to store the violation code and user description
             raw_details = (report.get("reason") or "").strip()
             violation_code = None
@@ -1471,19 +1481,28 @@ def admin_page(request):
             else:
                 user_description = raw_details
             
-            # Provide a display-only status; current schema has no status column
+            # Use the real status column if present; default to 'pending'
             status_val = report.get("status") or "pending"
 
             enhanced_report = {
                 **report,
                 "post_title": post_resp.data.get("title", "Untitled Post") if post_resp and post_resp.data else "Post not found",
                 "post_subject": post_resp.data.get("course", post_resp.data.get("subject", "Unknown")) if post_resp and post_resp.data else "Unknown",
-                "post_author": post_author_resp.data.get("username", "Unknown") if post_author_resp and post_author_resp.data else "Unknown",
-                "reporter_username": reporter_resp.data.get("username", "Unknown") if reporter_resp and reporter_resp.data else "Unknown",
+                # Prefer author email for clarity in moderation view
+                "post_author": post_author_resp.data.get("email", "Unknown") if post_author_resp and post_author_resp.data else "Unknown",
+                # Reporter info: always expose email; username falls back to email if missing
                 "reporter_email": reporter_resp.data.get("email", "Unknown") if reporter_resp and reporter_resp.data else "Unknown",
+                "reporter_username": (
+                    reporter_resp.data.get("username")
+                    if reporter_resp and reporter_resp.data and reporter_resp.data.get("username")
+                    else (reporter_resp.data.get("email") if reporter_resp and reporter_resp.data else "Unknown")
+                ),
                 "violation_code": violation_code,
                 "violation_label": violation_label,
                 "user_description": user_description,
+                "post_url": post_url,
+                "post_is_image": post_is_image,
+                "post_is_video": post_is_video,
                 "status": status_val,
             }
             enhanced_reports.append(enhanced_report)

@@ -463,6 +463,42 @@
   flex-wrap: wrap;
 }
 
+.report-body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+}
+
+.report-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.report-post {
+  border-right: 1px solid #e0e4e8;
+  padding-right: 1.5rem;
+}
+
+.report-media {
+  margin-top: 0.75rem;
+}
+
+.report-media img,
+.report-media video {
+  max-width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.report-meta select {
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #d0d7de;
+  font-size: 0.9rem;
+}
+
 /* ======================= MODALS ======================= */
 .modal {
   display: none;

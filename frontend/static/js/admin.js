@@ -31,7 +31,8 @@ async function fetchDashboardData() {
         const [usersData, postsData, reportsData, subjectsData] = await Promise.all([
             supabase.from('users').select('*', { count: 'exact' }),
             supabase.from('posts').select('*', { count: 'exact' }),
-            supabase.from('reports').select('*', { count: 'exact' }),
+            // Use the real reports table in Supabase for counting
+            supabase.from('post_reports').select('*', { count: 'exact' }),
             supabase.from('subjects').select('*', { count: 'exact' })
         ]);
 
@@ -295,6 +296,47 @@ function updateReportStatus(reportId, newStatus) {
             reportCard.style.opacity = '1';
             reportCard.style.pointerEvents = 'auto';
         }
+    });
+}
+
+// Admin delete post (from Reports tab)
+function adminDeletePost(postId) {
+    if (!confirm('Are you sure you want to permanently delete this post? This action cannot be undone.')) {
+        return;
+    }
+
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        alert('CSRF token not found. Please refresh the page.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('post_id', postId);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+
+    fetch('/dashboard/api/admin-delete-post/', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Reload to remove the deleted post's reports from the UI
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting post:', error);
+        alert(`Error deleting post: ${error.message}`);
     });
 }
 

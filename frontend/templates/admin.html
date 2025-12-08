@@ -236,30 +236,64 @@
                 {{ report.created_at|date:"M d, Y H:i" }}
               </div>
             </div>
-            
-            <div class="report-details">
-              <div class="detail-row">
-                <strong>Subject:</strong> {{ report.post_subject }}
+
+            <div class="report-body">
+              <!-- Left column: post preview & evidence -->
+              <div class="report-col report-post">
+                <div class="detail-row">
+                  <strong>Subject:</strong> {{ report.post_subject }}
+                </div>
+                <div class="detail-row">
+                  <strong>Post Author:</strong> {{ report.post_author }}
+                </div>
+
+                {% if report.post_is_image %}
+                <div class="report-media">
+                  <img src="{{ report.post_url }}" alt="Reported post image">
+                </div>
+                {% elif report.post_is_video %}
+                <div class="report-media">
+                  <video src="{{ report.post_url }}" controls muted></video>
+                </div>
+                {% elif report.post_url %}
+                <div class="detail-row">
+                  <strong>Link:</strong> <a href="{{ report.post_url }}" target="_blank" rel="noopener noreferrer">{{ report.post_url }}</a>
+                </div>
+                {% endif %}
               </div>
-              <div class="detail-row">
-                <strong>Post Author:</strong> {{ report.post_author }}
+
+              <!-- Right column: reporter info, reason, status & actions -->
+              <div class="report-col report-meta">
+                <div class="detail-row">
+                  <strong>Reported by:</strong> {{ report.reporter_email }}
+                </div>
+
+                <div class="detail-row">
+                  <strong>Violation Type:</strong> {{ report.violation_label|default:"Unknown" }}
+                </div>
+                {% if report.user_description %}
+                <div class="detail-row">
+                  <strong>User Description:</strong> {{ report.user_description }}
+                </div>
+                {% endif %}
+
+                <div class="report-actions">
+                  <div class="detail-row">
+                    <strong>Status:</strong>
+                    <select onchange="updateReportStatus('{{ report.report_id }}', this.value)">
+                      <option value="pending" {% if report.status == 'pending' %}selected{% endif %}>Pending</option>
+                      <option value="under_review" {% if report.status == 'under_review' %}selected{% endif %}>Under Review</option>
+                      <option value="resolved" {% if report.status == 'resolved' %}selected{% endif %}>Resolved</option>
+                      <option value="dismissed" {% if report.status == 'dismissed' %}selected{% endif %}>Dismissed</option>
+                    </select>
+                  </div>
+
+                  <button class="btn btn-sm btn-danger" onclick="adminDeletePost('{{ report.post_id }}')">
+                    <i class="fas fa-trash"></i> Delete Post
+                  </button>
+                </div>
               </div>
-              <div class="detail-row">
-                <strong>Reported by:</strong> {{ report.reporter_username }} ({{ report.reporter_email }})
-              </div>
-              <div class="detail-row">
-                <strong>Violation Type:</strong> {{ report.violation_label|default:"Unknown" }}
-              </div>
-              {% if report.user_description %}
-              <div class="detail-row">
-                <strong>User Description:</strong> {{ report.user_description }}
-              </div>
-              {% endif %}
             </div>
-            
-            <!-- Status update actions are disabled for now because the post_reports
-                 table does not have a status column. If you later extend the schema
-                 to include status, buttons can be re-enabled to call updateReportStatus. -->
           </div>
           {% empty %}
           <div class="no-data">
@@ -268,6 +302,7 @@
           </div>
           {% endfor %}
         </div>
+
       </div>
     </div>
 
