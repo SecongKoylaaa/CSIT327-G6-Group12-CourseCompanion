@@ -282,6 +282,58 @@ function updateReportStatus(reportId, newStatus) {
     });
 }
 
+// Update Comment Report Status
+function updateCommentReportStatus(reportId, newStatus) {
+    if (!confirm(`Are you sure you want to mark this comment report as ${newStatus.replace('_', ' ')}?`)) {
+        return;
+    }
+
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        alert('CSRF token not found. Please refresh the page.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('report_id', reportId);
+    formData.append('status', newStatus);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+
+    const reportCard = document.querySelector(`[data-comment-report-id="${reportId}"]`);
+    if (reportCard) {
+        reportCard.style.opacity = '0.5';
+        reportCard.style.pointerEvents = 'none';
+    }
+
+    fetch('/dashboard/api/update-comment-report/', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating comment report status:', error);
+        alert(`Error updating comment report status: ${error.message}`);
+
+        if (reportCard) {
+            reportCard.style.opacity = '1';
+            reportCard.style.pointerEvents = 'auto';
+        }
+    });
+}
+
 // Admin delete post (from Reports tab)
 function adminDeletePost(postId) {
     if (!confirm('Are you sure you want to permanently delete this post? This action cannot be undone.')) {
@@ -320,6 +372,46 @@ function adminDeletePost(postId) {
     .catch(error => {
         console.error('Error deleting post:', error);
         alert(`Error deleting post: ${error.message}`);
+    });
+}
+
+// Admin delete comment (from Comment Reports section)
+function adminDeleteComment(commentId) {
+    if (!confirm('Are you sure you want to permanently delete this comment? This action cannot be undone.')) {
+        return;
+    }
+
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        alert('CSRF token not found. Please refresh the page.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('comment_id', commentId);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+
+    fetch('/dashboard/api/admin-delete-comment/', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Unknown error');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting comment:', error);
+        alert(`Error deleting comment: ${error.message}`);
     });
 }
 

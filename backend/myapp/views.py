@@ -1510,7 +1510,121 @@ def admin_page(request):
             }
             enhanced_reports.append(enhanced_report)
             print(f"Enhanced report: {enhanced_report}")
-        
+
+        # -----------------------------------
+        # Get comment reports with details
+        # -----------------------------------
+        print("Fetching comment reports from Supabase...")
+        comment_reports_resp = supabase.table("comment_reports") \
+            .select("*") \
+            .order("created_at", desc=True) \
+            .execute()
+        print(f"Comment reports response: {comment_reports_resp}")
+        comment_reports_raw = comment_reports_resp.data if comment_reports_resp and getattr(comment_reports_resp, "data", None) else []
+        print(f"Total comment reports found: {len(comment_reports_raw)}")
+
+        enhanced_comment_reports = []
+        for c_report in comment_reports_raw:
+            print(f"Processing comment report: {c_report}")
+
+            comment_id = c_report.get("comment_id")
+            if not comment_id:
+                print("No comment_id found in comment_report")
+                continue
+
+            # Get the reported comment
+            comment_resp = supabase.table("comments") \
+                .select("*") \
+                .eq("comment_id", comment_id) \
+                .maybe_single() \
+                .execute()
+
+            if not comment_resp or not getattr(comment_resp, "data", None):
+                print(f"Comment not found for comment_id={comment_id}")
+                continue
+
+            comment_data = comment_resp.data
+            comment_text = comment_data.get("text", "")
+            post_id = comment_data.get("post_id")
+            comment_author_id = comment_data.get("user_id")
+
+            # Get the parent post for subject/title/description
+            post_title = "Post not found"
+            post_subject = "Unknown"
+            post_description = ""
+            post_resp = None
+            if post_id:
+                post_resp = supabase.table("posts") \
+                    .select("*") \
+                    .eq("post_id", post_id) \
+                    .maybe_single() \
+                    .execute()
+
+            if post_resp and getattr(post_resp, "data", None):
+                post_title = post_resp.data.get("title", "Untitled Post")
+                post_subject = post_resp.data.get("course", post_resp.data.get("subject", "Unknown"))
+                post_description = post_resp.data.get("description", "")
+
+            # Comment author details
+            comment_author_email = "Unknown"
+            if comment_author_id:
+                comment_author_resp = supabase.table("users") \
+                    .select("username, email") \
+                    .eq("id", comment_author_id) \
+                    .maybe_single() \
+                    .execute()
+                if comment_author_resp and getattr(comment_author_resp, "data", None):
+                    comment_author_email = (
+                        comment_author_resp.data.get("email")
+                        or comment_author_resp.data.get("username")
+                        or "Unknown"
+                    )
+
+            # Reporter details
+            reporter_id = c_report.get("reporter_id")
+            reporter_email = "Unknown"
+            reporter_username = "Unknown"
+            if reporter_id:
+                reporter_resp = supabase.table("users") \
+                    .select("username, email") \
+                    .eq("id", reporter_id) \
+                    .maybe_single() \
+                    .execute()
+                if reporter_resp and getattr(reporter_resp, "data", None):
+                    reporter_email = reporter_resp.data.get("email", "Unknown")
+                    reporter_username = (
+                        reporter_resp.data.get("username")
+                        or reporter_resp.data.get("email")
+                        or "Unknown"
+                    )
+
+            # Violation info from reason/description columns
+            violation_code = (c_report.get("reason") or "").strip() or "other"
+            violation_label = violation_labels.get(
+                violation_code,
+                violation_code.replace("_", " ").title() if violation_code else "Unknown",
+            )
+            user_description = (c_report.get("description") or "").strip()
+
+            status_val = c_report.get("status") or "pending"
+
+            enhanced_comment = {
+                **c_report,
+                "post_title": post_title,
+                "post_subject": post_subject,
+                "post_description": post_description,
+                "comment_text": comment_text,
+                "comment_author": comment_author_email,
+                "reporter_email": reporter_email,
+                "reporter_username": reporter_username,
+                "violation_code": violation_code,
+                "violation_label": violation_label,
+                "user_description": user_description,
+                "status": status_val,
+            }
+            enhanced_comment_reports.append(enhanced_comment)
+            print(f"Enhanced comment report: {enhanced_comment}")
+
         context = {
             "total_users": total_users,
             "users": users,
@@ -1518,17 +1632,19 @@ def admin_page(request):
             "total_posts": len(posts),
             "reports": enhanced_reports,
             "total_reports": len(enhanced_reports),
+            "comment_reports": enhanced_comment_reports,
+            "total_comment_reports": len(enhanced_comment_reports),
             "subjects": SUBJECTS,  # Make sure SUBJECTS is defined
             "active_subjects": len(SUBJECTS),
         }
         
-        return render(request, "admin.html", context)
+        return render(request, "admin_dashboard.html", context)
         
     except Exception as e:
         print(f"Error loading admin page: {str(e)}")
         import traceback
         traceback.print_exc()
-        return render(request, "admin.html", {
+        return render(request, "admin_dashboard.html", {
             "total_users": 0,
             "users": [],
             "posts_by_subject": {},
@@ -1646,6 +1762,51 @@ def admin_update_report(request):
         return JsonResponse({"error": f"Failed to update report: {str(e)}"}, status=500)
 
 
+@csrf_exempt
+def admin_update_comment_report(request):
+    """API endpoint to update comment report status"""
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    try:
+        report_id = request.POST.get("report_id")
+        new_status = request.POST.get("status")
+
+        if not report_id or not new_status:
+            return JsonResponse({"error": "Missing required fields"}, status=400)
+
+        try:
+            report_id = int(report_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Invalid report ID format"}, status=400)
+
+        valid_statuses = ["pending", "under_review", "resolved", "dismissed"]
+        if new_status not in valid_statuses:
+            return JsonResponse({"error": "Invalid status value"}, status=400)
+
+        update_resp = supabase.table("comment_reports") \
+            .update({
+                "status": new_status,
+                "reviewed_at": datetime.now(timezone.utc).isoformat()
+            }) \
+            .eq("report_id", report_id) \
+            .execute()
+
+        if update_resp.data:
+            return JsonResponse({"success": True, "message": "Comment report updated successfully"})
+        else:
+            return JsonResponse({"error": "Failed to update comment report - no data returned"}, status=500)
+
+    except Exception as e:
+        print(f"Error updating comment report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": f"Failed to update comment report: {str(e)}"}, status=500)
+
+
 # --------------------------
 # Admin: All Posts API (for dashboard Recent Activity full list)
 # --------------------------
@@ -1709,6 +1870,30 @@ def admin_delete_post(request):
         return JsonResponse({"success": True})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+# --------------------------
+# Admin-only delete comment (from Reports)
+# --------------------------
+@csrf_exempt
+def admin_delete_comment(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    try:
+        comment_id = int(request.POST.get("comment_id"))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Invalid comment ID"}, status=400)
+
+    try:
+        supabase.table("comments").delete().eq("comment_id", comment_id).execute()
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
 
 # --------------------------
 # Logout
