@@ -39,13 +39,14 @@ function toggleCommentMenu(commentId) {
   const menu = document.getElementById(`comment-menu-${commentId}`);
   if (!menu) return;
 
+  // Close any other open menu
   if (openCommentMenu && openCommentMenu !== menu) {
     openCommentMenu.style.display = "none";
   }
 
-  const open = menu.style.display === "none" || menu.style.display === "";
-  menu.style.display = open ? "block" : "none";
-  openCommentMenu = open ? menu : null;
+  const isCurrentlyOpen = menu.style.display === "block";
+  menu.style.display = isCurrentlyOpen ? "none" : "block";
+  openCommentMenu = isCurrentlyOpen ? null : menu;
 }
 
 /* ========================================================================
@@ -141,7 +142,8 @@ function toggleReplyForm(commentId) {
    CLOSE MENUS ON OUTSIDE CLICK
 ======================================================================== */
 document.addEventListener("click", e => {
-  if (!e.target.classList.contains("comment-menu-btn")) {
+  const isInsideCommentMenu = e.target.closest(".comment-menu-wrapper");
+  if (!isInsideCommentMenu) {
     document.querySelectorAll(".comment-menu").forEach(m => m.style.display = "none");
     openCommentMenu = null;
   }
@@ -370,13 +372,8 @@ function showReplyForm(commentId, userEmail) {
 // =========================
 // COMMENT MENU
 // =========================
-function toggleCommentMenu(commentId) {
-    const menu = document.getElementById(`comment-menu-${commentId}`);
-    if (menu.style.display === "none" || menu.style.display === "") {
-        menu.style.display = "block";
-    } else {
-        menu.style.display = "none";
-    }
+function toggleCommentMenuLegacy(commentId) {
+    toggleCommentMenu(commentId);
 }
 
 // =========================

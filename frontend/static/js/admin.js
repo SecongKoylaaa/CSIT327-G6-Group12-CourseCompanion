@@ -37,11 +37,7 @@ async function fetchDashboardData() {
         ]);
 
         // Fetch recent posts
-        const { data: recentPosts } = await supabase
-            .from('posts')
-            .select('*, author:users(*)')
-            .order('created_at', { ascending: false })
-            .limit(5);
+        const recentPosts = [];
 
         // Update dashboard data
         dashboardData = {
@@ -74,19 +70,6 @@ function updateDashboardUI() {
     // Update recent posts
     const recentPostsContainer = document.getElementById('recent-posts');
     if (recentPostsContainer) {
-        if (dashboardData.recentPosts.length > 0) {
-            recentPostsContainer.innerHTML = dashboardData.recentPosts.map(post => `
-                <div class="recent-post">
-                    <div class="post-header">
-                        <span class="post-author">${escapeHtml(post.author?.username || 'Unknown')}</span>
-                        <span class="post-date">${new Date(post.created_at).toLocaleDateString()}</span>
-                    </div>
-                    <p class="post-preview">${escapeHtml(post.content?.substring(0, 100) || '')}${post.content?.length > 100 ? '...' : ''}</p>
-                </div>
-            `).join('');
-        } else {
-            recentPostsContainer.innerHTML = '<p class="no-data">No recent posts found</p>';
-        }
     }
 }
 

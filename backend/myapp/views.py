@@ -575,18 +575,20 @@ def report_comment(request):
 
         comment_id = request.POST.get('comment_id')
         violation_type = request.POST.get('violation_type') or 'other'
-        details = request.POST.get('details', '')
+        details = (request.POST.get('details', '') or '').strip()
 
         if not comment_id:
             return JsonResponse({'error': 'Missing comment_id'}, status=400)
 
-        # Combine violation type and details into a single details field
-        full_details = f"[{violation_type}] {details}" if details else f"[{violation_type}]"
+        # Store violation code and user description in dedicated columns
+        reason = violation_type
+        description = details
 
         supabase.table('comment_reports').insert({
             'comment_id': int(comment_id),
             'reporter_id': user_id,
-            'details': full_details
+            'reason': reason,
+            'description': description
         }).execute()
 
         return JsonResponse({'success': True})
@@ -1488,6 +1490,7 @@ def admin_page(request):
                 **report,
                 "post_title": post_resp.data.get("title", "Untitled Post") if post_resp and post_resp.data else "Post not found",
                 "post_subject": post_resp.data.get("course", post_resp.data.get("subject", "Unknown")) if post_resp and post_resp.data else "Unknown",
+                "post_description": post_resp.data.get("description", "") if post_resp and post_resp.data else "",
                 # Prefer author email for clarity in moderation view
                 "post_author": post_author_resp.data.get("email", "Unknown") if post_author_resp and post_author_resp.data else "Unknown",
                 # Reporter info: always expose email; username falls back to email if missing
