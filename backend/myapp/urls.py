@@ -1,3 +1,7 @@
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import path, include
 from django.urls import path
 from . import views
 
@@ -16,4 +20,5 @@ urlpatterns = [
     path('comment/delete/<int:comment_id>/', views.delete_comment, name='delete_comment'),
     path('vote_comment/<int:comment_id>/<str:vote_type>/', views.vote_comment, name='vote_comment'),
     path('reset-password/<str:reset_token>/', views.reset_password_page, name='reset-password'),
+    path('profile/', views.profile_page, name='profile_page'),
 ]

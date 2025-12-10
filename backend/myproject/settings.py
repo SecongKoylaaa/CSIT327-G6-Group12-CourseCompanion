@@ -20,7 +20,7 @@ import dj_database_url
 
 # Load .env in local dev only
 if os.environ.get("RENDER", "") != "true":
-    load_dotenv()
+    load_dotenv(".env")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,7 +38,9 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://tkyztssepvewbmgsaaeq.supabase.co") # replace with your supabase url 
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRreXp0c3NlcHZld2JtZ3NhYWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzODQ4NjMsImV4cCI6MjA3NDk2MDg2M30.uwxitzioVAWuNENFGnVwuXcQyvbXi6AdfjwYg-suoA8") #replace with your supabase URL
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRreXp0c3NlcHZld2JtZ3NhYWVxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM4NDg2MywiZXhwIjoyMDc0OTYwODYzfQ.V6s3JcbrEHuYHKAHYZVH8iysfq4a5bwM9XihGl6rhIw") #replace with your supabase URL
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "post_media")
+SUPABASE_BUCKET_PROFILE = os.getenv("SUPABASE_BUCKET_PROFILE", "profile_picture")
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 
 # Database connection string
@@ -64,7 +66,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",  # add WhiteNoise here
 ]
 #That’s the problem ❌ — you don’t have a backend/urls.py.
@@ -146,7 +147,7 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# WhiteNoise: serve compressed static files
+# Whitenoise: serve compressed static files
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 

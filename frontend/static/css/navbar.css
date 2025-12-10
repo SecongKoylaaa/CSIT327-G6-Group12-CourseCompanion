@@ -112,6 +112,13 @@
 .profile-dropdown {
   position: relative;
 }
+.profile-pic {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    vertical-align: middle;
+}
 
 .profile-btn {
   background: #2a2a2a;

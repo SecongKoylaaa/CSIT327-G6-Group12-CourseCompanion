@@ -7,14 +7,16 @@ from django.shortcuts import redirect
 from django.contrib.auth.hashers import make_password, check_password
 from datetime import datetime, timezone, timedelta
 from supabase import create_client
+from django.http import HttpResponseForbidden
 import time
 import secrets
 
 
 # --------------------------
-# Initialize Supabase client
+# Initialize Supabase client (use service role if available)
 # --------------------------
-supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+SUPABASE_AUTH_KEY = getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None) or settings.SUPABASE_KEY
+supabase = create_client(settings.SUPABASE_URL, SUPABASE_AUTH_KEY)
 
 # --------------------------
 # Utility: Safe Supabase execute with retries
@@ -43,6 +45,16 @@ def root_redirect(request):
     return redirect("/login/")
 
 # --------------------------
+# Helper: Fetch profile picture URL for navbar
+# --------------------------
+def get_profile_picture_url(request):
+    email = request.session.get("user_email")
+    if not email:
+        return None
+    resp = supabase.table("users").select("profile_picture").eq("email", email).maybe_single().execute()
+    return resp.data.get("profile_picture") if resp and resp.data else None
+
+# --------------------------
 # Registration View
 # --------------------------
 def register_page(request):
@@ -57,9 +69,9 @@ def register_page(request):
         role = request.POST.get("role", "").strip().lower()
 
         # ---------- Validation ----------
-        if not email or not password or not confirm_password or not role:
+        if not email or not password or not confirm or not role:
             return render(request, "register.html", {"error": "All fields are required."})
-        if password != confirm_password:
+        if password != confirm:
             return render(request, "register.html", {"error": "Passwords do not match."})
         if role not in ["student", "teacher"]:
             return render(request, "register.html", {"error": "Invalid role selected."})
@@ -93,7 +105,10 @@ def register_page(request):
 
         return redirect("/login/")
 
-    return render(request, "register.html")
+    # include navbar pfp (in case navbar is used on this page)
+    return render(request, "register.html", {
+        "profile_picture_url": get_profile_picture_url(request)
+    })
 
 # --------------------------
 # Login View
@@ -131,9 +146,19 @@ def login_page(request):
         request.session["user_email"] = email
         request.session["role"] = user.get("role", "student")
 
+        # Update last_login timestamp (non-blocking)
+        try:
+            supabase.table("users").update({
+                "last_login": datetime.now(timezone.utc).isoformat()
+            }).eq("email", email).execute()
+        except Exception:
+            pass
+
         return redirect("/home/")
 
-    return render(request, "login.html")
+    return render(request, "login.html", {
+        "profile_picture_url": get_profile_picture_url(request)
+    })
 
 # --------------------------
 # Password Recovery View
@@ -181,12 +206,14 @@ def recover_password_page(request):
             "error": None,
             "message": "If this email exists, a recovery link has been generated.",
             "email": email,
-            "reset_link": reset_link
+            "reset_link": reset_link,
+            "profile_picture_url": get_profile_picture_url(request)
         })
 
-    return render(request, "recover_password.html", {"email": email})
-
-
+    return render(request, "recover_password.html", {
+        "email": email,
+        "profile_picture_url": get_profile_picture_url(request)
+    })
 
 # --------------------------
 # Password Reset View
@@ -262,12 +289,15 @@ def reset_password_page(request, reset_token):
         except Exception as e:
             return render(request, "reset_password.html", {"error": f"Password changed, but failed to clean up token: {str(e)}", "reset_token": reset_token})
 
-        return render(request, "reset_password.html", {"message": "Password reset successful! You can now log in."})
+        return render(request, "reset_password.html", {
+            "message": "Password reset successful! You can now log in.",
+            "profile_picture_url": get_profile_picture_url(request)
+        })
 
-    return render(request, "reset_password.html", {"reset_token": reset_token})
-
-
-from django.http import HttpResponseForbidden
+    return render(request, "reset_password.html", {
+        "reset_token": reset_token,
+        "profile_picture_url": get_profile_picture_url(request)
+    })
 
 # -----------------------------
 # Helper: parse datetime string
@@ -326,7 +356,6 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
             tree.append(comment_obj)
     return tree
 
-
 # -----------------------------
 # Home page view
 # -----------------------------
@@ -335,6 +364,9 @@ def home_page(request):
         return redirect("/login/")
 
     user_email = request.session.get("user_email")
+    # Wrap Supabase calls with retries to avoid transient disconnects
+    user_resp = safe_execute(lambda: supabase.table("users").select("*").eq("email", user_email).maybe_single().execute())
+    profile_picture_url = user_resp.data["profile_picture"] if user_resp.data and user_resp.data.get("profile_picture") else None
 
     # -----------------------------
     # Handle new comment or reply
@@ -362,16 +394,16 @@ def home_page(request):
     # -----------------------------
     # Fetch posts
     # -----------------------------
-    response = supabase.table("posts").select("*").order("created_at", desc=True).execute()
+    response = safe_execute(lambda: supabase.table("posts").select("*").order("created_at", desc=True).execute())
     posts = response.data if response.data else []
 
     # Get current user ID for vote detection
     user_id = None
     if user_email:
-        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+        user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
         if user_resp.data:
             user_id = user_resp.data["id"]
-    print("Current user:", user_email, "ID:", user_id)
+    # Removed debug print for cleanliness
 
 
     formatted_posts = []
@@ -389,7 +421,7 @@ def home_page(request):
         # -----------------------------
         # Fetch votes for this post
         # -----------------------------
-        votes_resp = supabase.table("post_votes").select("*").eq("post_id", post_id).execute()
+        votes_resp = safe_execute(lambda: supabase.table("post_votes").select("*").eq("post_id", post_id).execute())
         votes = votes_resp.data or []
 
         upvotes = len([v for v in votes if v["vote_type"] == "up"])
@@ -410,13 +442,37 @@ def home_page(request):
         # -----------------------------
         # Fetch all comments for this post
         # -----------------------------
-        comment_resp = supabase.table("comments").select("*").eq("post_id", post_id).order("created_at", desc=False).execute()
+        comment_resp = safe_execute(lambda: supabase.table("comments").select("*").eq("post_id", post_id).order("created_at", desc=False).execute())
         all_comments = comment_resp.data if comment_resp.data else []
+
+        # Deduplicate comments to avoid double-rendering
+        seen_cids = set()
+        seen_composite = set()
+        dedup_comments = []
+        for c in all_comments:
+            cid = c.get("comment_id")
+            pid = c.get("post_id")
+            txt = (c.get("text") or "").strip()
+            created = (c.get("created_at") or "")
+            created_key = created[:19] if isinstance(created, str) else str(created)[:19]
+            comp = (pid, txt, created_key)
+
+            if cid:
+                if cid in seen_cids or comp in seen_composite:
+                    continue
+                seen_cids.add(cid)
+                seen_composite.add(comp)
+                dedup_comments.append(c)
+            else:
+                if comp in seen_composite:
+                    continue
+                seen_composite.add(comp)
+                dedup_comments.append(c)
 
         # -----------------------------
         # Build nested comment tree
         # -----------------------------
-        nested_comments = build_comment_tree(all_comments, user_id=user_id)
+        nested_comments = build_comment_tree(dedup_comments, user_id=user_id)
 
         formatted_posts.append({
             "id": post_id,
@@ -433,17 +489,19 @@ def home_page(request):
             "downvote_count": downvotes,
             "vote_count": net_votes,
             "user_vote": user_vote,
-            "comment_count": len(all_comments)
+            "comment_count": len(dedup_comments)
         })
+
+    # Pull and clear any success message (e.g., from profile edit)
+    success_message = request.session.pop("success_message", None)
 
     return render(request, "home.html", {
         "user_email": user_email,
         "role": request.session.get("role", "student"),
         "posts": formatted_posts,
+        "profile_picture_url": profile_picture_url,  # unchanged
+        "success": success_message,
     })
-
-
-
 
 # --------------------------
 # Comment Editing & Deletion
@@ -561,10 +619,6 @@ def vote_comment(request, comment_id, vote_type):
         "user_vote": vote_type if message != "Vote removed" else None
     })
 
-
-
-
-
 # --------------------------
 # Post Voting
 # --------------------------
@@ -655,8 +709,6 @@ def time_since(created_at_str):
         return f"{int(seconds // 29030400)}y ago"
 
 
-
-
 FRONTEND_TO_DB = {
     "upvote": "up",
     "downvote": "down"
@@ -742,11 +794,6 @@ def vote_post(request, post_id, vote_type):
         "user_vote": user_vote
     })
 
-from django.shortcuts import render, redirect
-from django.conf import settings
-
-
-
 # --------------------------
 # Create Post - Text
 # --------------------------
@@ -755,10 +802,13 @@ def create_post_text(request):
         return redirect("/login/")
 
     user_email = request.session.get("user_email")
-    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+    # FIX: fetch profile_picture as well
+    user_resp = supabase.table("users").select("id, profile_picture").eq("email", user_email).maybe_single().execute()
     if not user_resp.data:
         return render(request, "create-post-text.html", {"error": "User not found."})
-    user_id = user_resp.data[0]["id"]
+    user_data = user_resp.data
+    user_id = user_data["id"]
+    profile_picture_url = user_data.get("profile_picture")
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -804,10 +854,9 @@ def create_post_text(request):
                 "course": course
             })
 
-    return render(request, "create-post-text.html")
-
-
-
+    return render(request, "create-post-text.html", {
+        "profile_picture_url": profile_picture_url
+    })
 
 # --------------------------
 # Create Post - Image/Video
@@ -819,11 +868,13 @@ def create_post_image(request):
         return redirect("/login/")
 
     user_email = request.session.get("user_email")
-    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+    # FIX: fetch profile_picture as well
+    user_resp = supabase.table("users").select("id, profile_picture").eq("email", user_email).maybe_single().execute()
     if not user_resp.data:
-        return render(request, "create-post-image-video.html", {"error": "User not found."})
-
-    user_id = user_resp.data[0]["id"]
+        return render(request, "create-post-text.html", {"error": "User not found."})
+    user_data = user_resp.data
+    user_id = user_data["id"]
+    profile_picture_url = user_data.get("profile_picture")
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -892,9 +943,9 @@ def create_post_image(request):
             })
 
     # GET
-    return render(request, "create-post-image-video.html")
-
-
+    return render(request, "create-post-image-video.html", {
+        "profile_picture_url": profile_picture_url
+    })
 
 # --------------------------
 # Create Post - Link
@@ -904,11 +955,12 @@ def create_post_link(request):
         return redirect("/login/")
 
     user_email = request.session.get("user_email")
-    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+    user_resp = supabase.table("users").select("id, profile_picture").eq("email", user_email).maybe_single().execute()
     if not user_resp.data:
-        return render(request, "create-post-link.html", {"error": "User not found."})
-
-    user_id = user_resp.data[0]["id"]
+        return render(request, "create-post-text.html", {"error": "User not found."})
+    user_data = user_resp.data
+    user_id = user_data["id"]
+    profile_picture_url = user_data.get("profile_picture")
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -931,10 +983,336 @@ def create_post_link(request):
         except Exception as e:
             return render(request, "create-post-link.html", {"error": f"Error creating post: {str(e)}"})
 
-    return render(request, "create-post-link.html")
+    return render(request, "create-post-link.html", {
+        "profile_picture_url": profile_picture_url
+    })
 
+# --------------------------
+# Profile Page
+# --------------------------
+def profile_page(request):
+    # Require login
+    if "user_email" not in request.session:
+        return redirect("login")
 
+    user_email = request.session.get("user_email")
+    success = None
 
+    # --------------------------
+    # GET: Fetch current user
+    # --------------------------
+    response = supabase.table("users").select("*").eq("email", user_email).execute()
+    if not response.data:
+        return render(request, "profile_page.html", {"error": "User not found."})
+    
+    user = response.data[0]
+
+    # Fix dates (remove timezone)
+    if user.get("date_joined"):
+        user["date_joined"] = datetime.fromisoformat(user["date_joined"][:10])
+    if user.get("last_login"):
+        user["last_login"] = datetime.fromisoformat(user["last_login"][:10])
+
+    # --------------------------
+    # POST: Update Profile
+    # --------------------------
+    if request.method == "POST":
+        new_username = request.POST.get("username")
+        new_bio = request.POST.get("bio")
+        uploaded_file = request.FILES.get("profile_picture")
+        remove_picture_flag = request.POST.get("remove_profile_picture") == "1"
+
+        update_data = {
+            "username": new_username,
+            "bio": new_bio,
+        }
+
+        def storage_path_from_public_url(public_url, bucket_name):
+            """Extract storage relative path from Supabase public URL.
+            Expected format: .../storage/v1/object/public/<bucket>/<path>?...
+            Returns '<path>' or None if not parsable.
+            """
+            try:
+                base = public_url.split("?")[0]
+                key = "/storage/v1/object/public/"
+                if key in base:
+                    after = base.split(key, 1)[1]  # '<bucket>/<path>'
+                    bucket_in_url, rel_path = after.split("/", 1)
+                    if bucket_in_url == bucket_name:
+                        return rel_path
+            except Exception:
+                pass
+            return None
+
+        old_file_url = user.get("profile_picture")
+        old_file_path = None
+        if old_file_url:
+            old_file_path = storage_path_from_public_url(old_file_url, settings.SUPABASE_BUCKET_PROFILE)
+
+        # --------------------------
+        # Remove existing picture
+        # --------------------------
+        if remove_picture_flag and old_file_url:
+            try:
+                bucket = settings.SUPABASE_BUCKET_PROFILE
+                to_remove = []
+                if old_file_path:
+                    to_remove.append(old_file_path)
+
+                # Also remove any other files left in the user's folder to ensure cleanup
+                user_folder = f"profile_pictures/{user_email}"
+                try:
+                    # First attempt: direct list of the folder
+                    listed = supabase.storage.from_(bucket).list(user_folder)
+                    # supabase-py may return list or dict with 'data'
+                    items = listed.get("data", listed) if isinstance(listed, dict) else listed
+                    # No-op; ensure block is not empty
+                    pass
+                    # Fallback attempt: list from root with prefix (handles cases where 'user_folder' isn't treated as a directory)
+                    if not items:
+                        fallback = supabase.storage.from_(bucket).list("", {"prefix": user_folder})
+                        items = fallback.get("data", fallback) if isinstance(fallback, dict) else fallback
+                        # No-op; ensure block is not empty
+                        pass
+                    if items:
+                        for item in items:
+                            name = item.get("name") if isinstance(item, dict) else None
+                            if name:
+                                to_remove.append(f"{user_folder}/{name}")
+                except Exception:
+                    # listing failed; continue
+                    pass
+
+                # De-duplicate and remove
+                if to_remove:
+                    unique_paths = list(dict.fromkeys(to_remove))
+                    # Ensure subsequent block has content
+                    pass
+                    supabase.storage.from_(bucket).remove(unique_paths)
+                else:
+                    # nothing to remove
+                    pass
+
+                # Verify removal; if any files still present, try prefix-based removal comprehensively
+                try:
+                    remaining = supabase.storage.from_(bucket).list(user_folder)
+                    remaining_items = remaining.get("data", remaining) if isinstance(remaining, dict) else remaining
+                    if not remaining_items:
+                        remaining_prefix = supabase.storage.from_(bucket).list("", {"prefix": user_folder})
+                        remaining_items = remaining_prefix.get("data", remaining_prefix) if isinstance(remaining_prefix, dict) else remaining_prefix
+                    # Removed PFP-DELETE debug logs
+                    if remaining_items:
+                        # Attempt overwrite with zero bytes (break potential cache/stale state), then remove again
+                        try:
+                            for itm in remaining_items:
+                                nm = itm.get("name") if isinstance(itm, dict) else None
+                                if nm:
+                                    pth = f"{user_folder}/{nm}"
+                                    # Removed PFP-DELETE debug logs
+                                    supabase.storage.from_(bucket).upload(pth, b"", file_options={"contentType": "application/octet-stream", "upsert": True})
+                        except Exception as e:
+                            # overwrite failed; continue
+                            pass
+                        # Build full paths from names and attempt second removal
+                        retry_paths = []
+                        for item in remaining_items:
+                            nm = item.get("name") if isinstance(item, dict) else None
+                            if nm:
+                                retry_paths.append(f"{user_folder}/{nm}")
+                        if retry_paths:
+                            # Removed PFP-DELETE debug logs
+                            supabase.storage.from_(bucket).remove(retry_paths)
+                except Exception:
+                    # verification failed; continue
+                    pass
+            except Exception:
+                # swallow errors so UX isn't blocked, but attribute will be cleared
+                pass
+            update_data["profile_picture"] = None
+            old_file_url = None  # prevent duplicate deletion below
+
+        # --------------------------
+        # Upload new picture
+        # --------------------------
+        if uploaded_file:
+            import os
+            # Ensure only one picture per user by clearing existing files in user's folder
+            user_folder = f"profile_pictures/{user_email}"
+            try:
+                existing = supabase.storage.from_(settings.SUPABASE_BUCKET_PROFILE).list(user_folder)
+                if existing:
+                    # Build full relative paths to remove
+                    to_remove = [f"{user_folder}/{item['name']}" for item in existing if 'name' in item]
+                    if to_remove:
+                        try:
+                            supabase.storage.from_(settings.SUPABASE_BUCKET_PROFILE).remove(to_remove)
+                        except Exception:
+                            pass
+            except Exception:
+                # listing may fail; continue with upload
+                pass
+
+            # Use deterministic filename to avoid accumulating files
+            _, ext = os.path.splitext(uploaded_file.name)
+            # default to .jpg if no extension
+            ext = ext if ext else ".jpg"
+            file_path = f"{user_folder}/profile{ext}"
+            file_bytes = uploaded_file.read()
+
+            # Upload to Supabase Storage
+            # Some clients support upsert; python client may overwrite when same path is used.
+            supabase.storage.from_(settings.SUPABASE_BUCKET_PROFILE).upload(file_path, file_bytes)
+
+            # Get public URL
+            file_url = (
+                supabase.storage
+                .from_(settings.SUPABASE_BUCKET_PROFILE)
+                .get_public_url(file_path)
+                .split("?")[0]
+            )
+            update_data["profile_picture"] = file_url
+
+        # --------------------------
+        # Update user record
+        # --------------------------
+        supabase.table("users").update(update_data).eq("email", user_email).execute()
+        success = "Profile updated successfully!"
+        
+        # Refresh user data in-place to reflect changes on profile page
+        response = supabase.table("users").select("*").eq("email", user_email).execute()
+        if response.data:
+            user = response.data[0]
+            if user.get("date_joined"):
+                user["date_joined"] = datetime.fromisoformat(user["date_joined"][:10])
+            if user.get("last_login"):
+                user["last_login"] = datetime.fromisoformat(user["last_login"][:10])
+
+    # --------------------------
+    # Fetch user posts
+    # --------------------------
+    posts_resp = supabase.table("posts").select("*").eq("user_id", user["id"]).order("created_at", desc=True).execute()
+    user_posts = posts_resp.data or []
+
+    # Build formatted posts similar to home (without comments)
+    formatted_posts = []
+    for post in (user_posts or []):
+        title = post.get("title") or "(No Title)"
+        url = (post.get("content") or "").rstrip("?")
+        course_name = post.get("course_id") or "null"
+        description = post.get("description", "")
+        post_id = post.get("post_id")
+
+        is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
+        is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+        # Votes for this post
+        votes_resp = supabase.table("post_votes").select("*").eq("post_id", post_id).execute()
+        votes = votes_resp.data or []
+        upvotes = len([v for v in votes if v.get("vote_type") == "up"])
+        downvotes = len([v for v in votes if v.get("vote_type") == "down"])
+        net_votes = upvotes - downvotes
+
+        # Current user's vote
+        user_id = user.get("id")
+        user_vote = None
+        if user_id:
+            uv = next((v["vote_type"] for v in votes if v.get("user_id") == user_id), None)
+            if uv == "up":
+                user_vote = "upvote"
+            elif uv == "down":
+                user_vote = "downvote"
+
+        formatted_posts.append({
+            "id": post_id,
+            "title": title,
+            "url": url,
+            "description": description,
+            "created_at": time_since(post.get("created_at")),
+            "author": post.get("author", "Unknown"),
+            "course": f"c/{course_name}",
+            "is_image": is_image,
+            "is_video": is_video,
+            "upvote_count": upvotes,
+            "downvote_count": downvotes,
+            "vote_count": net_votes,
+            "user_vote": user_vote,
+            # comments intentionally omitted on profile page
+        })
+
+    # --------------------------
+    # Fetch user's comments (flat list across posts)
+    # --------------------------
+    comments_resp = supabase.table("comments") \
+        .select("*") \
+        .eq("user_id", user["id"]) \
+        .order("created_at", desc=True) \
+        .execute()
+    raw_comments = comments_resp.data or []
+
+    user_comments = []
+    seen_comment_ids = set()
+    seen_composite = set()
+    for c in raw_comments:
+        cid = c.get("comment_id")
+        pid = c.get("post_id")
+        txt = (c.get("text") or "").strip()
+        # Truncate created_at to seconds for stable duplicate detection
+        created = (c.get("created_at") or "")
+        created_key = created[:19] if isinstance(created, str) else str(created)[:19]
+
+        if not cid:
+            continue
+
+        comp_key = (pid, txt, created_key)
+        if cid in seen_comment_ids or comp_key in seen_composite:
+            continue
+
+        seen_comment_ids.add(cid)
+        seen_composite.add(comp_key)
+
+        # votes for comment (support both 'up'/'down' and 'upvote'/'downvote')
+        cv_resp = supabase.table("comment_votes").select("vote_type").eq("comment_id", cid).execute()
+        cvotes = cv_resp.data or []
+        def as_dir(val):
+            if not val:
+                return None
+            v = str(val).lower()
+            if v in ("up", "upvote"): return "up"
+            if v in ("down", "downvote"): return "down"
+            return None
+        up = sum(1 for v in cvotes if as_dir(v.get("vote_type")) == "up")
+        down = sum(1 for v in cvotes if as_dir(v.get("vote_type")) == "down")
+        net = up - down
+
+        # post context (title)
+        post_title = None
+        try:
+            p_resp = supabase.table("posts").select("title").eq("post_id", c["post_id"]).maybe_single().execute()
+            if p_resp.data:
+                post_title = p_resp.data.get("title") or "(No Title)"
+        except Exception:
+            post_title = "(No Title)"
+
+        user_comments.append({
+            "comment_id": cid,
+            "post_id": pid,
+            "post_title": post_title,
+            "text": txt,
+            "created_at": time_since(created),
+            "net_votes": net,
+            "edited": c.get("edited", False)
+        })
+
+    # ensure navbar gets the profile picture URL
+    profile_picture_url = user.get("profile_picture") or None
+
+    return render(request, "profile_page.html", {
+        "user": user,
+        "success": success,
+        "user_posts": formatted_posts,  # use formatted posts
+        "user_comments": user_comments, # NEW: flat comments list
+        "profile_picture_url": profile_picture_url
+    })
 
 # --------------------------
 # Logout

@@ -1,0 +1,278 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Profile Page</title>
+  <link rel="stylesheet" href="{% static 'css/layout.css' %}">
+  <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
+  <link rel="stylesheet" href="{% static 'css/profile_page.css' %}">
+  <link rel="stylesheet" href="{% static 'css/post.css' %}">
+</head>
+  <body>
+    
+    <!-- NAVBAR -->
+    {% include "navbar.html" %}
+
+    <!-- Success message container at top with close button -->
+    {% if success %}
+    <div class="profile-success" id="successMessage">
+      <span>{{ success }}</span>
+      <button type="button" class="success-close" aria-label="Close" onclick="document.getElementById('successMessage').style.display='none'">✖</button>
+    </div>
+    {% endif %}
+
+    {% block content %}
+    {% if error %}
+        <p>{{ error }}</p>
+    {% else %}
+
+    <!-- PROFILE PIC OUTSIDE TABLE -->
+    <div style="text-align: center; margin: 20px 0;">
+      {% if user.profile_picture %}
+        <img src="{{ user.profile_picture }}"
+            style="width:150px; height:150px; border-radius:50%; object-fit:cover; border:2px solid #ccc;">
+      {% else %}
+        <span style="font-size:150px; display:inline-block; width:150px; height:150px;
+                    line-height:150px; border-radius:50%; background:#eee; color:#555;">
+          👤
+        </span>
+      {% endif %}
+    </div>
+
+    <!-- USER INFO: nicer card layout -->
+    <div class="profile-info-card">
+      <div class="info-row">
+        <div class="info-label">Email</div>
+        <div class="info-value">{{ user.email }}</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">Username</div>
+        <div class="info-value">{{ user.username }}</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">Role</div>
+        <div class="info-value">{{ user.role }}</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">Bio</div>
+        <div class="info-value">{{ user.bio }}</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">Date Joined</div>
+        <div class="info-value">{{ user.date_joined|date:"F j, Y" }}</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">Last Login</div>
+        <div class="info-value">{{ user.last_login|date:"F j, Y" }}</div>
+      </div>
+    </div>
+
+    <!-- Edit Profile Button (styled, placed under info box aligned left) -->
+    <div class="profile-actions">
+      <button id="editBtn" class="btn-edit">Edit Profile</button>
+    </div>
+
+    <!-- EDIT MODAL -->
+    <div class="popup" id="editPopup">
+      <div class="popup-content">
+        <span class="close-btn" onclick="closeEditPopup()">&times;</span>
+
+        <h3>Edit Profile</h3>
+
+        <form method="POST"
+          id="editProfileForm" 
+          enctype="multipart/form-data" 
+          class="edit-form">
+          {% csrf_token %}
+
+          <!-- Hidden field for delete request -->
+          <input type="hidden" name="remove_profile_picture" id="removePictureFlag" value="0">
+          <!-- PROFILE PIC + UPLOAD SIDE BY SIDE -->
+          <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
+
+            <!-- CURRENT PROFILE PIC -->
+            <div id="previewProfileImage" style="width:100px; height:100px; border-radius:50%; overflow:hidden;">
+              {% if user.profile_picture %}
+                <img id="previewProfileImg" src="{{ user.profile_picture }}" style="width:100%; height:100%; object-fit:cover;">
+              {% else %}
+                <img id="previewProfileImg" style="width:100%; height:100%; object-fit:cover; display:none;">
+                <div id="previewPlaceholder" style="width:100%; height:100%; background:#eee;
+                            display:flex; justify-content:center; align-items:center;
+                            font-size:50px; color:#777;">
+                  👤
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- UPLOAD BOX -->
+            <div class="upload-box" id="profileUploadBox" style="flex:1; height:120px;">
+
+              <p id="profileUploadText"
+                {% if user.profile_picture %}
+                  style="display:none;"
+                {% else %}
+                  style="display:block;"
+                {% endif %}>
+                Drag & Drop or Click to Upload
+              </p>
+
+              <!-- Hidden actual preview image (shown after selecting file) -->
+              <img id="realPreviewImage" style="display:none;">
+
+              <div id="removeProfileBtn" class="remove-btn"
+                {% if user.profile_picture %}
+                  style="display:flex;"
+                {% else %}
+                  style="display:none;"
+                {% endif %}>
+                ✖
+              </div>
+
+              <input type="file" id="profilePicInput" name="profile_picture" accept="image/*" style="display:none;">
+            </div>
+
+            </div>
+
+            <!-- Username -->
+            <label>Username:</label>
+            <input type="text" name="username" placeholder="Enter new username" value="{{ user.username }}">
+
+            <!-- Bio -->
+            <label>Bio:</label>
+            <textarea name="bio" placeholder="Enter new bio">{{ user.bio }}</textarea>
+
+          <button type="submit">Save Changes</button>
+
+        </form>
+      </div>
+    </div>
+
+    <!-- Container wrapping tabs + sections -->
+    <div class="profile-content">
+      <!-- NEW: Profile tabs -->
+      <div class="profile-tabs">
+        <button class="tab-btn active" data-target="profilePostsSection">Posts</button>
+        <button class="tab-btn" data-target="profileCommentsSection">Comments</button>
+      </div>
+
+      <!-- Posts Section -->
+      <section id="profilePostsSection">
+        {% if user_posts %}
+          <h3 style="margin-top: 10px;">Your Posts</h3>
+          <div class="user-posts">
+            {% for post in user_posts %}
+              <div class="post">
+                <div class="post-content">
+                  <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
+                  <h3>{{ post.title }}</h3>
+
+                  {% if post.post_type %}
+                    <p class="post-type">Type: {{ post.post_type }}</p>
+                  {% endif %}
+
+                  {% if post.description %}
+                    <p class="post-description">{{ post.description }}</p>
+                  {% endif %}
+
+                  {% if post.is_image %}
+                    <img src="{{ post.url }}" alt="Post Image" class="post-thumbnail clickable-media">
+                  {% elif post.is_video %}
+                    <video src="{{ post.url }}" class="post-thumbnail clickable-media" controls muted></video>
+                  {% elif post.url %}
+                    <a href="{{ post.url }}" target="_blank">{{ post.url }}</a>
+                  {% endif %}
+
+                  <div class="actions" data-post-id="{{ post.id }}" data-user-vote="{{ post.user_vote|default:'' }}">
+                    <button class="vote-btn upvote {% if post.user_vote == 'upvote' %}active-upvote{% endif %}"
+                            onclick="votePost('{{ post.id }}', 'upvote', this)">⬆️</button>
+                    <span class="vote-count" id="vote-count-{{ post.id }}">{{ post.vote_count }}</span>
+                    <button class="vote-btn downvote {% if post.user_vote == 'downvote' %}active-downvote{% endif %}"
+                            onclick="votePost('{{ post.id }}', 'downvote', this)">⬇️</button>
+                    <!-- comments section intentionally omitted on profile page -->
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p>You haven't posted anything yet.</p>
+        {% endif %}
+      </section>
+
+      <!-- Comments Section (flat list) -->
+      <section id="profileCommentsSection" style="display:none;">
+        <h3 style="margin-top: 10px;">Your Comments</h3>
+        <div class="user-comments">
+          {% if user_comments %}
+            {% for c in user_comments %}
+              <div class="comment">
+                <div class="comment-header">
+                  <strong>On: {{ c.post_title }}</strong>
+                  <span class="comment-time">• {{ c.created_at }} {% if c.edited %}[edited]{% endif %}</span>
+                </div>
+                <p class="comment-text">{{ c.text }}</p>
+                <div class="comment-votes">
+                  <span class="comment-vote-count">{{ c.net_votes }}</span>
+                  <!-- Optional: link to original post detail, or scroll on home -->
+                  <a href="{% url 'home' %}#post-{{ c.post_id }}" class="comment-source-link">View post</a>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p>No comments yet.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+
+    
+
+    {% endif %}
+    {% endblock %}
+
+    <script src="{% static 'js/profile_page.js' %}"></script>
+    
+    <!-- IMAGE & VIDEO MODAL (same behavior as home.html) -->
+    <div id="mediaModal" class="media-modal">
+      <span class="close-modal">&times;</span>
+      <img id="modalImage" class="modal-content" style="display:none;">
+      <video id="modalVideo" class="modal-content" controls style="display:none;"></video>
+    </div>
+
+    <script>
+    const modal = document.getElementById('mediaModal');
+    const modalImg = document.getElementById('modalImage');
+    const modalVideo = document.getElementById('modalVideo');
+    const closeModal = document.querySelector('.close-modal');
+
+    document.querySelectorAll('.clickable-media').forEach(el => {
+      el.addEventListener('click', () => {
+        modal.classList.add('show');
+        if (el.tagName.toLowerCase() === 'img') {
+          modalImg.src = el.src;
+          modalImg.style.display = 'block';
+          modalVideo.style.display = 'none';
+        } else if (el.tagName.toLowerCase() === 'video') {
+          modalVideo.src = el.src;
+          modalVideo.style.display = 'block';
+          modalImg.style.display = 'none';
+          modalVideo.play();
+        }
+      });
+    });
+
+    closeModal.addEventListener('click', () => {
+      modal.classList.remove('show');
+      modalVideo.pause();
+    });
+
+    modal.addEventListener('click', e => {
+      if (e.target === modal) {
+        modal.classList.remove('show');
+        modalVideo.pause();
+      }
+    });
+    </script>
+  </body>
+</html>
