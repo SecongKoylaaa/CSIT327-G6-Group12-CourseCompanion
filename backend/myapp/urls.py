@@ -18,6 +18,9 @@ urlpatterns = [
     path('home/', views.home_page, name='home'),
     path('profile/', views.profile_page, name='profile_page'),
 
+    # PROFILE
+    path('profile/', views.profile_page, name='profile_page'),
+
     # ADMIN
     path('dashboard/', views.admin_page, name='admin'),
     path('dashboard/api/subject-posts/', views.admin_subject_posts, name='admin_subject_posts'),
@@ -41,6 +44,9 @@ urlpatterns = [
     # REPORTING
     path('report_post/', views.report_post, name='report_post'),
     path('report_comment/', views.report_comment, name='report_comment'),
+
+    # Diagnostics
+    path('diagnostics/', views.diagnostics, name='diagnostics'),
 
     # POST VOTING
     path("vote_post/<int:post_id>/<str:vote_type>/", views.vote_post, name="vote_post"),

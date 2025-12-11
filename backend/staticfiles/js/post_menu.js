@@ -46,3 +46,50 @@ function sharePost(postId) {
     console.error('Share failed:', e);
   }
 }
+
+// Make votePost available on Profile too (shared helper)
+function votePost(postId, type, btn) {
+  try {
+    const container = btn.closest(".actions");
+    if (!container) return;
+
+    const voteCountElem = container.querySelector(".vote-count");
+    const upBtn = container.querySelector(".upvote");
+    const downBtn = container.querySelector(".downvote");
+
+    if (btn && btn.tagName === "BUTTON") btn.type = "button";
+
+    const oldValue = voteCountElem?.textContent.trim() || "0";
+    if (upBtn) upBtn.disabled = true;
+    if (downBtn) downBtn.disabled = true;
+
+    fetch(`/vote_post/${postId}/${type}/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": (function getCookie(name){const v=`; ${document.cookie}`;const p=v.split(`; ${name}=`);return p.length===2?p.pop().split(";").shift():null;})("csrftoken"),
+        "Accept": "application/json"
+      },
+      credentials: "same-origin"
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data || data.error) return;
+        const newVotes = parseInt(data.net_votes ?? oldValue, 10);
+        if (voteCountElem) {
+          voteCountElem.textContent = newVotes;
+          voteCountElem.animate([
+            { transform: "scale(1)" },
+            { transform: "scale(1.2)" },
+            { transform: "scale(1)" }
+          ], { duration: 180 });
+        }
+        upBtn?.classList.remove("active-upvote");
+        downBtn?.classList.remove("active-downvote");
+        if (data.user_vote === "upvote") upBtn?.classList.add("active-upvote");
+        if (data.user_vote === "downvote") downBtn?.classList.add("active-downvote");
+      })
+      .catch(() => { if (voteCountElem) voteCountElem.textContent = oldValue; })
+      .finally(() => { if (upBtn) upBtn.disabled = false; if (downBtn) downBtn.disabled = false; });
+
+  } catch (ex) { /* swallow */ }
+}

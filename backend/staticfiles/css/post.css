@@ -165,7 +165,11 @@
 }
 
 /* ======================= POST IMAGE/VIDEO ======================= */
-.post-thumbnail {
+/* Reinforce media sizing on Home to beat global overrides */
+img.post-thumbnail,
+video.post-thumbnail,
+.post .post-content img.post-thumbnail,
+.post .post-content video.post-thumbnail {
   width: 100%;
   max-height: 450px;
   border-radius: 12px;
