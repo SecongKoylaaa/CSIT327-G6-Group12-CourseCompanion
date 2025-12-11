@@ -95,10 +95,13 @@
   background: rgba(91, 124, 255, 0.12);
 }
 
-.create-container .tab-icon {
-  width: 18px;
-  height: 18px;
+/* Ensure tab icons are not oversized in production */
+.create-container .create-card .tabs .tab-item .tab-icon,
+.create-container .tabs .tab-item svg.tab-icon {
+  width: 20px;
+  height: 20px;
   stroke-width: 2;
+  flex: 0 0 20px;
 }
 
 /* ===================================
@@ -118,11 +121,14 @@
   margin-bottom: 10px;
 }
 
-.create-container .label-icon {
+/* Keep form label icons small and consistent */
+.create-container label .label-icon,
+.create-container .form-group .label-icon {
   width: 18px;
   height: 18px;
   color: #6e7490;
   stroke-width: 2;
+  flex: 0 0 18px;
 }
 
 /* ===================================
@@ -351,6 +357,7 @@
   overflow: hidden;
 }
 
+/* Guard media preview dimensions */
 .create-container .media-preview img,
 .create-container .media-preview video {
   width: 100%;
