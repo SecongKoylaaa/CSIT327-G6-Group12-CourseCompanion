@@ -152,15 +152,15 @@ function showSubjectDetails(subject) {
     const modal = document.getElementById('subjectModal');
     const modalTitle = document.getElementById('subjectModalTitle');
     const modalBody = document.getElementById('subjectModalBody');
-    
+
     if (!modal || !modalTitle || !modalBody) {
         console.error('Modal elements not found');
         return;
     }
-    
+
     modalTitle.textContent = subject + ' Posts';
     modalBody.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading posts...</div>';
-    
+
     // Fetch posts for this subject
     fetch(`/dashboard/api/subject-posts/?subject=${encodeURIComponent(subject)}`)
         .then(response => {
@@ -173,19 +173,63 @@ function showSubjectDetails(subject) {
             if (data.error) {
                 throw new Error(data.error);
             }
-            
-            if (data.posts && data.posts.length > 0) {
+
+            const posts = Array.isArray(data.posts) ? data.posts : [];
+
+            if (posts.length > 0) {
                 let postsHTML = '<div class="posts-list">';
-                data.posts.forEach(post => {
-                    const postDate = post.created_at ? new Date(post.created_at).toLocaleDateString() : 'Unknown date';
-                    const postContent = post.content ? post.content.substring(0, 200) : '';
-                    const contentEllipsis = post.content && post.content.length > 200 ? '...' : '';
-                    
+                posts.forEach(post => {
+                    const title = post.title || 'Untitled Post';
+                    const author = post.author || 'Unknown';
+
+                    let createdDisplay = 'Unknown date';
+                    if (post.created_at) {
+                        try {
+                            createdDisplay = new Date(post.created_at).toLocaleString();
+                        } catch (e) {
+                            createdDisplay = String(post.created_at);
+                        }
+                    }
+
+                    const description = post.description || '';
+                    let descriptionHtml = '';
+                    if (description) {
+                        const snippet = description.length > 200 ? description.slice(0, 200) + '...' : description;
+                        descriptionHtml = `<p class="post-content">${escapeHtml(snippet)}</p>`;
+                    }
+
+                    let mediaHtml = '';
+                    const url = post.url || '';
+                    if (url) {
+                        const safeUrl = escapeHtml(url);
+                        if (post.is_image) {
+                            mediaHtml = `
+                                <div class="report-media">
+                                    <img src="${safeUrl}" alt="Post image">
+                                </div>
+                            `;
+                        } else if (post.is_video) {
+                            mediaHtml = `
+                                <div class="report-media">
+                                    <video src="${safeUrl}" controls muted></video>
+                                </div>
+                            `;
+                        } else {
+                            mediaHtml = `
+                                <p class="post-content">
+                                    <strong>Link:</strong>
+                                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>
+                                </p>
+                            `;
+                        }
+                    }
+
                     postsHTML += `
                         <div class="post-item">
-                            <h4>${escapeHtml(post.title || 'Untitled Post')}</h4>
-                            <p>By: ${escapeHtml(post.username || 'Unknown')} • ${postDate}</p>
-                            ${postContent ? `<p class="post-content">${escapeHtml(postContent)}${contentEllipsis}</p>` : ''}
+                            <h4>${escapeHtml(title)}</h4>
+                            <p>By: ${escapeHtml(author)} • ${escapeHtml(createdDisplay)}</p>
+                            ${descriptionHtml}
+                            ${mediaHtml}
                         </div>
                     `;
                 });
@@ -199,7 +243,7 @@ function showSubjectDetails(subject) {
             console.error('Error fetching subject posts:', error);
             modalBody.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i><p>Error loading posts: ${escapeHtml(error.message)}</p></div>`;
         });
-    
+
     modal.style.display = 'block';
 }
 

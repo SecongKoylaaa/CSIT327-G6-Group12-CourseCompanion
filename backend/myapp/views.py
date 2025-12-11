@@ -1818,6 +1818,13 @@ def admin_page(request):
         users_resp = supabase.table("users").select("*").execute()
         print(f"Users response: {users_resp}")
         users = users_resp.data if users_resp.data else []
+        for u in users:
+            joined_raw = u.get("date_joined") or u.get("created_at")
+            if joined_raw:
+                try:
+                    u["date_joined"] = parse_datetime(str(joined_raw))
+                except Exception:
+                    u["date_joined"] = joined_raw
         total_users = len(users)
         print(f"Total users found: {total_users}")
         
