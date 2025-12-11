@@ -714,49 +714,21 @@ function viewUserDetails(userId) {
                         ${bio ? `<p class="user-bio">${escapeHtml(bio)}</p>` : ''}
                         <div class="user-stats">
                             <div><strong>Posts:</strong> ${stats.post_count || 0}</div>
-                            <div><strong>Comments:</strong> ${stats.comment_count || 0}</div>
+                        </div>
+                        <div class="user-role-switcher">
+                            <label for="roleSelect-${user.id}"><strong>Change Role:</strong></label>
+                            <select id="roleSelect-${user.id}" class="role-select" onchange="changeUserRole('${user.id}', this.value)">
+                                <option value="student" ${role === 'student' ? 'selected' : ''}>Student</option>
+                                <option value="teacher" ${role === 'teacher' ? 'selected' : ''}>Teacher</option>
+                            </select>
                         </div>
                     </div>
                     <div class="user-post-history">
-                        <div class="user-activity-toggle">
-                            <button type="button" class="user-activity-btn active" data-section="posts">
-                                <i class="fas fa-sticky-note"></i>
-                                <span>Posts</span>
-                            </button>
-                            <button type="button" class="user-activity-btn" data-section="comments">
-                                <i class="fas fa-comments"></i>
-                                <span>Comments</span>
-                            </button>
-                        </div>
-                        <div class="user-activity-sections">
-                            <div class="user-activity-section user-activity-section-posts active">
-                                <h4>Posts</h4>
-                                ${postsHtml}
-                            </div>
-                            <div class="user-activity-section user-activity-section-comments">
-                                <h4>Comments</h4>
-                                ${commentsHtml}
-                            </div>
-                        </div>
+                        <h4>Recent Posts</h4>
+                        ${postsHtml}
                     </div>
                 </div>
             `;
-
-            // Wire up Posts/Comments toggle inside the modal
-            const toggleButtons = bodyEl.querySelectorAll('.user-activity-btn');
-            const sections = bodyEl.querySelectorAll('.user-activity-section');
-            toggleButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const target = btn.getAttribute('data-section');
-                    toggleButtons.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    sections.forEach(sec => sec.classList.remove('active'));
-                    const targetSection = bodyEl.querySelector(`.user-activity-section-${target}`);
-                    if (targetSection) {
-                        targetSection.classList.add('active');
-                    }
-                });
-            });
 
             const isBanned = role === 'banned';
             const banAction = isBanned ? 'unban' : 'ban';
@@ -785,6 +757,64 @@ function closeUserModal() {
     if (modal) {
         modal.style.display = 'none';
     }
+}
+
+function changeUserRole(userId, newRole) {
+    console.log('changeUserRole called with:', { userId, newRole, userIdType: typeof userId });
+    
+    if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
+        // Refresh the modal to reset the dropdown
+        viewUserDetails(userId);
+        return;
+    }
+
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        alert('CSRF token not found. Please refresh the page.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('user_id', userId);
+    formData.append('action', 'set_role');
+    formData.append('role', newRole);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    
+    // Debug: log what we're sending
+    console.log('FormData contents:');
+    for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}: ${value}`);
+    }
+
+    fetch('/dashboard/api/update-user/', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || `HTTP error ${response.status}`);
+                }).catch(() => {
+                    throw new Error(`HTTP error ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || data.error) {
+                throw new Error(data && data.error ? data.error : 'Failed to change role');
+            }
+            alert(`User role changed to ${newRole} successfully!`);
+            closeUserModal();
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error changing user role:', error);
+            alert(`Error changing role: ${error.message || error}`);
+            // Refresh the modal to reset the dropdown
+            viewUserDetails(userId);
+        });
 }
 
 function adminUpdateUser(userId, action) {

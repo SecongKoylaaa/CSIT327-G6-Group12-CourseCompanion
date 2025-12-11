@@ -10,6 +10,7 @@ from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
 from .models import Post
 from .forms import PostForm
+import json
 import time
 import secrets
 
@@ -2404,7 +2405,7 @@ def admin_user_details(request, user_id):
             comment_post_ids = list({c.get("post_id") for c in comments_raw if c.get("post_id")})
             posts_by_id = {}
             if comment_post_ids:
-                posts_title_resp = supabase.table("posts").select("post_id", "title", "subject", "course").in_("post_id", comment_post_ids).execute()
+                posts_title_resp = supabase.table("posts").select("post_id", "title", "subject", "course_id").in_("post_id", comment_post_ids).execute()
                 if posts_title_resp and getattr(posts_title_resp, "data", None):
                     for p in posts_title_resp.data or []:
                         posts_by_id[p.get("post_id")] = p
@@ -2450,8 +2451,33 @@ def admin_update_user(request):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
-    user_id = request.POST.get("user_id")
-    action = request.POST.get("action")
+    # Accept both FormData and JSON payloads; be liberal in field names
+    user_id = request.POST.get("user_id") or request.POST.get("userId") or request.POST.get("id")
+    action = (request.POST.get("action") or request.POST.get("Action") or "").strip().lower()
+
+    # If action missing but role fields are present, infer set_role
+    if not action and (request.POST.get("role") or request.POST.get("new_role")):
+        action = "set_role"
+
+    # Debug logging of incoming payload (safe minimal info)
+    try:
+        print(f"admin_update_user: POST keys={list(request.POST.keys())}, user_id={user_id}, action={action}")
+    except Exception:
+        pass
+
+    # Try JSON body as fallback
+    try:
+        if (not user_id or not action) and request.body:
+            payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+            if isinstance(payload, dict):
+                user_id = user_id or payload.get("user_id") or payload.get("userId") or payload.get("id")
+                action = action or (payload.get("action") or "").strip().lower()
+    except Exception:
+        pass
+
+    # Backward-compat with older frontend naming
+    if action == "change_role":
+        action = "set_role"
 
     if not user_id or not action:
         return JsonResponse({"error": "Missing required fields"}, status=400)
@@ -2470,7 +2496,19 @@ def admin_update_user(request):
         elif action == "unban":
             resp = supabase.table("users").update({"role": "student"}).eq("id", user_id).execute()
         elif action == "set_role":
-            new_role = (request.POST.get("role") or "").strip().lower()
+            # Accept both FormData and JSON field names
+            new_role = (request.POST.get("role") or request.POST.get("new_role") or "").strip().lower()
+            if not new_role and request.body:
+                try:
+                    payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+                    if isinstance(payload, dict):
+                        new_role = (payload.get("role") or payload.get("new_role") or "").strip().lower()
+                except Exception:
+                    new_role = (new_role or "").strip().lower()
+            try:
+                print(f"admin_update_user: resolved new_role={new_role}")
+            except Exception:
+                pass
             if new_role not in ["student", "teacher"]:
                 return JsonResponse({"error": "Invalid role"}, status=400)
             resp = supabase.table("users").update({"role": new_role}).eq("id", user_id).execute()
