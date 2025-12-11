@@ -110,18 +110,19 @@ function showTab(tabName, event) {
 
 // User Search
 function searchUsers() {
-    const searchTerm = document.getElementById('user-search').value.toLowerCase();
+    const searchTerm = (document.getElementById('user-search')?.value || '').toLowerCase();
+    const roleFilter = (document.getElementById('user-role-filter')?.value || 'all').toLowerCase();
     const userCards = document.querySelectorAll('.user-card');
-    
+
     userCards.forEach(card => {
-        const username = card.dataset.username || '';
-        const email = card.dataset.email || '';
-        
-        if (username.includes(searchTerm) || email.includes(searchTerm)) {
-            card.style.display = 'flex';
-        } else {
-            card.style.display = 'none';
-        }
+        const username = (card.dataset.username || '').toLowerCase();
+        const email = (card.dataset.email || '').toLowerCase();
+        const role = (card.dataset.role || 'student').toLowerCase();
+
+        const matchesSearch = !searchTerm || username.includes(searchTerm) || email.includes(searchTerm);
+        const matchesRole = roleFilter === 'all' || role === roleFilter;
+
+        card.style.display = (matchesSearch && matchesRole) ? 'flex' : 'none';
     });
 }
 

@@ -8,6 +8,12 @@
     <!-- COMMENT HEADER -->
     <div class="comment-header">
       <strong class="comment-author">{{ comment.author }}</strong>
+      {% if comment.is_verified %}
+        <span class="verified-badge">✔ Verified</span>
+      {% endif %}
+      {% if comment.author_role %}
+        <span class="role-badge role-{{ comment.author_role|lower }}">{{ comment.author_role|title }}</span>
+      {% endif %}
 
       <span class="comment-time">
         • <span class="comment-time-local" data-time="{{ comment.created_at|date:'c' }}"></span>

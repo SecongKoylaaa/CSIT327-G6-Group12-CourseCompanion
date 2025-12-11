@@ -341,9 +341,11 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
     tree = []
     for c in comments:
         if c.get("parent_id") == parent_id_val:
-            # Get author email (retry on transient disconnects)
-            user_resp = safe_execute(lambda: supabase.table("users").select("email").eq("id", c["user_id"]).maybe_single().execute())
+            # Get author info (retry on transient disconnects)
+            user_resp = safe_execute(lambda: supabase.table("users").select("email, role").eq("id", c["user_id"]).maybe_single().execute())
             author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else "anonymous@example.com"
+            author_role = (user_resp.data.get("role") if user_resp and user_resp.data else None) or None
+            is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
 
             # Fetch votes (retry on transient disconnects)
             votes_resp = safe_execute(lambda: supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute())
@@ -366,6 +368,8 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
             comment_obj = {
                 "comment_id": c["comment_id"],
                 "author": author_email,
+                "author_role": author_role,
+                "is_verified": is_verified,
                 "text": c["text"],
                 "created_at": parse_datetime(c.get("created_at")),
                 "edited": c.get("edited", False),
@@ -466,12 +470,17 @@ def home_page(request):
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
-        # Fetch author email for display
+        # Fetch author info for display
         author_email = "anonymous@example.com"
+        author_role = None
+        is_verified = False
         if author_id:
-            author_resp = safe_execute(lambda: supabase.table("users").select("email").eq("id", author_id).maybe_single().execute())
+            author_resp = safe_execute(lambda: supabase.table("users").select("email, role").eq("id", author_id).maybe_single().execute())
             if author_resp.data and "email" in author_resp.data:
                 author_email = author_resp.data["email"]
+            if author_resp and getattr(author_resp, "data", None):
+                author_role = author_resp.data.get("role")
+                is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
 
         # -----------------------------
         # Fetch votes for this post
@@ -505,6 +514,8 @@ def home_page(request):
             "description": description,
             "created_at": time_since(post.get("created_at")),
             "author": author_email,
+            "author_role": author_role,
+            "is_verified": is_verified,
             "course": course_name,
             "is_image": is_image,
             "is_video": is_video,

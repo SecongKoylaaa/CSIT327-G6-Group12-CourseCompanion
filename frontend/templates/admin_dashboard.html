@@ -70,6 +70,13 @@
             <p>Post Reports</p>
           </div>
         </div>
+        <div class="dashboard-box comments-box">
+          <div class="box-icon"><i class="fas fa-comments"></i></div>
+          <div class="box-content">
+            <h3>{{ total_comment_reports }}</h3>
+            <p>Comment Reports</p>
+          </div>
+        </div>
         <div class="dashboard-box subjects-box">
           <div class="box-icon"><i class="fas fa-book-open"></i></div>
           <div class="box-content">
@@ -87,6 +94,13 @@
           <h2>All Users ({{ total_users }})</h2>
           <div class="search-box">
             <input type="text" id="user-search" placeholder="Search by username or email" onkeyup="searchUsers()">
+          </div>
+          <div class="filter-box">
+            <select id="user-role-filter" onchange="searchUsers()">
+              <option value="all">All</option>
+              <option value="student">Students</option>
+              <option value="teacher">Teachers</option>
+            </select>
           </div>
         </div>
         <div class="users-list">
