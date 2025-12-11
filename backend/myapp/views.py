@@ -411,6 +411,9 @@ def home_page(request):
 
     # Optional subject filter from query string or POST (for comment submissions)
     selected_subject = request.GET.get("subject") or request.POST.get("subject") or None
+    
+    # Optional search query from navbar
+    search_query = request.GET.get("search", "").strip()
 
     # -----------------------------
     # Handle new comment or reply
@@ -439,7 +442,7 @@ def home_page(request):
         return redirect("/home/")
 
     # -----------------------------
-    # Fetch posts (optionally filtered by subject) with pagination
+    # Fetch posts (optionally filtered by subject and/or search) with pagination
     # -----------------------------
     page_size = 15
     try:
@@ -455,6 +458,10 @@ def home_page(request):
     posts_query = supabase.table("posts").select("*")
     if selected_subject:
         posts_query = posts_query.eq("subject", selected_subject)
+    
+    # Apply search filter if query exists
+    if search_query:
+        posts_query = posts_query.ilike("title", f"%{search_query}%")
 
     response = safe_execute(lambda: posts_query.order("created_at", desc=True).range(start, end).execute())
     posts = response.data if response.data else []
@@ -481,12 +488,17 @@ def home_page(request):
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
-        # Fetch author email for display
-        author_email = "anonymous@example.com"
+        # Fetch author username and email for display
+        author_display = "anonymous"
+        author_username = None
+        author_email = None
         if author_id:
-            author_resp = safe_execute(lambda: supabase.table("users").select("email").eq("id", author_id).maybe_single().execute())
-            if author_resp.data and "email" in author_resp.data:
-                author_email = author_resp.data["email"]
+            author_resp = safe_execute(lambda: supabase.table("users").select("username, email").eq("id", author_id).maybe_single().execute())
+            if author_resp.data:
+                author_username = author_resp.data.get("username")
+                author_email = author_resp.data.get("email")
+                # Use username if available, otherwise use email
+                author_display = author_username if author_username else (author_email or "anonymous")
 
         # -----------------------------
         # Fetch votes for this post
@@ -519,7 +531,7 @@ def home_page(request):
             "url": url,
             "description": description,
             "created_at": time_since(post.get("created_at")),
-            "author": author_email,
+            "author": author_display,
             "course": course_name,
             "is_image": is_image,
             "is_video": is_video,
@@ -547,6 +559,8 @@ def home_page(request):
         # Communities / subjects sidebar data
         "subjects": SUBJECTS,
         "selected_subject": selected_subject,
+        # search query for navbar persistence
+        "search_query": search_query,
         # pagination controls
         "page": page,
         "has_next": len(posts) == page_size,
