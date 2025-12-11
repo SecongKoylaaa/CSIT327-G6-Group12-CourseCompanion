@@ -17,12 +17,17 @@
 
     <div class="comments-list" id="comments-list-{{ post.id }}">
       {% for comment in post.comments %}
-        {% include "comment_thread.html" with comment=comment post_id=post.id level=1 is_forum=post.is_forum best_answer_id=post.best_answer_id post_author_id=post.user_id %}
+        {% include "comment_thread.html" with comment=comment post_id=post.id level=1 is_forum=post.is_forum best_answer_id=post.best_answer_id post_author_id=post.user_id post_status=post.status %}
       {% empty %}
         <p class="no-comments">{% if post.is_forum %}No answers yet.{% else %}No comments yet.{% endif %}</p>
       {% endfor %}
     </div>
 
+    {% if post.is_forum and post.status == 'solved' %}
+    <div class="locked-notice" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px; text-align: center; color: #856404; font-size: 0.9em;">
+      🔒 This question has been solved and is now locked. No new answers can be added.
+    </div>
+    {% else %}
     <form class="comment-form" method="POST" action="{% url 'home' %}">
       {% csrf_token %}
       <input type="hidden" name="post_id" value="{{ post.id }}">
@@ -32,5 +37,6 @@
       <textarea name="comment" placeholder="{% if post.is_forum %}Add an answer...{% else %}Add a comment...{% endif %}" required></textarea>
       <button type="submit">Post</button>
     </form>
+    {% endif %}
   </div>
 </div>

@@ -128,7 +128,7 @@
                 <line x1="16" y1="17" x2="8" y2="17"/>
                 <polyline points="10 9 9 9 8 9"/>
               </svg>
-              Description
+              Description <span style="color: #999; font-size: 0.9em;">(Optional)</span>
             </label>
             <textarea name="description" id="description" maxlength="1000" placeholder="Share more details...">{{ description|default:'' }}</textarea>
             <div class="char-count" id="desc-count">{{ description|length|default:0 }}/1000</div>
@@ -253,11 +253,42 @@ descInput.addEventListener('input', updateDescCount);
 const tagBtn = document.getElementById("tag-btn");
 const tagChoices = document.getElementById("tag-choices");
 const postTypeInput = document.getElementById("post_type");
+const forumCheckbox = document.getElementById("is_forum");
+
+// Auto-lock tag to Question when forum is checked
+if (forumCheckbox) {
+  forumCheckbox.addEventListener("change", () => {
+    if (forumCheckbox.checked) {
+      // Set to Question
+      postTypeInput.value = "question";
+      tagBtn.innerHTML = '<span class="tag-badge tag-question">Question</span>';
+      const arrow = document.createElement('svg');
+      arrow.className = 'dropdown-arrow';
+      arrow.setAttribute('viewBox', '0 0 24 24');
+      arrow.setAttribute('fill', 'none');
+      arrow.setAttribute('stroke', 'currentColor');
+      arrow.setAttribute('stroke-width', '2');
+      arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+      tagBtn.appendChild(arrow);
+      // Disable tag selector
+      tagBtn.disabled = true;
+      tagBtn.style.opacity = "0.6";
+      tagBtn.style.cursor = "not-allowed";
+    } else {
+      // Enable tag selector
+      tagBtn.disabled = false;
+      tagBtn.style.opacity = "1";
+      tagBtn.style.cursor = "pointer";
+    }
+  });
+}
 
 tagBtn.addEventListener("click", e => {
   e.stopPropagation();
-  tagChoices.classList.toggle("show");
-  tagBtn.classList.toggle("active");
+  if (!tagBtn.disabled) {
+    tagChoices.classList.toggle("show");
+    tagBtn.classList.toggle("active");
+  }
 });
 
 document.querySelectorAll(".tag-option").forEach(btn => {

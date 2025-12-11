@@ -29,6 +29,15 @@
       </div>
       {% endif %}
 
+      {% if selected_subject %}
+      <div class="subject-sort-controls">
+        <span>Sort:</span>
+        <a href="/home/?subject={{ selected_subject|urlencode }}&sort=top" class="{% if current_sort == 'top' %}active{% endif %}">Top</a>
+        <a href="/home/?subject={{ selected_subject|urlencode }}&sort=new" class="{% if current_sort == 'new' %}active{% endif %}">New</a>
+        <a href="/home/?subject={{ selected_subject|urlencode }}&sort=old" class="{% if current_sort == 'old' %}active{% endif %}">Old</a>
+      </div>
+      {% endif %}
+
       {% for post in posts %}
       <div class="post" id="post-{{ post.id }}">
         <div class="post-content">
@@ -49,7 +58,7 @@
                   {% endif %}
                 {% endif %}
               </p>
-              <h3>{% if post.is_forum %}Question: {% endif %}{{ post.title }}</h3>
+              <h3>{{ post.title }}</h3>
             </div>
 
             <!-- POST MENU (visible to all users with different options) -->
@@ -58,7 +67,9 @@
               <div class="post-menu" id="post-menu-{{ post.id }}">
                 {% if current_user_id == post.user_id %}
                   <!-- Author options -->
-                  <button class="edit-btn" onclick="openEditModal('{{ post.id }}')">Edit</button>
+                  {% if not post.is_forum %}
+                    <button class="edit-btn" onclick="openEditModal('{{ post.id }}')">Edit</button>
+                  {% endif %}
                   <form method="POST" action="{% url 'delete_post' post.id %}">
                     {% csrf_token %}
                     <button type="submit" class="delete-btn" onclick="return confirm('Delete this post?')">Delete</button>
@@ -74,7 +85,7 @@
 
           <!-- POST CONTENT -->
           {% if post.post_type %}
-            <p class="post-type">Type: {{ post.post_type }}</p>
+            <span class="type-tag type-{{ post.post_type|lower }}">{{ post.post_type|title }}</span>
           {% endif %}
 
           {% if post.description %}

@@ -55,6 +55,8 @@ function toggleComments(el) {
     .then(html => {
       container.innerHTML = html;
       container.setAttribute('data-loaded', 'true');
+      // Re-apply local time formatting for newly injected comments
+      applyCommentTimes(container);
     })
     .catch(err => {
       container.innerHTML = `<div class="comments-error">Unable to load comments. Please try again.</div>`;
@@ -263,15 +265,23 @@ function getCookie(name) {
   return parts.length === 2 ? parts.pop().split(";").shift() : null;
 }
 
+// Helper to apply Manila time formatting to any scope
+function applyCommentTimes(root) {
+  const scope = root || document;
+  scope.querySelectorAll('.comment-time-local').forEach(el => {
+    const iso = el.getAttribute('data-time');
+    if (iso) {
+      el.textContent = toManilaTime(iso);
+    }
+  });
+}
+
 /* ========================================================================
    APPLY MANILA TIME + TEXTAREA VALIDATION + VOTE BUTTON FIXES
-======================================================================== */
+========================================================================= */
 document.addEventListener("DOMContentLoaded", () => {
-  // Manila time
-  document.querySelectorAll(".comment-time-local").forEach(el => {
-    const iso = el.getAttribute("data-time");
-    if (iso) el.textContent = toManilaTime(iso);
-  });
+  // Manila time for any comments present on initial load
+  applyCommentTimes(document);
 
   // Textarea limit + autosize
   document.querySelectorAll("textarea").forEach(t => {
