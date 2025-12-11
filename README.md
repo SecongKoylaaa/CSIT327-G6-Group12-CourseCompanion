@@ -14,7 +14,7 @@
 | **Real-Time**      | Django Channels, WebSockets *(if used)*     |
 | **Database**       | Supabase (PostgreSQL)                       |
 | **Authentication** | Django Auth, DRF Permissions                |
-| **Deployment**     | To be determined (TBD)                      |
+| **Deployment**     | [To be determined (TBD)   ](https://csit327-g6-group12-coursecompanion.onrender.com)                   |
 | **Version Control**| Git & GitHub                                |
 
 
