@@ -13,6 +13,7 @@ from .models import Post
 from .forms import PostForm
 import time
 import secrets
+import os
 
 # --------------------------
 # Initialize Supabase client (use service role if available)
