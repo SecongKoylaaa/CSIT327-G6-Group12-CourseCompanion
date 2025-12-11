@@ -464,14 +464,14 @@ def home_page(request):
     # -----------------------------
     if request.method == "POST":
         post_id = request.POST.get("post_id")
-        comment_text = request.POST.get("comment")
+        comment_text = (request.POST.get("comment") or "").strip()
         parent_id = request.POST.get("parent_id")
 
         # Get user_id
         user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
         user_id = user_resp.data["id"] if user_resp.data else None
 
-        if post_id and comment_text and user_id:
+        if post_id and comment_text and user_id and len(comment_text) >= 600:
             safe_execute(lambda: supabase.table("comments").insert({
                 "post_id": post_id,
                 "user_id": user_id,

@@ -73,7 +73,10 @@
           action="{% url 'edit_comment' comment.comment_id %}"
           style="display:none;">
       {% csrf_token %}
-      <textarea name="comment" required>{{ comment.text }}</textarea>
+      <div class="comment-input-wrapper">
+        <textarea name="comment" class="comment-textarea" maxlength="600" required oninput="updateCharCount(this, 'char-count-edit-{{ comment.comment_id }}')" onkeyup="updateCharCount(this, 'char-count-edit-{{ comment.comment_id }}')" onfocus="updateCharCount(this, 'char-count-edit-{{ comment.comment_id }}')">{{ comment.text }}</textarea>
+        <div class="char-counter" id="char-count-edit-{{ comment.comment_id }}">{{ comment.text|length }}/600</div>
+      </div>
       <button type="submit">Save</button>
       <button type="button" onclick="cancelEdit('{{ comment.comment_id }}')">Cancel</button>
     </form>
@@ -93,7 +96,10 @@
       {% csrf_token %}
       <input type="hidden" name="post_id" value="{{ post_id }}">
       <input type="hidden" name="parent_id" value="{{ comment.comment_id }}">
-      <textarea name="comment" placeholder="Write a reply..." required></textarea>
+      <div class="comment-input-wrapper">
+        <textarea name="comment" class="comment-textarea" placeholder="Write a reply..." maxlength="600" required oninput="updateCharCount(this, 'char-count-reply-{{ comment.comment_id }}')" onkeyup="updateCharCount(this, 'char-count-reply-{{ comment.comment_id }}')" onfocus="updateCharCount(this, 'char-count-reply-{{ comment.comment_id }}')"></textarea>
+        <div class="char-counter" id="char-count-reply-{{ comment.comment_id }}">0/600</div>
+      </div>
       <button type="submit">Reply</button>
     </form>
 
