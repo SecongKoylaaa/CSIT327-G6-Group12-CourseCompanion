@@ -8,10 +8,12 @@ from supabase import create_client
 from django.http import HttpResponse, HttpResponseForbidden
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from .models import Post
 from .forms import PostForm
 import time
 import secrets
+import os
 
 # --------------------------
 # Initialize Supabase client (use service role if available)
@@ -2314,3 +2316,51 @@ def admin_delete_comment(request):
 def logout_page(request):
     request.session.flush()
     return redirect("/")
+
+
+# --------------------------
+# Diagnostics: env + static
+# --------------------------
+def diagnostics(request):
+    info = {
+        "RENDER": os.environ.get("RENDER"),
+        "DEBUG": settings.DEBUG,
+        "ALLOWED_HOSTS": settings.ALLOWED_HOSTS,
+        "STATIC_URL": settings.STATIC_URL,
+        "STATIC_ROOT": str(getattr(settings, "STATIC_ROOT", "")),
+        "STATICFILES_DIRS": [str(p) for p in getattr(settings, "STATICFILES_DIRS", [])],
+        "WHITENOISE_ENABLED": "whitenoise.middleware.WhiteNoiseMiddleware" in settings.MIDDLEWARE,
+    }
+
+    # Add static assets diagnostics using direct path checks (robust even with Manifest storage)
+    try:
+        assets = [
+            "css/post.css",
+            "js/comments.js",
+            "js/post_menu.js",
+            "js/media_modal.js",
+        ]
+        resolved = {}
+        static_dirs = getattr(settings, "STATICFILES_DIRS", [])
+        for rel in assets:
+            found_path = None
+            size = None
+            for d in static_dirs:
+                candidate = os.path.join(d, rel)
+                if os.path.exists(candidate):
+                    found_path = candidate
+                    try:
+                        size = os.path.getsize(candidate)
+                    except Exception:
+                        size = None
+                    break
+            resolved[rel] = {
+                "found": bool(found_path),
+                "path": found_path,
+                "size": size,
+            }
+        info["assets"] = resolved
+    except Exception as e:
+        info["assets_error"] = str(e)
+
+    return JsonResponse(info)
