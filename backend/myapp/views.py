@@ -46,14 +46,27 @@ SUBJECTS = [
 # Utility: Safe Supabase execute with retries
 # --------------------------
 def safe_execute(request_fn, retries=3, delay=0.1):
+    """Execute Supabase request with automatic retries on transient errors."""
+    last_exception = None
     for attempt in range(retries):
         try:
             return request_fn()
         except Exception as e:
-            if "non-blocking socket" in str(e) or "RemoteProtocolError" in str(e):
-                time.sleep(delay)
-                continue
+            last_exception = e
+            error_str = str(e).lower()
+            error_type = type(e).__name__
+            
+            # Retry on transient network/connection errors
+            if any(keyword in error_str for keyword in ["non-blocking socket", "server disconnected", "connection", "timeout"]) \
+               or any(err_type in error_type for err_type in ["RemoteProtocolError", "ConnectionError", "TimeoutError"]):
+                if attempt < retries - 1:  # Don't sleep on last attempt
+                    time.sleep(delay * (attempt + 1))  # Exponential backoff
+                    continue
+            # Non-transient error, raise immediately
             raise
+    # All retries exhausted, raise last exception
+    if last_exception:
+        raise last_exception
     return request_fn()
 
 # --------------------------
@@ -69,8 +82,11 @@ def get_profile_picture_url(request):
     email = request.session.get("user_email")
     if not email:
         return None
-    resp = supabase.table("users").select("profile_picture").eq("email", email).maybe_single().execute()
-    return resp.data.get("profile_picture") if resp and resp.data else None
+    try:
+        resp = safe_execute(lambda: supabase.table("users").select("profile_picture").eq("email", email).maybe_single().execute())
+        return resp.data.get("profile_picture") if resp and resp.data else None
+    except Exception:
+        return None
 
 # --------------------------
 # Login View
@@ -405,17 +421,17 @@ def home_page(request):
         parent_id = request.POST.get("parent_id")
 
         # Get user_id
-        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+        user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
         user_id = user_resp.data["id"] if user_resp.data else None
 
         if post_id and comment_text and user_id:
-            supabase.table("comments").insert({
+            safe_execute(lambda: supabase.table("comments").insert({
                 "post_id": post_id,
                 "user_id": user_id,
                 "parent_id": parent_id,
                 "text": comment_text,
                 "created_at": datetime.now(timezone.utc).isoformat()
-            }).execute()
+            }).execute())
 
         # Redirect back to the same subject view if available
         if selected_subject:
@@ -1056,7 +1072,7 @@ def create_post_image(request):
                 supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
                     file_path,
                     file_bytes,
-                    file_options={"upsert": True, "contentType": uploaded_file.content_type or "application/octet-stream"}
+                    file_options={"contentType": uploaded_file.content_type or "application/octet-stream", "upsert": "true"}
                 )
             except Exception as up_err:
                 # If duplicate, still proceed by using existing public URL
@@ -1312,7 +1328,7 @@ def profile_page(request):
                                 if nm:
                                     pth = f"{user_folder}/{nm}"
                                     # Removed PFP-DELETE debug logs
-                                    supabase.storage.from_(bucket).upload(pth, b"", file_options={"contentType": "application/octet-stream", "upsert": True})
+                                    supabase.storage.from_(bucket).upload(pth, b"", file_options={"contentType": "application/octet-stream", "upsert": "true"})
                         except Exception as e:
                             # overwrite failed; continue
                             pass
