@@ -112,8 +112,16 @@
 .profile-dropdown {
   position: relative;
 }
+.profile-pic {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    vertical-align: middle;
+}
 
-.profile-btn {
+/* Increase specificity to avoid global button/img overrides */
+button.profile-btn {
   background: #2a2a2a;
   border: none;
   font-size: 22px;
@@ -128,7 +136,7 @@
   transition: all 0.2s ease;
 }
 
-.profile-btn:hover {
+button.profile-btn:hover {
   background-color: #3a3a3a;
 }
 
@@ -167,3 +175,12 @@
 
 /* ===== REMOVE OLD HOVER RULE (this was the issue) ===== */
 /* .profile-dropdown:hover .dropdown-content { display: block; }  <-- removed */
+
+/* Ensure embedded profile image scales correctly within the button */
+button.profile-btn img.profile-pic {
+  width: 32px;
+  height: 32px;
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+}
