@@ -24,6 +24,8 @@ urlpatterns = [
     path('dashboard/api/update-report/', views.admin_update_report, name='admin_update_report'),
     path('dashboard/api/update-comment-report/', views.admin_update_comment_report, name='admin_update_comment_report'),
     path('dashboard/api/all-posts/', views.admin_all_posts, name='admin_all_posts'),
+    path('dashboard/api/user/<int:user_id>/', views.admin_user_details, name='admin_user_details'),
+    path('dashboard/api/update-user/', views.admin_update_user, name='admin_update_user'),
     path('dashboard/api/admin-delete-post/', views.admin_delete_post, name='admin_delete_post'),
     path('dashboard/api/admin-delete-comment/', views.admin_delete_comment, name='admin_delete_comment'),
 

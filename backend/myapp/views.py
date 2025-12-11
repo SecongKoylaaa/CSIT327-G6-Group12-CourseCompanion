@@ -105,6 +105,8 @@ def login_page(request):
             return render(request, "login.html", {"error": "No account found. Please register."})
 
         user = response.data[0]
+        if user.get("role") == "banned":
+            return render(request, "login.html", {"error": "This account has been banned. Please contact support."})
         if not check_password(password, user["password_hash"]):
             return render(request, "login.html", {"error": "Invalid credentials!"})
 
@@ -2287,9 +2289,103 @@ def admin_all_posts(request):
         return JsonResponse({"error": f"Failed to fetch posts: {str(e)}"}, status=500)
 
 
-# --------------------------
-# Admin-only delete post
-# --------------------------
+@csrf_exempt
+def admin_user_details(request, user_id):
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+    if request.method != "GET":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+    try:
+        user_resp = supabase.table("users").select("*").eq("id", user_id).maybe_single().execute()
+        if not user_resp or not getattr(user_resp, "data", None):
+            return JsonResponse({"error": "User not found"}, status=404)
+        u = user_resp.data
+
+        def fmt(dt_val):
+            if not dt_val:
+                return None
+            s = str(dt_val)
+            try:
+                dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+                return dt.strftime("%b %d, %Y %H:%M")
+            except Exception:
+                return s
+
+        user_data = {
+            "id": u.get("id"),
+            "email": u.get("email"),
+            "username": u.get("username"),
+            "role": u.get("role") or "student",
+            "bio": u.get("bio") or "",
+            "profile_picture": u.get("profile_picture"),
+            "date_joined": fmt(u.get("date_joined") or u.get("created_at")),
+            "last_login": fmt(u.get("last_login")),
+        }
+
+        posts_resp = supabase.table("posts").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        posts_raw = posts_resp.data if posts_resp and getattr(posts_resp, "data", None) else []
+        posts = []
+        for p in posts_raw:
+            posts.append({
+                "id": p.get("post_id"),
+                "title": p.get("title") or "(No Title)",
+                "subject": p.get("subject") or p.get("course") or "Unknown",
+                "created_at": fmt(p.get("created_at")),
+                "description": p.get("description") or "",
+            })
+
+        comments_resp = supabase.table("comments").select("comment_id", count="exact").eq("user_id", user_id).execute()
+        comment_count = getattr(comments_resp, "count", 0) or 0
+
+        return JsonResponse({
+            "user": user_data,
+            "posts": posts,
+            "stats": {
+                "post_count": len(posts),
+                "comment_count": comment_count,
+            },
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def admin_update_user(request):
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    user_id = request.POST.get("user_id")
+    action = request.POST.get("action")
+
+    if not user_id or not action:
+        return JsonResponse({"error": "Missing required fields"}, status=400)
+
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Invalid user ID"}, status=400)
+
+    if action not in ["ban", "unban", "delete"]:
+        return JsonResponse({"error": "Invalid action"}, status=400)
+
+    try:
+        if action == "ban":
+            resp = supabase.table("users").update({"role": "banned"}).eq("id", user_id).execute()
+        elif action == "unban":
+            resp = supabase.table("users").update({"role": "student"}).eq("id", user_id).execute()
+        else:
+            resp = supabase.table("users").delete().eq("id", user_id).execute()
+
+        if not resp or getattr(resp, "error", None):
+            return JsonResponse({"error": "Failed to update user"}, status=500)
+
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 @csrf_exempt
 def admin_delete_post(request):
     if request.method != "POST":

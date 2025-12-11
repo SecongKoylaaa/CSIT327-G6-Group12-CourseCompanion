@@ -78,6 +78,20 @@
           </div>
         </div>
       </div>
+
+      <div id="userDetailModal" class="modal">
+        <div class="modal-content user-modal">
+          <div class="modal-header">
+            <h3 id="userModalTitle">User Details</h3>
+            <button class="close-modal" onclick="closeUserModal()">&times;</button>
+          </div>
+          <div class="modal-body" id="userModalBody">
+          </div>
+          <div class="modal-footer" id="userModalFooter">
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <div id="users-tab" class="tab-content">
@@ -91,7 +105,11 @@
         </div>
         <div class="users-list">
           {% for user in users %}
-          <div class="user-card" data-username="{{ user.username|default:user.email }}" data-email="{{ user.email }}">
+          <div class="user-card"
+               data-user-id="{{ user.id }}"
+               data-username="{{ user.username|default:user.email }}"
+               data-email="{{ user.email }}"
+               data-role="{{ user.role|default:'student' }}">
             <div class="user-avatar">
               <i class="fas fa-user-circle"></i>
             </div>
@@ -99,6 +117,11 @@
               <h4>{{ user.username|default:"No username" }}</h4>
               <p>{{ user.email }}</p>
               <small>Joined: {{ user.date_joined|default:user.created_at|date:"M d, Y" }}</small>
+              <div>
+                <span class="user-role-label user-role-{{ user.role|default:'student' }}">
+                  Role: {{ user.role|default:'student'|title }}
+                </span>
+              </div>
             </div>
             <div class="user-actions">
               <button class="btn btn-sm btn-secondary" onclick="viewUserDetails('{{ user.id }}')">

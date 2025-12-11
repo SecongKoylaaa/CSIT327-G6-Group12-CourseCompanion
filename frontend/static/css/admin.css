@@ -305,6 +305,33 @@
   gap: 0.5rem;
 }
 
+.user-role-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 0.35rem;
+}
+
+.user-role-student {
+  background: #ecf5ff;
+  color: #1b6ac9;
+}
+
+.user-role-admin {
+  background: #fef5e6;
+  color: #b4690e;
+}
+
+.user-role-banned {
+  background: #fdecea;
+  color: #b3261e;
+}
+
 /* ======================= SUBJECTS TAB ======================= */
 .subjects-grid {
   display: grid;
@@ -597,6 +624,10 @@
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
 }
 
+.modal-content.user-modal {
+  max-width: 900px;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -629,6 +660,82 @@
   padding: 2rem;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+.user-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr);
+  gap: 1.75rem;
+}
+
+.user-profile-summary {
+  border-right: 1px solid #ecf0f1;
+  padding-right: 1.5rem;
+}
+
+.user-modal-avatar {
+  font-size: 3.5rem;
+  color: #3498db;
+  margin-bottom: 0.75rem;
+}
+
+.user-modal-email {
+  margin: 0.25rem 0 0.5rem 0;
+  color: #7f8c8d;
+  font-size: 0.95rem;
+}
+
+.user-meta p {
+  margin: 0.15rem 0;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.user-bio {
+  margin-top: 0.75rem;
+  color: #555;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.user-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.user-post-history h4 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: #2c3e50;
+}
+
+.user-post-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.user-post-item {
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border-left: 3px solid #3498db;
+}
+
+.user-post-title {
+  font-size: 0.95rem;
+  color: #2c3e50;
+  margin-bottom: 0.1rem;
+}
+
+.user-post-meta {
+  font-size: 0.8rem;
+  color: #7f8c8d;
 }
 
 .posts-list {

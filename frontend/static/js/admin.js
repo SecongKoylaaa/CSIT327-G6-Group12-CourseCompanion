@@ -484,8 +484,169 @@ function adminDeleteComment(commentId) {
 
 // View User Details
 function viewUserDetails(userId) {
-    // This could open a modal with more user details
-    alert(`User details view for user ID: ${userId}\n\nThis feature could be expanded to show:\n- User profile\n- Post history\n- Activity log\n- Ban/unban options`);
+    const modal = document.getElementById('userDetailModal');
+    const titleEl = document.getElementById('userModalTitle');
+    const bodyEl = document.getElementById('userModalBody');
+    const footerEl = document.getElementById('userModalFooter');
+
+    if (!modal || !titleEl || !bodyEl || !footerEl) {
+        console.error('User detail modal elements not found');
+        return;
+    }
+
+    titleEl.textContent = 'Loading user...';
+    bodyEl.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading user details...</div>';
+    footerEl.innerHTML = '';
+
+    fetch(`/dashboard/api/user/${userId}/`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || data.error) {
+                throw new Error(data && data.error ? data.error : 'Failed to load user');
+            }
+
+            const user = data.user || {};
+            const stats = data.stats || {};
+            const posts = Array.isArray(data.posts) ? data.posts : [];
+
+            const role = (user.role || 'student').toLowerCase();
+            const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+            const joined = user.date_joined || 'Unknown';
+            const lastLogin = user.last_login || 'Never';
+            const bio = user.bio || '';
+
+            titleEl.textContent = user.username || user.email || 'User Details';
+
+            let postsHtml = '';
+            if (posts.length > 0) {
+                const limited = posts.slice(0, 10);
+                postsHtml = '<ul class="user-post-list">' +
+                    limited.map(p => {
+                        const subj = p.subject || 'Unknown';
+                        const created = p.created_at || '';
+                        return `
+                            <li class="user-post-item">
+                                <div class="user-post-title">${escapeHtml(p.title || '(No Title)')}</div>
+                                <div class="user-post-meta">${escapeHtml(subj)} • ${escapeHtml(created)}</div>
+                            </li>
+                        `;
+                    }).join('') +
+                    '</ul>';
+            } else {
+                postsHtml = '<p class="no-data">No posts yet.</p>';
+            }
+
+            bodyEl.innerHTML = `
+                <div class="user-modal-grid">
+                    <div class="user-profile-summary">
+                        <div class="user-modal-avatar"><i class="fas fa-user-circle"></i></div>
+                        <h4>${escapeHtml(user.username || user.email || 'User')}</h4>
+                        <p class="user-modal-email">${escapeHtml(user.email || '')}</p>
+                        <span class="user-role-label user-role-${role}">Role: ${escapeHtml(roleLabel)}</span>
+                        <div class="user-meta">
+                            <p><strong>Joined:</strong> ${escapeHtml(joined)}</p>
+                            <p><strong>Last login:</strong> ${escapeHtml(lastLogin)}</p>
+                        </div>
+                        ${bio ? `<p class="user-bio">${escapeHtml(bio)}</p>` : ''}
+                        <div class="user-stats">
+                            <div><strong>Posts:</strong> ${stats.post_count || 0}</div>
+                            <div><strong>Comments:</strong> ${stats.comment_count || 0}</div>
+                        </div>
+                    </div>
+                    <div class="user-post-history">
+                        <h4>Recent Posts</h4>
+                        ${postsHtml}
+                    </div>
+                </div>
+            `;
+
+            const isBanned = role === 'banned';
+            const banAction = isBanned ? 'unban' : 'ban';
+            const banLabel = isBanned ? 'Unban User' : 'Ban User';
+
+            footerEl.innerHTML = `
+                <button class="btn btn-secondary btn-sm" type="button" onclick="closeUserModal()">Close</button>
+                <button class="btn btn-warning btn-sm" type="button" onclick="adminUpdateUser('${user.id}', '${banAction}')">${banLabel}</button>
+                <button class="btn btn-danger btn-sm" type="button" onclick="adminUpdateUser('${user.id}', 'delete')">Delete User</button>
+            `;
+        })
+        .catch(error => {
+            console.error('Error loading user details:', error);
+            titleEl.textContent = 'User Details';
+            bodyEl.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i><p>${escapeHtml(error.message || 'Failed to load user details')}</p></div>`;
+            footerEl.innerHTML = `
+                <button class="btn btn-secondary btn-sm" type="button" onclick="closeUserModal()">Close</button>
+            `;
+        });
+
+    modal.style.display = 'block';
+}
+
+function closeUserModal() {
+    const modal = document.getElementById('userDetailModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function adminUpdateUser(userId, action) {
+    let confirmText = '';
+    if (action === 'ban') {
+        confirmText = 'Are you sure you want to ban this user? They will no longer be able to log in.';
+    } else if (action === 'unban') {
+        confirmText = 'Are you sure you want to unban this user?';
+    } else if (action === 'delete') {
+        confirmText = 'Are you sure you want to permanently delete this user? This action cannot be undone.';
+    } else {
+        return;
+    }
+
+    if (!confirm(confirmText)) {
+        return;
+    }
+
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        alert('CSRF token not found. Please refresh the page.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('user_id', userId);
+    formData.append('action', action);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+
+    fetch('/dashboard/api/update-user/', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || data.error) {
+                throw new Error(data && data.error ? data.error : 'Failed to update user');
+            }
+            closeUserModal();
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error updating user:', error);
+            alert(`Error updating user: ${error.message || error}`);
+        });
 }
 
 // Helper function to escape HTML
@@ -497,9 +658,13 @@ function escapeHtml(text) {
 
 // Close modals when clicking outside
 window.onclick = function(event) {
-    const modal = document.getElementById('subjectModal');
-    if (event.target === modal) {
+    const subjectModal = document.getElementById('subjectModal');
+    if (event.target === subjectModal) {
         closeSubjectModal();
+    }
+    const userModal = document.getElementById('userDetailModal');
+    if (event.target === userModal) {
+        closeUserModal();
     }
 }
 
@@ -507,6 +672,7 @@ window.onclick = function(event) {
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         closeSubjectModal();
+        closeUserModal();
     }
 });
 
