@@ -1834,9 +1834,9 @@ def admin_page(request):
         print(f"Posts response: {posts_resp}")
         posts = posts_resp.data if posts_resp.data else []
         print(f"Total posts found: {len(posts)}")
-        
-        # Count posts by subject
-        posts_by_subject = {}
+
+        # Initialize posts_by_subject so ALL configured subjects appear, even with zero posts
+        posts_by_subject = {subj: [] for subj in SUBJECTS}
         for post in posts:
             subject = post.get("course", post.get("subject", "Unknown"))
             if subject not in posts_by_subject:
@@ -2114,6 +2114,8 @@ def admin_subject_posts(request):
         return JsonResponse({"error": "Unauthorized"}, status=403)
     
     subject = request.GET.get("subject", "")
+    search = (request.GET.get("search") or "").strip()
+    sort = (request.GET.get("sort") or "new").lower()
     if not subject:
         return JsonResponse({"error": "Subject parameter required"}, status=400)
     
@@ -2127,7 +2129,24 @@ def admin_subject_posts(request):
 
         raw_posts = posts_resp.data if posts_resp.data else []
 
-        # Build full objects matching home.html needs
+        # Compute simple "top" score for each post from post_votes
+        post_ids = [p.get("post_id") for p in raw_posts if p.get("post_id")]
+        score_map = {}
+        if post_ids:
+            votes_resp = supabase.table("post_votes").select("*").in_("post_id", post_ids).execute()
+            for v in votes_resp.data or []:
+                pid = v.get("post_id")
+                if not pid:
+                    continue
+                if pid not in score_map:
+                    score_map[pid] = 0
+                vt = v.get("vote_type")
+                if vt == "up":
+                    score_map[pid] += 1
+                elif vt == "down":
+                    score_map[pid] -= 1
+
+        # Build full objects used by the admin UI
         full_posts = []
         for p in raw_posts:
             author_email = "unknown@example.com"
@@ -2137,11 +2156,15 @@ def admin_subject_posts(request):
                     author_email = u.data["email"]
 
             url = (p.get("content") or "").rstrip("?")
-            is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
-            is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+            lower_url = url.lower()
+            is_image = lower_url.endswith((".jpg", ".jpeg", ".png", ".gif"))
+            is_video = lower_url.endswith((".mp4", ".webm", ".ogg"))
+
+            pid = p.get("post_id")
+            score = score_map.get(pid, 0)
 
             full_posts.append({
-                "id": p.get("post_id"),
+                "id": pid,
                 "title": p.get("title") or "(No Title)",
                 "description": p.get("description") or "",
                 "url": url,
@@ -2151,7 +2174,28 @@ def admin_subject_posts(request):
                 "author": author_email,
                 "is_image": is_image,
                 "is_video": is_video,
+                "score": score,
             })
+
+        # Apply optional search filter (title, description, or author)
+        if search:
+            term = search.lower()
+
+            def matches(post):
+                title = (post.get("title") or "").lower()
+                desc = (post.get("description") or "").lower()
+                author = (post.get("author") or "").lower()
+                return term in title or term in desc or term in author
+
+            full_posts = [p for p in full_posts if matches(p)]
+
+        # Apply sort mode
+        if sort == "old":
+            full_posts.sort(key=lambda p: str(p.get("created_at") or ""))
+        elif sort == "top":
+            full_posts.sort(key=lambda p: (p.get("score", 0), str(p.get("created_at") or "")), reverse=True)
+        else:  # default: new
+            full_posts.sort(key=lambda p: str(p.get("created_at") or ""), reverse=True)
 
         return JsonResponse({"posts": full_posts})
         
@@ -2349,12 +2393,46 @@ def admin_user_details(request, user_id):
                 "is_video": is_video,
             })
 
-        comments_resp = supabase.table("comments").select("comment_id", count="exact").eq("user_id", user_id).execute()
-        comment_count = getattr(comments_resp, "count", 0) or 0
+        # Fetch this user's comments; never let failures here break the whole endpoint
+        comments = []
+        comment_count = 0
+        try:
+            comments_resp = supabase.table("comments").select("*", count="exact").eq("user_id", user_id).order("created_at", desc=True).execute()
+            comments_raw = comments_resp.data if comments_resp and getattr(comments_resp, "data", None) else []
+            comment_count = getattr(comments_resp, "count", 0) or 0
+
+            # Map posts for these comments to get title and subject
+            comment_post_ids = list({c.get("post_id") for c in comments_raw if c.get("post_id")})
+            posts_by_id = {}
+            if comment_post_ids:
+                posts_title_resp = supabase.table("posts").select("post_id", "title", "subject", "course").in_("post_id", comment_post_ids).execute()
+                if posts_title_resp and getattr(posts_title_resp, "data", None):
+                    for p in posts_title_resp.data or []:
+                        posts_by_id[p.get("post_id")] = p
+
+            for c in comments_raw:
+                post_id = c.get("post_id")
+                post_meta = posts_by_id.get(post_id, {})
+                comments.append({
+                    "comment_id": c.get("comment_id"),
+                    "post_id": post_id,
+                    "post_title": post_meta.get("title") or "(No Title)",
+                    "post_subject": post_meta.get("subject") or post_meta.get("course") or "Unknown",
+                    "text": c.get("text") or "",
+                    "created_at": fmt(c.get("created_at")),
+                })
+        except Exception as ce:
+            # Log but do not fail the entire user details API
+            print(f"Error fetching comments for admin_user_details user_id={user_id}: {ce}")
+            import traceback
+            traceback.print_exc()
+            comments = []
+            comment_count = 0
 
         return JsonResponse({
             "user": user_data,
             "posts": posts,
+            "comments": comments,
             "stats": {
                 "post_count": len(posts),
                 "comment_count": comment_count,

@@ -147,8 +147,8 @@ function getCSRFToken() {
     return cookieValue ? cookieValue.split('=')[1] : '';
 }
 
-// Subject Details Modal - FIXED: Better error handling
-function showSubjectDetails(subject) {
+// Subject Details Modal - with search and sort
+function showSubjectDetails(subject, options = {}) {
     const modal = document.getElementById('subjectModal');
     const modalTitle = document.getElementById('subjectModalTitle');
     const modalBody = document.getElementById('subjectModalBody');
@@ -158,11 +158,24 @@ function showSubjectDetails(subject) {
         return;
     }
 
+    const sort = options.sort || 'new';
+    const search = options.search || '';
+
     modalTitle.textContent = subject + ' Posts';
     modalBody.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading posts...</div>';
 
-    // Fetch posts for this subject
-    fetch(`/dashboard/api/subject-posts/?subject=${encodeURIComponent(subject)}`)
+    // Build query params for search and sort
+    const params = new URLSearchParams();
+    params.set('subject', subject);
+    if (search) {
+        params.set('search', search);
+    }
+    if (sort) {
+        params.set('sort', sort);
+    }
+
+    // Fetch posts for this subject with filters
+    fetch(`/dashboard/api/subject-posts/?${params.toString()}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -176,8 +189,21 @@ function showSubjectDetails(subject) {
 
             const posts = Array.isArray(data.posts) ? data.posts : [];
 
+            let controlsHtml = `
+                <div class="subject-modal-controls">
+                    <div class="subject-search">
+                        <input type="text" id="subject-search-input" placeholder="Search posts in ${escapeHtml(subject)}" value="${escapeHtml(search)}" />
+                    </div>
+                    <div class="subject-sort-group">
+                        <button type="button" class="subject-sort-btn ${sort === 'new' ? 'active' : ''}" data-sort="new">New</button>
+                        <button type="button" class="subject-sort-btn ${sort === 'old' ? 'active' : ''}" data-sort="old">Old</button>
+                        <button type="button" class="subject-sort-btn ${sort === 'top' ? 'active' : ''}" data-sort="top">Top</button>
+                    </div>
+                </div>
+            `;
+
             if (posts.length > 0) {
-                let postsHTML = '<div class="posts-list">';
+                let postsHTML = controlsHtml + '<div class="posts-list">';
                 posts.forEach(post => {
                     const title = post.title || 'Untitled Post';
                     const author = post.author || 'Unknown';
@@ -235,8 +261,25 @@ function showSubjectDetails(subject) {
                 });
                 postsHTML += '</div>';
                 modalBody.innerHTML = postsHTML;
+
+                // Wire up search and sort controls
+                const searchInput = document.getElementById('subject-search-input');
+                if (searchInput) {
+                    searchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            showSubjectDetails(subject, { sort, search: searchInput.value.trim() });
+                        }
+                    });
+                }
+
+                document.querySelectorAll('.subject-sort-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const nextSort = btn.getAttribute('data-sort');
+                        showSubjectDetails(subject, { sort: nextSort, search: searchInput ? searchInput.value.trim() : '' });
+                    });
+                });
             } else {
-                modalBody.innerHTML = '<div class="no-data"><i class="fas fa-file-alt"></i><p>No posts found for this subject.</p></div>';
+                modalBody.innerHTML = controlsHtml + '<div class="no-data"><i class="fas fa-file-alt"></i><p>No posts found for this subject.</p></div>';
             }
         })
         .catch(error => {
@@ -561,6 +604,7 @@ function viewUserDetails(userId) {
             const user = data.user || {};
             const stats = data.stats || {};
             const posts = Array.isArray(data.posts) ? data.posts : [];
+            const comments = Array.isArray(data.comments) ? data.comments : [];
 
             const role = (user.role || 'student').toLowerCase();
             const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
@@ -570,14 +614,14 @@ function viewUserDetails(userId) {
 
             titleEl.textContent = user.username || user.email || 'User Details';
 
+            // Build posts list
             let postsHtml = '';
             if (posts.length > 0) {
-                const limited = posts.slice(0, 10);
                 postsHtml = '<ul class="user-post-list">' +
-                    limited.map(p => {
+                    posts.map(p => {
                         const subj = p.subject || 'Unknown';
                         const created = p.created_at || '';
-                        const title = p.title || '(No Title)';
+                        const titleText = p.title || '(No Title)';
                         const description = p.description || '';
                         const url = p.url || '';
 
@@ -614,7 +658,7 @@ function viewUserDetails(userId) {
 
                         return `
                             <li class="user-post-item">
-                                <div class="user-post-title">${escapeHtml(title)}</div>
+                                <div class="user-post-title">${escapeHtml(titleText)}</div>
                                 <div class="user-post-meta">${escapeHtml(subj)} • ${escapeHtml(created)}</div>
                                 ${descriptionHtml}
                                 ${mediaHtml}
@@ -624,6 +668,34 @@ function viewUserDetails(userId) {
                     '</ul>';
             } else {
                 postsHtml = '<p class="no-data">No posts yet.</p>';
+            }
+
+            // Build comments list
+            let commentsHtml = '';
+            if (comments.length > 0) {
+                commentsHtml = '<ul class="user-comment-list">' +
+                    comments.map(c => {
+                        const created = c.created_at || '';
+                        const text = c.text || '';
+                        const postTitle = c.post_title || '(No Title)';
+                        const postSubject = c.post_subject || 'Unknown';
+
+                        const snippet = text.length > 220 ? text.slice(0, 220) + '...' : text;
+
+                        return `
+                            <li class="user-comment-item">
+                                <div class="user-comment-post">
+                                    <span class="user-comment-post-subject">${escapeHtml(postSubject)}</span>
+                                    <span class="user-comment-post-title">${escapeHtml(postTitle)}</span>
+                                </div>
+                                <div class="user-comment-meta">${escapeHtml(created)}</div>
+                                <p class="user-comment-text">${escapeHtml(snippet)}</p>
+                            </li>
+                        `;
+                    }).join('') +
+                    '</ul>';
+            } else {
+                commentsHtml = '<p class="no-data">No comments yet.</p>';
             }
 
             bodyEl.innerHTML = `
@@ -644,11 +716,45 @@ function viewUserDetails(userId) {
                         </div>
                     </div>
                     <div class="user-post-history">
-                        <h4>Recent Posts</h4>
-                        ${postsHtml}
+                        <div class="user-activity-toggle">
+                            <button type="button" class="user-activity-btn active" data-section="posts">
+                                <i class="fas fa-sticky-note"></i>
+                                <span>Posts</span>
+                            </button>
+                            <button type="button" class="user-activity-btn" data-section="comments">
+                                <i class="fas fa-comments"></i>
+                                <span>Comments</span>
+                            </button>
+                        </div>
+                        <div class="user-activity-sections">
+                            <div class="user-activity-section user-activity-section-posts active">
+                                <h4>Posts</h4>
+                                ${postsHtml}
+                            </div>
+                            <div class="user-activity-section user-activity-section-comments">
+                                <h4>Comments</h4>
+                                ${commentsHtml}
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
+
+            // Wire up Posts/Comments toggle inside the modal
+            const toggleButtons = bodyEl.querySelectorAll('.user-activity-btn');
+            const sections = bodyEl.querySelectorAll('.user-activity-section');
+            toggleButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const target = btn.getAttribute('data-section');
+                    toggleButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    sections.forEach(sec => sec.classList.remove('active'));
+                    const targetSection = bodyEl.querySelector(`.user-activity-section-${target}`);
+                    if (targetSection) {
+                        targetSection.classList.add('active');
+                    }
+                });
+            });
 
             const isBanned = role === 'banned';
             const banAction = isBanned ? 'unban' : 'ban';
