@@ -356,6 +356,14 @@ input:focus {
   min-height: 18px;
 }
 
+.field-hint {
+  display: block;
+  color: #6c757d;
+  font-size: 12px;
+  margin-top: 6px;
+  font-style: italic;
+}
+
 /* ===================================
    RESPONSIVE
 =================================== */

@@ -33,6 +33,13 @@
         </div>
 
         <div class="input-group">
+          <label for="username">Username</label>
+          <input type="text" name="username" id="username" placeholder="Choose a username" required minlength="3" maxlength="20" pattern="[a-zA-Z0-9_-]+" title="Username can only contain letters, numbers, underscores, and hyphens" autocomplete="username">
+          <div id="usernameError" class="field-error"></div>
+          <small class="field-hint">3-20 characters, letters, numbers, _ and - only</small>
+        </div>
+
+        <div class="input-group">
           <label for="password">Password</label>
           <div class="password-wrapper">
             <input type="password" name="password" id="password" placeholder="••••••••" required maxlength="30" autocomplete="new-password">

@@ -38,7 +38,8 @@
             <div>
               <p>
                 <span class="subject-tag subject-{{ post.course|slugify }}">{{ post.course }}</span>
-                • {{ post.author }} • {{ post.created_at }}
+                {% if post.post_type %}<span class="type-tag type-{{ post.post_type|lower }}">{{ post.post_type|title }}</span>{% endif %}
+                • {{ post.author_name }} • {{ post.created_at }}
               </p>
               <h3>{{ post.title }}</h3>
             </div>
@@ -64,12 +65,10 @@
           </div>
 
           <!-- POST CONTENT -->
-          {% if post.post_type %}
-            <p class="post-type">Type: {{ post.post_type }}</p>
-          {% endif %}
+          
 
           {% if post.description %}
-            <p class="post-description">{{ post.description }}</p>
+            <p class="post-description">{{ post.description|safe }}</p>
           {% endif %}
 
           {% if post.is_image %}
