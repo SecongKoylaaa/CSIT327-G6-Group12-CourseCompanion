@@ -15,6 +15,7 @@ import json
 import time
 import secrets
 import os
+import re
 
 # --------------------------
 # Initialize Supabase client (use service role if available)
@@ -152,16 +153,31 @@ def register_page(request):
     if request.method == "POST":
         MAX_EMAIL_LENGTH = 50
         MAX_PASSWORD_LENGTH = 30
+        USERNAME_MIN_LENGTH = 3
+        USERNAME_MAX_LENGTH = 20
 
         email = request.POST.get("email", "").strip()
+        username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "").strip()
         confirm = request.POST.get("confirmPassword", "").strip()
 
         # Validation
-        if not email or not password or not confirm:
+        if not email or not username or not password or not confirm:
             return render(request, "register.html", {"error": "All fields are required."})
         if len(email) > MAX_EMAIL_LENGTH:
             return render(request, "register.html", {"error": "Email is too long."})
+        if len(username) < USERNAME_MIN_LENGTH or len(username) > USERNAME_MAX_LENGTH:
+            return render(
+                request,
+                "register.html",
+                {"error": f"Username must be {USERNAME_MIN_LENGTH}-{USERNAME_MAX_LENGTH} characters long."}
+            )
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", username):
+            return render(
+                request,
+                "register.html",
+                {"error": "Username can only contain letters, numbers, underscores, and hyphens."}
+            )
         if len(password) > MAX_PASSWORD_LENGTH:
             return render(request, "register.html", {"error": "Password is too long."})
         if password != confirm:
@@ -171,18 +187,18 @@ def register_page(request):
         try:
             existing = safe_execute(lambda: supabase.table("users").select("*").eq("email", email).execute())
             if existing.data:
-                return render(request, "register.html", {"error": "Account already exists. Please login."})
+                return render(request, "register.html", {"error": "Account already exists with that email. Please login."})
         except Exception as e:
             return render(request, "register.html", {"error": f"Database error: {str(e)}"})
 
-        # Insert User
+        # Insert User (username stored; DB enforces unique email/username and lower(username) index)
         password_hash = make_password(password)
         date_joined = datetime.now(timezone.utc).isoformat()
         try:
             response = safe_execute(lambda: supabase.table("users").insert({
                 "email": email,
                 "password_hash": password_hash,
-                "username": None,
+                "username": username,
                 "role": "student",
                 "profile_picture": None,
                 "bio": None,
@@ -190,8 +206,20 @@ def register_page(request):
                 "date_joined": date_joined
             }).execute())
             if getattr(response, "error", None):
+                err_text = str(response.error)
+                if "users_email_key" in err_text:
+                    return render(request, "register.html", {"error": "Email is already in use."})
+                if "users_username_key" in err_text or "users_username_lower_idx" in err_text:
+                    return render(request, "register.html", {"error": "Username is already taken."})
                 return render(request, "register.html", {"error": f"Error registering: {response.error}"})
         except Exception as e:
+            err = str(e)
+            if "duplicate key value" in err or "23505" in err:
+                if "users_email_key" in err:
+                    return render(request, "register.html", {"error": "Email is already in use."})
+                if "users_username_key" in err or "users_username_lower_idx" in err:
+                    return render(request, "register.html", {"error": "Username is already taken."})
+                return render(request, "register.html", {"error": "Email or username already exists."})
             return render(request, "register.html", {"error": f"Error registering: {str(e)}"})
 
         return redirect("/login/")
