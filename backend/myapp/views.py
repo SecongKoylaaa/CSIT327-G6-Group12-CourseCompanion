@@ -388,10 +388,20 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
     for c in comments:
         if c.get("parent_id") == parent_id_val:
             # Get author info (retry on transient disconnects)
-            user_resp = safe_execute(lambda: supabase.table("users").select("email, role").eq("id", c["user_id"]).maybe_single().execute())
-            author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else "anonymous@example.com"
-            author_role = (user_resp.data.get("role") if user_resp and user_resp.data else None) or None
+            user_resp = safe_execute(lambda: supabase.table("users").select("email, role, username").eq("id", c["user_id"]).maybe_single().execute())
+            author_email = user_resp.data["email"] if user_resp and getattr(user_resp, "data", None) and "email" in user_resp.data else "anonymous@example.com"
+            author_role = (user_resp.data.get("role") if user_resp and getattr(user_resp, "data", None) else None) or None
             is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
+
+            # Determine display name: prefer username; otherwise show email
+            author_username = None
+            author_display = author_email
+            if user_resp and getattr(user_resp, "data", None):
+                raw_username = user_resp.data.get("username")
+                if isinstance(raw_username, str):
+                    author_username = raw_username.strip()
+                if author_username:
+                    author_display = author_username
 
             # Fetch votes (retry on transient disconnects)
             votes_resp = safe_execute(lambda: supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute())
@@ -413,7 +423,9 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
             # Build comment object
             comment_obj = {
                 "comment_id": c["comment_id"],
-                "author": author_email,
+                "user_id": c.get("user_id"),
+                "author": author_display,
+                "author_email": author_email,
                 "author_role": author_role,
                 "is_verified": is_verified,
                 "text": c["text"],
@@ -534,10 +546,6 @@ def home_page(request):
 
 
     formatted_posts = []
-    # Track UnknownN placeholders to ensure uniqueness and consistency per author on this page
-    unknown_map = {}
-    unknown_index = 1
-    used_names = set()
 
     for post in posts:
         title = post.get("title") or "(No Title)"
@@ -546,6 +554,7 @@ def home_page(request):
         description = post.get("description", "")
         post_id = post.get("post_id")
         author_id = post.get("user_id")
+        updated_at = post.get("updated_at")
 
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
@@ -558,31 +567,18 @@ def home_page(request):
         author_display = None
         if author_id:
             author_resp = safe_execute(lambda: supabase.table("users").select("email, role, username").eq("id", author_id).maybe_single().execute())
-            if author_resp.data and "email" in author_resp.data:
-                author_email = author_resp.data["email"]
             if author_resp and getattr(author_resp, "data", None):
+                author_email = author_resp.data.get("email", "anonymous@example.com")
                 author_role = author_resp.data.get("role")
                 is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
                 raw_username = author_resp.data.get("username")
                 author_username = (raw_username or "").strip() if isinstance(raw_username, str) else None
 
-        # Determine display name: prefer username; otherwise assign a unique UnknownN per author for this page
+        # Determine display name: prefer username; otherwise show email
         if author_username:
             author_display = author_username
-            used_names.add(author_display)
         else:
-            if author_id in unknown_map:
-                author_display = unknown_map[author_id]
-            else:
-                # generate a unique placeholder not in used_names
-                while True:
-                    candidate = f"Unknown{unknown_index}"
-                    unknown_index += 1
-                    if candidate not in used_names:
-                        unknown_map[author_id] = candidate
-                        author_display = candidate
-                        used_names.add(candidate)
-                        break
+            author_display = author_email
 
         # -----------------------------
         # Fetch votes for this post
@@ -615,6 +611,7 @@ def home_page(request):
             "url": url,
             "description": description,
             "created_at": time_since(post.get("created_at")),
+            "edited": bool(updated_at),
             "author": author_email,
             "author_name": author_display,
             "author_role": author_role,
@@ -705,7 +702,12 @@ def comments_for_post(request, post_id):
     selected_subject = request.GET.get("subject") or None
     html = render_to_string(
         "comments.html",
-        {"post": post_ctx, "selected_subject": selected_subject, "user_email": user_email},
+        {
+            "post": post_ctx,
+            "selected_subject": selected_subject,
+            "user_email": user_email,
+            "current_user_id": user_id,
+        },
         request=request,
     )
     return HttpResponse(html)

@@ -24,7 +24,7 @@
         <span class="comment-menu-btn" onclick="toggleCommentMenu('{{ comment.comment_id }}')">⋯</span>
 
         <div class="comment-menu" id="comment-menu-{{ comment.comment_id }}" style="display:none;">
-          {% if user_email == comment.author %}
+          {% if current_user_id and current_user_id == comment.user_id %}
             <button type="button" class="edit-btn" onclick="toggleEditForm('{{ comment.comment_id }}')">Edit</button>
 
             <form method="POST" action="{% url 'delete_comment' comment.comment_id %}" style="display:inline;">

@@ -39,7 +39,7 @@
               <p>
                 <span class="subject-tag subject-{{ post.course|slugify }}">{{ post.course }}</span>
                 {% if post.post_type %}<span class="type-tag type-{{ post.post_type|lower }}">{{ post.post_type|title }}</span>{% endif %}
-                • {{ post.author_name }} • {{ post.created_at }}
+                • {{ post.author_name }} • {{ post.created_at }} {% if post.edited %}[edited]{% endif %}
               </p>
               <h3>{{ post.title }}</h3>
             </div>
