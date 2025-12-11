@@ -1768,4 +1768,28 @@ def diagnostics(request):
         "STATICFILES_DIRS": [str(p) for p in getattr(settings, "STATICFILES_DIRS", [])],
         "WHITENOISE_ENABLED": "whitenoise.middleware.WhiteNoiseMiddleware" in settings.MIDDLEWARE,
     }
+
+    # Add static assets diagnostics via finders
+    try:
+        from django.contrib.staticfiles import finders
+        import os
+        assets = [
+            "css/post.css",
+            "js/comments.js",
+            "js/post_menu.js",
+            "js/media_modal.js",
+        ]
+        resolved = {}
+        for rel in assets:
+            p = finders.find(rel)
+            ok = bool(p and os.path.exists(p))
+            resolved[rel] = {
+                "found": ok,
+                "path": p,
+                "size": os.path.getsize(p) if ok else None,
+            }
+        info["assets"] = resolved
+    except Exception as e:
+        info["assets_error"] = str(e)
+
     return JsonResponse(info)
