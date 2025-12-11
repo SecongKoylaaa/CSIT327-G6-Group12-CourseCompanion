@@ -72,7 +72,9 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default="sqlite:///db.sqlite3",
-        conn_max_age=600,
+        # Use short-lived connections to play well with poolers (pgBouncer)
+        # Set via env var DJANGO_DB_CONN_MAX_AGE if needed; default 0 closes per request
+        conn_max_age=int(os.environ.get("DJANGO_DB_CONN_MAX_AGE", "0")),
         ssl_require=True
     )
 }
