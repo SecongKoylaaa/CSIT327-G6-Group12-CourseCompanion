@@ -1,82 +1,112 @@
-/* === Register Page Specific Styles === */
-
-.error {
-  color: red;
-  font-size: 14px;
-  margin-top: 8px;
-  margin-bottom: 8px;
+/* AUTH BOX STYLE (same aesthetic for login/register) */
+.auth-box {
+  max-width: 380px;
+  padding: 30px;
+  margin: 60px auto;
+  background: #1e1e1e;
+  border-radius: 18px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.45);
   text-align: center;
+  color: white;
 }
 
-.success {
-  color: green;
-  font-size: 14px;
-  margin-top: 4px;
-  text-align: center;
+.auth-logo {
+  width: 70px;
+  margin-bottom: 10px;
+  filter: invert(100%);
 }
 
-/* Password visibility eye icon alignment */
+.auth-box h2 {
+  margin-bottom: 18px;
+  font-size: 1.5em;
+  font-weight: 600;
+}
+
+/* Inputs */
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 12px 14px;
+  padding-right: 40px;
+  margin: 10px 0;
+  border-radius: 10px;
+  border: 1px solid #444;
+  background: #2b2b2b;
+  color: white;
+  font-size: 0.95em;
+  transition: 0.2s;
+}
+
+input:focus {
+  outline: none;
+  border-color: #1877f2;
+  background: #323232;
+}
+
+/* Password wrapper */
 .password-container {
   position: relative;
-}
-
-.password-container input {
   width: 100%;
-  padding-right: 40px; /* space for the eye icon */
-  height: 42px; /* ⬅️ ensures consistent height (adjust if your inputs differ) */
 }
 
-/* 👇 Adjusted for perfect centering */
+/* Eye icon */
 .show-password {
   position: absolute;
   right: 12px;
-  transform: translateY(-48%); /* ⬅️ move slightly up to visually center */
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
+  color: #bbb;
   font-size: 18px;
-  color: #ccc; /* match with input style */
-  line-height: 1;
   padding: 0;
 }
 
-.password-container .show-password {
-  position: absolute;
-  top: 15%;
-  right: 10px;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: white;
-  font-size: 18px;
-  padding: 0;
-  width: auto;
-  z-index: 10;
-}
-
-/* optional hover effect */
 .show-password:hover {
-  color: #fff;
-}
-
-/* Remove margin for email and select */
-input[type="email"],
-select {
-  margin: 0 !important;
-}
-
-.password-container .show-password {
-  position: absolute;
-  top: 15%;
-  right: 10px;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  cursor: pointer;
   color: white;
-  font-size: 18px;
-  padding: 0;
-  width: auto;
-  z-index: 10;
+}
+
+/* Submit Button */
+.auth-btn {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px;
+  background: #1877f2;
+  border: none;
+  color: white;
+  border-radius: 12px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.auth-btn:hover {
+  background: #0f65d7;
+  transform: scale(1.02);
+}
+
+/* Links */
+.links {
+  margin-top: 10px;
+  color: #ccc;
+}
+
+.links a {
+  color: #4da3ff;
+  text-decoration: none;
+}
+
+.links a:hover {
+  text-decoration: underline;
+}
+
+/* Errors */
+.error {
+  color: #ff5555;
+  font-size: 13px;
+  margin-top: 2px;
+  text-align: left;
+  padding-left: 4px;
 }

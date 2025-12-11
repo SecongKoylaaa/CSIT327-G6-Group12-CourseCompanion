@@ -1,0 +1,82 @@
+/* === Register Page Specific Styles === */
+
+.error {
+  color: red;
+  font-size: 14px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.success {
+  color: green;
+  font-size: 14px;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* Password visibility eye icon alignment */
+.password-container {
+  position: relative;
+}
+
+.password-container input {
+  width: 100%;
+  padding-right: 40px; /* space for the eye icon */
+  height: 42px; /* ⬅️ ensures consistent height (adjust if your inputs differ) */
+}
+
+/* 👇 Adjusted for perfect centering */
+.show-password {
+  position: absolute;
+  right: 12px;
+  transform: translateY(-48%); /* ⬅️ move slightly up to visually center */
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #ccc; /* match with input style */
+  line-height: 1;
+  padding: 0;
+}
+
+.password-container .show-password {
+  position: absolute;
+  top: 15%;
+  right: 10px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: white;
+  font-size: 18px;
+  padding: 0;
+  width: auto;
+  z-index: 10;
+}
+
+/* optional hover effect */
+.show-password:hover {
+  color: #fff;
+}
+
+/* Remove margin for email and select */
+input[type="email"],
+select {
+  margin: 0 !important;
+}
+
+.password-container .show-password {
+  position: absolute;
+  top: 15%;
+  right: 10px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: white;
+  font-size: 18px;
+  padding: 0;
+  width: auto;
+  z-index: 10;
+}

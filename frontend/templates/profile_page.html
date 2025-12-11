@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
   <link rel="stylesheet" href="{% static 'css/profile_page.css' %}">
   <link rel="stylesheet" href="{% static 'css/post.css' %}">
+  <link rel="stylesheet" href="{% static 'css/edit_modal.css' %}">
 </head>
   <body>
     
@@ -164,8 +165,30 @@
             {% for post in user_posts %}
               <div class="post">
                 <div class="post-content">
-                  <p><b>{{ post.course }}</b> • {{ post.created_at }}</p>
-                  <h3>{{ post.title }}</h3>
+                  <!-- POST HEADER (match home structure) -->
+                  <div class="post-header" style="display:flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <p>
+                        <span class="subject-tag subject-{{ post.course|slugify }}">{{ post.course }}</span>
+                        • {{ user.email }} • {{ post.created_at }}
+                      </p>
+                      <h3>{{ post.title }}</h3>
+                    </div>
+
+                    <!-- POST MENU (author options on profile) -->
+                    <div class="post-menu-wrapper">
+                      <span class="post-menu-btn" onclick="togglePostMenu('{{ post.id }}')">⋯</span>
+                      <div class="post-menu" id="post-menu-{{ post.id }}">
+                        <!-- Author options only -->
+                        <button type="button" class="edit-btn" onclick="openEditModal('{{ post.id }}'); event.stopPropagation();">Edit</button>
+                        <form method="POST" action="{% url 'delete_post' post.id %}">
+                          {% csrf_token %}
+                          <button type="submit" class="delete-btn" onclick="return confirm('Delete this post?')">Delete</button>
+                        </form>
+                        <button type="button" class="report-btn" onclick="reportPost('{{ post.id }}'); event.stopPropagation();">Report</button>
+                      </div>
+                    </div>
+                  </div>
 
                   {% if post.post_type %}
                     <p class="post-type">Type: {{ post.post_type }}</p>
@@ -176,7 +199,7 @@
                   {% endif %}
 
                   {% if post.is_image %}
-                    <img src="{{ post.url }}" alt="Post Image" class="post-thumbnail clickable-media">
+                    <img src="{{ post.url }}" alt="Post Image" class="post-thumbnail clickable-media" loading="lazy">
                   {% elif post.is_video %}
                     <video src="{{ post.url }}" class="post-thumbnail clickable-media" controls muted></video>
                   {% elif post.url %}
@@ -184,12 +207,14 @@
                   {% endif %}
 
                   <div class="actions" data-post-id="{{ post.id }}" data-user-vote="{{ post.user_vote|default:'' }}">
-                    <button class="vote-btn upvote {% if post.user_vote == 'upvote' %}active-upvote{% endif %}"
-                            onclick="votePost('{{ post.id }}', 'upvote', this)">⬆️</button>
+                    <button class="vote-btn upvote {% if post.user_vote == 'upvote' %}active-upvote{% endif %}" 
+                            onclick="votePost('{{ post.id }}', 'upvote', this)" 
+                            aria-label="Upvote">⬆️</button>
                     <span class="vote-count" id="vote-count-{{ post.id }}">{{ post.vote_count }}</span>
-                    <button class="vote-btn downvote {% if post.user_vote == 'downvote' %}active-downvote{% endif %}"
-                            onclick="votePost('{{ post.id }}', 'downvote', this)">⬇️</button>
-                    <!-- comments section intentionally omitted on profile page -->
+                    <button class="vote-btn downvote {% if post.user_vote == 'downvote' %}active-downvote{% endif %}" 
+                            onclick="votePost('{{ post.id }}', 'downvote', this)" 
+                            aria-label="Downvote">⬇️</button>
+                    <span class="share-btn" onclick="sharePost('{{ post.id }}')">🔗 Share</span>
                   </div>
                 </div>
               </div>
@@ -231,13 +256,103 @@
     {% endif %}
     {% endblock %}
 
+    <!-- Scripts: load after modals to ensure elements exist -->
     <script src="{% static 'js/profile_page.js' %}"></script>
+    <script src="{% static 'js/media_modal.js' %}"></script>
+    <script src="{% static 'js/post_menu.js' %}"></script>
+    <script src="{% static 'js/edit_modal.js' %}"></script>
+    <script src="{% static 'js/report_modal.js' %}"></script>
+    
+    <!-- Share helper: mirror Home behavior -->
+    <script>
+      function sharePost(postId){
+        try {
+          const url = `${window.location.origin}/home/#post-${postId}`;
+          // Always copy to clipboard to avoid Edge's share popup
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => {
+              alert('Post link copied to clipboard');
+            });
+            return;
+          }
+          // Fallback
+          const tmp = document.createElement('input');
+          tmp.value = url;
+          document.body.appendChild(tmp);
+          tmp.select();
+          document.execCommand('copy');
+          document.body.removeChild(tmp);
+          alert('Post link copied to clipboard');
+        } catch(e){
+          console.error('Share failed', e);
+        }
+      }
+    </script>
     
     <!-- IMAGE & VIDEO MODAL (same behavior as home.html) -->
     <div id="mediaModal" class="media-modal">
       <span class="close-modal">&times;</span>
       <img id="modalImage" class="modal-content" style="display:none;">
       <video id="modalVideo" class="modal-content" controls style="display:none;"></video>
+    </div>
+
+    <!-- EDIT POST MODAL (match home) -->
+    <div id="editPostModal" class="edit-modal" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+      <div class="modal-content-edit">
+        <div class="modal-header">
+          <h3 id="modal-title">Edit Post</h3>
+          <button class="close-edit-modal" onclick="closeEditModal()" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="editPostForm" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div id="edit-form-fields"></div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+          <button type="submit" form="editPostForm" class="btn btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORT POST MODAL (match home) -->
+    <div id="reportPostModal" class="edit-modal" role="dialog" aria-labelledby="report-modal-title" aria-modal="true">
+      <div class="modal-content-edit">
+        <div class="modal-header">
+          <h3 id="report-modal-title">Report Post</h3>
+          <button class="close-edit-modal" onclick="closeReportModal()" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="reportPostForm" method="POST">
+            {% csrf_token %}
+            <input type="hidden" id="report_post_id" name="post_id">
+            <div class="form-group">
+              <label for="violation_type">Reason for reporting:</label>
+              <select id="violation_type" name="violation_type" required>
+                <option value="">Please select a reason...</option>
+                <option value="inappropriate_content">Inappropriate Content</option>
+                <option value="harassment">Harassment</option>
+                <option value="spam">Spam</option>
+                <option value="plagiarism">Plagiarism</option>
+                <option value="misinformation">Misinformation</option>
+                <option value="hate_speech">Hate Speech</option>
+                <option value="violence">Violence or Threats</option>
+                <option value="copyright">Copyright Violation</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="report_details">Additional details (optional):</label>
+              <textarea id="report_details" name="details" rows="4" placeholder="Please provide any additional context that might help us review this report..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeReportModal()">Cancel</button>
+          <button type="submit" form="reportPostForm" class="btn btn-primary" onclick="submitReport()">Submit Report</button>
+        </div>
+      </div>
     </div>
 
     <script>
