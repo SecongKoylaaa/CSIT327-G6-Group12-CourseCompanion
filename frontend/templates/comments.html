@@ -1,6 +1,6 @@
 <div class="expanded-section">
   <div class="comments-area">
-    <h4>Comments</h4>
+    <h4>{% if post.is_forum %}Answers{% else %}Comments{% endif %}</h4>
 
     <div class="comment-sort">
       <div class="sort-dropdown">
@@ -17,9 +17,9 @@
 
     <div class="comments-list" id="comments-list-{{ post.id }}">
       {% for comment in post.comments %}
-        {% include "comment_thread.html" with comment=comment post_id=post.id level=1 %}
+        {% include "comment_thread.html" with comment=comment post_id=post.id level=1 is_forum=post.is_forum best_answer_id=post.best_answer_id post_author_id=post.user_id %}
       {% empty %}
-        <p class="no-comments">No comments yet.</p>
+        <p class="no-comments">{% if post.is_forum %}No answers yet.{% else %}No comments yet.{% endif %}</p>
       {% endfor %}
     </div>
 
@@ -29,7 +29,7 @@
       {% if selected_subject %}
         <input type="hidden" name="subject" value="{{ selected_subject }}">
       {% endif %}
-      <textarea name="comment" placeholder="Add a comment..." required></textarea>
+      <textarea name="comment" placeholder="{% if post.is_forum %}Add an answer...{% else %}Add a comment...{% endif %}" required></textarea>
       <button type="submit">Post</button>
     </form>
   </div>

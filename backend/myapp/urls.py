@@ -53,4 +53,7 @@ urlpatterns = [
     path('comment/delete/<int:comment_id>/', views.delete_comment, name='delete_comment'),
     path('vote_comment/<int:comment_id>/<str:vote_type>/', views.vote_comment, name='vote_comment'),
     
+    # BEST ANSWER
+    path('post/<int:post_id>/mark-best-answer/<int:comment_id>/', views.mark_best_answer, name='mark_best_answer'),
+    
 ]

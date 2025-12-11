@@ -39,8 +39,17 @@
               <p>
                 <span class="subject-tag subject-{{ post.course|slugify }}">{{ post.course }}</span>
                 • {{ post.author }} • {{ post.created_at }}
+                {% if post.is_forum %}
+                  {% if post.status == 'open' %}
+                    <span class="status-badge status-open">🟢 Open</span>
+                  {% elif post.status == 'answered' %}
+                    <span class="status-badge status-answered">🟡 Answered</span>
+                  {% elif post.status == 'solved' %}
+                    <span class="status-badge status-solved">✅ Solved</span>
+                  {% endif %}
+                {% endif %}
               </p>
-              <h3>{{ post.title }}</h3>
+              <h3>{% if post.is_forum %}Question: {% endif %}{{ post.title }}</h3>
             </div>
 
             <!-- POST MENU (visible to all users with different options) -->

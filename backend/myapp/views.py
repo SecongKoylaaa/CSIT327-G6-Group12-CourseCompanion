@@ -536,13 +536,17 @@ def home_page(request):
             "is_image": is_image,
             "is_video": is_video,
             "comments": nested_comments,
-                "upvote_count": upvotes,
+            "upvote_count": upvotes,
             "vote_count": net_votes,
             "user_vote": user_vote,
             # comment_count fetched lazily (approximate from table)
             "comment_count": safe_execute(lambda: supabase.table("comments").select("comment_id", count="exact").eq("post_id", post_id).execute()).count or 0,
             # owner of the post, used to control author-only UI (3-dots menu)
             "user_id": author_id,
+            # Forum Q&A fields
+            "is_forum": post.get("is_forum", False),
+            "status": post.get("status"),
+            "best_answer_id": post.get("best_answer_id"),
         })
 
     # Pull and clear any success message (e.g., from profile edit)
@@ -609,15 +613,27 @@ def comments_for_post(request, post_id):
 
     nested = build_comment_tree(dedup_comments, user_id=user_id)
 
+    # Fetch post data for is_forum and best_answer_id
+    post_resp = safe_execute(lambda: supabase.table("posts").select("is_forum, best_answer_id, user_id").eq("post_id", post_id).maybe_single().execute())
+    post_data = post_resp.data if post_resp.data else {}
+
     post_ctx = {
         "id": post_id,
-        "comments": nested
+        "comments": nested,
+        "is_forum": post_data.get("is_forum", False),
+        "best_answer_id": post_data.get("best_answer_id"),
+        "user_id": post_data.get("user_id"),  # Post author ID for marking best answer
     }
     # Include selected_subject and render with request to inject CSRF token
     selected_subject = request.GET.get("subject") or None
     html = render_to_string(
         "comments.html",
-        {"post": post_ctx, "selected_subject": selected_subject, "user_email": user_email},
+        {
+            "post": post_ctx, 
+            "selected_subject": selected_subject, 
+            "user_email": user_email,
+            "current_user_id": user_id,  # Current logged-in user
+        },
         request=request,
     )
     return HttpResponse(html)
@@ -993,6 +1009,7 @@ def create_post_text(request):
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
         subject = request.POST.get("subject", "").strip()
+        is_forum = request.POST.get("is_forum") == "true"
 
         # Enforce max lengths
         if len(title) > 300:
@@ -1012,14 +1029,19 @@ def create_post_text(request):
 
         # Insert post
         try:
-            supabase.table("posts").insert({
+            post_data = {
                 "title": title,
                 "description": description,
                 "content": "",
                 "post_type": post_type,
                 "user_id": user_id,
-                "subject": subject
-            }).execute()
+                "subject": subject,
+                "is_forum": is_forum
+            }
+            if is_forum:
+                post_data["status"] = "open"
+            
+            supabase.table("posts").insert(post_data).execute()
 
             return render(request, "create-post-text.html", {
                 "success": "Post created successfully!",
@@ -1064,6 +1086,7 @@ def create_post_image(request):
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
         subject = request.POST.get("subject", "").strip()   # changed from course → subject
+        is_forum = request.POST.get("is_forum") == "true"
         uploaded_file = request.FILES.get("fileUpload")
 
         # Validate
@@ -1111,14 +1134,19 @@ def create_post_image(request):
 
         # Insert post record
         try:
-            supabase.table("posts").insert({
+            post_data = {
                 "title": title,
                 "description": description,
                 "content": file_url,
                 "post_type": post_type,
                 "subject": subject,       # SAVE SUBJECT HERE
-                "user_id": user_id
-            }).execute()
+                "user_id": user_id,
+                "is_forum": is_forum
+            }
+            if is_forum:
+                post_data["status"] = "open"
+            
+            supabase.table("posts").insert(post_data).execute()
 
             preview_type = "video" if uploaded_file.content_type.startswith("video") else "image"
 
@@ -1169,6 +1197,7 @@ def create_post_link(request):
         post_type = request.POST.get("post_type", "").strip()
         subject = request.POST.get("subject", "").strip()
         url = request.POST.get("url", "").strip()
+        is_forum = request.POST.get("is_forum") == "true"
 
         # Required fields check
         if not title or not post_type or not subject or not url:
@@ -1186,15 +1215,18 @@ def create_post_link(request):
 
         try:
             # Insert post
-            supabase.table("posts").insert(
-                {
-                    "title": title,
-                    "content": url,  # For link posts, URL = content
-                    "post_type": post_type,
-                    "subject": subject,
-                    "user_id": user_id
-                }
-            ).execute()
+            post_data = {
+                "title": title,
+                "content": url,  # For link posts, URL = content
+                "post_type": post_type,
+                "subject": subject,
+                "user_id": user_id,
+                "is_forum": is_forum
+            }
+            if is_forum:
+                post_data["status"] = "open"
+            
+            supabase.table("posts").insert(post_data).execute()
             
             return render(
                 request,
@@ -2404,3 +2436,53 @@ def diagnostics(request):
         info["assets_error"] = str(e)
 
     return JsonResponse(info)
+
+# --------------------------
+# Mark Best Answer (Forum Q&A)
+# --------------------------
+def mark_best_answer(request, post_id, comment_id):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+    
+    if "user_email" not in request.session:
+        return JsonResponse({"success": False, "error": "Not authenticated"}, status=401)
+    
+    user_email = request.session.get("user_email")
+    
+    try:
+        # Get user ID
+        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+        if not user_resp.data:
+            return JsonResponse({"success": False, "error": "User not found"}, status=404)
+        user_id = user_resp.data["id"]
+        
+        # Get post and verify it's a forum post owned by this user
+        post_resp = supabase.table("posts").select("id, user_id, is_forum").eq("id", post_id).maybe_single().execute()
+        if not post_resp.data:
+            return JsonResponse({"success": False, "error": "Post not found"}, status=404)
+        
+        post = post_resp.data
+        if not post.get("is_forum"):
+            return JsonResponse({"success": False, "error": "Not a forum post"}, status=400)
+        
+        if post["user_id"] != user_id:
+            return JsonResponse({"success": False, "error": "Only post author can mark best answer"}, status=403)
+        
+        # Verify comment exists and belongs to this post
+        comment_resp = supabase.table("comments").select("id, post_id").eq("id", comment_id).maybe_single().execute()
+        if not comment_resp.data:
+            return JsonResponse({"success": False, "error": "Comment not found"}, status=404)
+        
+        if comment_resp.data["post_id"] != post_id:
+            return JsonResponse({"success": False, "error": "Comment does not belong to this post"}, status=400)
+        
+        # Update post with best_answer_id and status
+        supabase.table("posts").update({
+            "best_answer_id": comment_id,
+            "status": "solved"
+        }).eq("id", post_id).execute()
+        
+        return JsonResponse({"success": True})
+        
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
