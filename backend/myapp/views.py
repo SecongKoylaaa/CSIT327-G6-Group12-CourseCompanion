@@ -445,8 +445,33 @@ def home_page(request):
     if selected_subject:
         posts_query = posts_query.eq("subject", selected_subject)
 
-    response = safe_execute(lambda: posts_query.order("created_at", desc=True).range(start, end).execute())
+    sort = (request.GET.get("sort") or "new").lower()
+    ordered_query = posts_query
+    if sort == "new":
+        ordered_query = posts_query.order("created_at", desc=True)
+    elif sort == "old":
+        ordered_query = posts_query.order("created_at", desc=False)
+
+    response = safe_execute(lambda: ordered_query.range(start, end).execute())
     posts = response.data if response.data else []
+
+    if sort == "top" and posts:
+        post_ids = [p.get("post_id") for p in posts if p.get("post_id")]
+        score_map = {}
+        if post_ids:
+            votes_resp = supabase.table("post_votes").select("*").in_("post_id", post_ids).execute()
+            for v in votes_resp.data or []:
+                pid = v.get("post_id")
+                if pid is None:
+                    continue
+                if pid not in score_map:
+                    score_map[pid] = 0
+                vt = v.get("vote_type")
+                if vt == "up":
+                    score_map[pid] += 1
+                elif vt == "down":
+                    score_map[pid] -= 1
+        posts.sort(key=lambda p: score_map.get(p.get("post_id"), 0), reverse=True)
 
     # Get current user ID for vote detection
     user_id = None
@@ -543,6 +568,7 @@ def home_page(request):
         # Communities / subjects sidebar data
         "subjects": SUBJECTS,
         "selected_subject": selected_subject,
+        "current_sort": sort,
         # pagination controls
         "page": page,
         "has_next": len(posts) == page_size,

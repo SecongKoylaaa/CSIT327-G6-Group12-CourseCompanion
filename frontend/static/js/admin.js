@@ -21,10 +21,7 @@ let dashboardData = {
 // Fetch dashboard data from Supabase
 async function fetchDashboardData() {
     try {
-        // Show loading state
-        document.querySelectorAll('.dashboard-box h3').forEach(el => {
-            el.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        });
+        // Keep current counts visible; update after fetch completes
 
         // Fetch counts in parallel
         const [usersData, postsData, reportsData, subjectsData] = await Promise.all([
