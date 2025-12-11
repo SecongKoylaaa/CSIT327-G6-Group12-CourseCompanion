@@ -184,3 +184,12 @@ button.profile-btn img.profile-pic {
   border-radius: 50%;
   object-fit: cover;
 }
+
+/* Reinforce in navbar context to beat generic img/button resets on deploy */
+.navbar .profile-dropdown button.profile-btn img.profile-pic {
+  width: 32px;
+  height: 32px;
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+}
