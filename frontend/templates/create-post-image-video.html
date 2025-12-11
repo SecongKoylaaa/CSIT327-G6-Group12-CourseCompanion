@@ -116,7 +116,7 @@
               </svg>
               Description
             </label>
-            <textarea name="description" id="description" maxlength="1000" placeholder="Share more details...">{{ description|default:'' }}</textarea>
+            <div class="rte-toolbar"><button type="button" class="rte-btn" data-cmd="bold"><b>B</b></button><button type="button" class="rte-btn" data-cmd="italic"><i>I</i></button><button type="button" class="rte-btn" data-cmd="underline"><u>U</u></button><span class="rte-sep"></span><button type="button" class="rte-btn" data-cmd="justifyLeft">Left</button><button type="button" class="rte-btn" data-cmd="justifyCenter">Center</button><button type="button" class="rte-btn" data-cmd="justifyRight">Right</button><span class="rte-sep"></span><button type="button" class="rte-btn" data-cmd="insertUnorderedList"> List</button><button type="button" class="rte-btn" data-cmd="insertOrderedList">1. List</button></div><div id="descEditor" class="rte-editor" contenteditable="true">{{ description|default:'|safe }}</div><textarea name="description" id="description" style="display:none;" maxlength="1000" placeholder="Share more details...">{{ description|default:'' }}</textarea>
             <div class="char-count" id="desc-count">{{ description|length|default:0 }}/1000</div>
           </div>
 
@@ -401,5 +401,20 @@
   }
 </script>
 
+<script>
+(function(){
+  const editor = document.getElementById('descEditor');
+  const hidden = document.getElementById('description');
+  const counter = document.getElementById('desc-count');
+  const MAX = 1000;
+  function updateCount(){ if(!editor||!counter) return; const t=(editor.innerText||''); counter.textContent = `${t.length}/${MAX}`; counter.classList.toggle('char-limit-reached', t.length>=MAX); }
+  document.querySelectorAll('.rte-btn').forEach(b=>b.addEventListener('click',()=>{ document.execCommand(b.dataset.cmd,false,null); editor&&editor.focus(); updateCount(); }));
+  const form = document.getElementById('post-form');
+  if(form && editor && hidden){ form.addEventListener('submit',()=>{ hidden.value = (editor.innerHTML||'').trim(); }); }
+  editor && editor.addEventListener('input', updateCount);
+  updateCount();
+})();
+</script>
 </body>
 </html>
+

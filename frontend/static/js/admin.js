@@ -8,7 +8,6 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
 // Dashboard data cache
 let dashboardData = {
     totalUsers: 0,
@@ -22,10 +21,7 @@ let dashboardData = {
 // Fetch dashboard data from Supabase
 async function fetchDashboardData() {
     try {
-        // Show loading state
-        document.querySelectorAll('.dashboard-box h3').forEach(el => {
-            el.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        });
+        // Keep current counts visible; update after fetch completes
 
         // Fetch counts in parallel
         const [usersData, postsData, reportsData, subjectsData] = await Promise.all([
@@ -111,18 +107,19 @@ function showTab(tabName, event) {
 
 // User Search
 function searchUsers() {
-    const searchTerm = document.getElementById('user-search').value.toLowerCase();
+    const searchTerm = (document.getElementById('user-search')?.value || '').toLowerCase();
+    const roleFilter = (document.getElementById('user-role-filter')?.value || 'all').toLowerCase();
     const userCards = document.querySelectorAll('.user-card');
-    
+
     userCards.forEach(card => {
-        const username = card.dataset.username || '';
-        const email = card.dataset.email || '';
-        
-        if (username.includes(searchTerm) || email.includes(searchTerm)) {
-            card.style.display = 'flex';
-        } else {
-            card.style.display = 'none';
-        }
+        const username = (card.dataset.username || '').toLowerCase();
+        const email = (card.dataset.email || '').toLowerCase();
+        const role = (card.dataset.role || 'student').toLowerCase();
+
+        const matchesSearch = !searchTerm || username.includes(searchTerm) || email.includes(searchTerm);
+        const matchesRole = roleFilter === 'all' || role === roleFilter;
+
+        card.style.display = (matchesSearch && matchesRole) ? 'flex' : 'none';
     });
 }
 
@@ -148,22 +145,35 @@ function getCSRFToken() {
     return cookieValue ? cookieValue.split('=')[1] : '';
 }
 
-// Subject Details Modal - FIXED: Better error handling
-function showSubjectDetails(subject) {
+// Subject Details Modal - with search and sort
+function showSubjectDetails(subject, options = {}) {
     const modal = document.getElementById('subjectModal');
     const modalTitle = document.getElementById('subjectModalTitle');
     const modalBody = document.getElementById('subjectModalBody');
-    
+
     if (!modal || !modalTitle || !modalBody) {
         console.error('Modal elements not found');
         return;
     }
-    
+
+    const sort = options.sort || 'new';
+    const search = options.search || '';
+
     modalTitle.textContent = subject + ' Posts';
     modalBody.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading posts...</div>';
-    
-    // Fetch posts for this subject
-    fetch(`/dashboard/api/subject-posts/?subject=${encodeURIComponent(subject)}`)
+
+    // Build query params for search and sort
+    const params = new URLSearchParams();
+    params.set('subject', subject);
+    if (search) {
+        params.set('search', search);
+    }
+    if (sort) {
+        params.set('sort', sort);
+    }
+
+    // Fetch posts for this subject with filters
+    fetch(`/dashboard/api/subject-posts/?${params.toString()}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -174,33 +184,107 @@ function showSubjectDetails(subject) {
             if (data.error) {
                 throw new Error(data.error);
             }
-            
-            if (data.posts && data.posts.length > 0) {
-                let postsHTML = '<div class="posts-list">';
-                data.posts.forEach(post => {
-                    const postDate = post.created_at ? new Date(post.created_at).toLocaleDateString() : 'Unknown date';
-                    const postContent = post.content ? post.content.substring(0, 200) : '';
-                    const contentEllipsis = post.content && post.content.length > 200 ? '...' : '';
-                    
+
+            const posts = Array.isArray(data.posts) ? data.posts : [];
+
+            let controlsHtml = `
+                <div class="subject-modal-controls">
+                    <div class="subject-search">
+                        <input type="text" id="subject-search-input" placeholder="Search posts in ${escapeHtml(subject)}" value="${escapeHtml(search)}" />
+                    </div>
+                    <div class="subject-sort-group">
+                        <button type="button" class="subject-sort-btn ${sort === 'new' ? 'active' : ''}" data-sort="new">New</button>
+                        <button type="button" class="subject-sort-btn ${sort === 'old' ? 'active' : ''}" data-sort="old">Old</button>
+                        <button type="button" class="subject-sort-btn ${sort === 'top' ? 'active' : ''}" data-sort="top">Top</button>
+                    </div>
+                </div>
+            `;
+
+            if (posts.length > 0) {
+                let postsHTML = controlsHtml + '<div class="posts-list">';
+                posts.forEach(post => {
+                    const title = post.title || 'Untitled Post';
+                    const author = post.author || 'Unknown';
+
+                    let createdDisplay = 'Unknown date';
+                    if (post.created_at) {
+                        try {
+                            createdDisplay = new Date(post.created_at).toLocaleString();
+                        } catch (e) {
+                            createdDisplay = String(post.created_at);
+                        }
+                    }
+
+                    const description = post.description || '';
+                    let descriptionHtml = '';
+                    if (description) {
+                        const snippet = description.length > 200 ? description.slice(0, 200) + '...' : description;
+                        descriptionHtml = `<p class="post-content">${escapeHtml(snippet)}</p>`;
+                    }
+
+                    let mediaHtml = '';
+                    const url = post.url || '';
+                    if (url) {
+                        const safeUrl = escapeHtml(url);
+                        if (post.is_image) {
+                            mediaHtml = `
+                                <div class="report-media">
+                                    <img src="${safeUrl}" alt="Post image">
+                                </div>
+                            `;
+                        } else if (post.is_video) {
+                            mediaHtml = `
+                                <div class="report-media">
+                                    <video src="${safeUrl}" controls muted></video>
+                                </div>
+                            `;
+                        } else {
+                            mediaHtml = `
+                                <p class="post-content">
+                                    <strong>Link:</strong>
+                                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>
+                                </p>
+                            `;
+                        }
+                    }
+
                     postsHTML += `
                         <div class="post-item">
-                            <h4>${escapeHtml(post.title || 'Untitled Post')}</h4>
-                            <p>By: ${escapeHtml(post.username || 'Unknown')} • ${postDate}</p>
-                            ${postContent ? `<p class="post-content">${escapeHtml(postContent)}${contentEllipsis}</p>` : ''}
+                            <h4>${escapeHtml(title)}</h4>
+                            <p>By: ${escapeHtml(author)} • ${escapeHtml(createdDisplay)}</p>
+                            ${descriptionHtml}
+                            ${mediaHtml}
                         </div>
                     `;
                 });
                 postsHTML += '</div>';
                 modalBody.innerHTML = postsHTML;
+
+                // Wire up search and sort controls
+                const searchInput = document.getElementById('subject-search-input');
+                if (searchInput) {
+                    searchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            showSubjectDetails(subject, { sort, search: searchInput.value.trim() });
+                        }
+                    });
+                }
+
+                document.querySelectorAll('.subject-sort-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const nextSort = btn.getAttribute('data-sort');
+                        showSubjectDetails(subject, { sort: nextSort, search: searchInput ? searchInput.value.trim() : '' });
+                    });
+                });
             } else {
-                modalBody.innerHTML = '<div class="no-data"><i class="fas fa-file-alt"></i><p>No posts found for this subject.</p></div>';
+                modalBody.innerHTML = controlsHtml + '<div class="no-data"><i class="fas fa-file-alt"></i><p>No posts found for this subject.</p></div>';
             }
         })
         .catch(error => {
             console.error('Error fetching subject posts:', error);
             modalBody.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i><p>Error loading posts: ${escapeHtml(error.message)}</p></div>`;
         });
-    
+
     modal.style.display = 'block';
 }
 
@@ -211,19 +295,87 @@ function closeSubjectModal() {
     }
 }
 
-// Report Filter
-function filterReports() {
-    const filterValue = document.getElementById('report-filter').value;
-    const reportCards = document.querySelectorAll('.report-card');
-    
-    reportCards.forEach(card => {
-        const status = card.dataset.status;
-        
-        if (filterValue === 'all' || status === filterValue) {
-            card.style.display = 'block';
-        } else {
-            card.style.display = 'none';
+// Toggle between Post Reports and Comment Reports
+function showReportSection(sectionName) {
+    const postSection = document.getElementById('post-reports-section');
+    const commentSection = document.getElementById('comment-reports-section');
+
+    if (!postSection || !commentSection) {
+        return;
+    }
+
+    const postBtn = document.getElementById('toggle-post-reports');
+    const commentBtn = document.getElementById('toggle-comment-reports');
+
+    if (sectionName === 'posts') {
+        postSection.classList.add('active');
+        commentSection.classList.remove('active');
+        if (postBtn) postBtn.classList.add('active');
+        if (commentBtn) commentBtn.classList.remove('active');
+    } else if (sectionName === 'comments') {
+        commentSection.classList.add('active');
+        postSection.classList.remove('active');
+        if (commentBtn) commentBtn.classList.add('active');
+        if (postBtn) postBtn.classList.remove('active');
+    }
+
+    const activeSection = sectionName === 'posts' ? postSection : commentSection;
+    if (activeSection) {
+        const list = activeSection.querySelector('.reports-list');
+        if (list) {
+            list.scrollTop = 0;
         }
+    }
+}
+
+// Report Filters (Posts & Comments)
+function filterReports() {
+    // Convenience wrapper if we ever want to re-use a global filter
+    filterPostReports();
+    filterCommentReports();
+}
+
+function filterPostReports() {
+    const section = document.getElementById('post-reports-section');
+    if (!section) return;
+
+    const searchInput = document.getElementById('post-report-search');
+    const filterSelect = document.getElementById('post-report-filter');
+
+    const term = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const statusFilter = filterSelect ? filterSelect.value : 'all';
+
+    const cards = section.querySelectorAll('.report-card');
+    cards.forEach(card => {
+        const status = (card.dataset.status || '').toLowerCase();
+        const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+        const text = card.textContent ? card.textContent.toLowerCase() : '';
+        const matchesSearch = !term || text.includes(term);
+
+        card.style.display = matchesStatus && matchesSearch ? 'block' : 'none';
+    });
+}
+
+function filterCommentReports() {
+    const section = document.getElementById('comment-reports-section');
+    if (!section) return;
+
+    const searchInput = document.getElementById('comment-report-search');
+    const filterSelect = document.getElementById('comment-report-filter');
+
+    const term = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const statusFilter = filterSelect ? filterSelect.value : 'all';
+
+    const cards = section.querySelectorAll('.report-card');
+    cards.forEach(card => {
+        const status = (card.dataset.status || '').toLowerCase();
+        const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+        const text = card.textContent ? card.textContent.toLowerCase() : '';
+        const matchesSearch = !term || text.includes(term);
+
+        card.style.display = matchesStatus && matchesSearch ? 'block' : 'none';
     });
 }
 
@@ -417,8 +569,301 @@ function adminDeleteComment(commentId) {
 
 // View User Details
 function viewUserDetails(userId) {
-    // This could open a modal with more user details
-    alert(`User details view for user ID: ${userId}\n\nThis feature could be expanded to show:\n- User profile\n- Post history\n- Activity log\n- Ban/unban options`);
+    const modal = document.getElementById('userDetailModal');
+    const titleEl = document.getElementById('userModalTitle');
+    const bodyEl = document.getElementById('userModalBody');
+    const footerEl = document.getElementById('userModalFooter');
+
+    if (!modal || !titleEl || !bodyEl || !footerEl) {
+        console.error('User detail modal elements not found');
+        return;
+    }
+
+    titleEl.textContent = 'Loading user...';
+    bodyEl.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading user details...</div>';
+    footerEl.innerHTML = '';
+
+    const url = `/dashboard/api/user/${userId}/?t=${Date.now()}`;
+
+    fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || data.error) {
+                throw new Error(data && data.error ? data.error : 'Failed to load user');
+            }
+
+            const user = data.user || {};
+            const stats = data.stats || {};
+            const posts = Array.isArray(data.posts) ? data.posts : [];
+            const comments = Array.isArray(data.comments) ? data.comments : [];
+
+            const role = (user.role || 'student').toLowerCase();
+            const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+            const joined = user.date_joined || 'Unknown';
+            const lastLogin = user.last_login || 'Never';
+            const bio = user.bio || '';
+
+            titleEl.textContent = user.username || user.email || 'User Details';
+
+            // Build posts list
+            let postsHtml = '';
+            if (posts.length > 0) {
+                postsHtml = '<ul class="user-post-list">' +
+                    posts.map(p => {
+                        const subj = p.subject || 'Unknown';
+                        const created = p.created_at || '';
+                        const titleText = p.title || '(No Title)';
+                        const description = p.description || '';
+                        const url = p.url || '';
+
+                        let descriptionHtml = '';
+                        if (description) {
+                            const snippet = description.length > 200 ? description.slice(0, 200) + '...' : description;
+                            descriptionHtml = `<p class="post-content">${escapeHtml(snippet)}</p>`;
+                        }
+
+                        let mediaHtml = '';
+                        if (url) {
+                            const safeUrl = escapeHtml(url);
+                            if (p.is_image) {
+                                mediaHtml = `
+                                    <div class="report-media">
+                                        <img src="${safeUrl}" alt="Post image">
+                                    </div>
+                                `;
+                            } else if (p.is_video) {
+                                mediaHtml = `
+                                    <div class="report-media">
+                                        <video src="${safeUrl}" controls muted></video>
+                                    </div>
+                                `;
+                            } else {
+                                mediaHtml = `
+                                    <p class="post-content">
+                                        <strong>Link:</strong>
+                                        <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>
+                                    </p>
+                                `;
+                            }
+                        }
+
+                        return `
+                            <li class="user-post-item">
+                                <div class="user-post-title">${escapeHtml(titleText)}</div>
+                                <div class="user-post-meta">${escapeHtml(subj)} • ${escapeHtml(created)}</div>
+                                ${descriptionHtml}
+                                ${mediaHtml}
+                            </li>
+                        `;
+                    }).join('') +
+                    '</ul>';
+            } else {
+                postsHtml = '<p class="no-data">No posts yet.</p>';
+            }
+
+            // Build comments list
+            let commentsHtml = '';
+            if (comments.length > 0) {
+                commentsHtml = '<ul class="user-comment-list">' +
+                    comments.map(c => {
+                        const created = c.created_at || '';
+                        const text = c.text || '';
+                        const postTitle = c.post_title || '(No Title)';
+                        const postSubject = c.post_subject || 'Unknown';
+
+                        const snippet = text.length > 220 ? text.slice(0, 220) + '...' : text;
+
+                        return `
+                            <li class="user-comment-item">
+                                <div class="user-comment-post">
+                                    <span class="user-comment-post-subject">${escapeHtml(postSubject)}</span>
+                                    <span class="user-comment-post-title">${escapeHtml(postTitle)}</span>
+                                </div>
+                                <div class="user-comment-meta">${escapeHtml(created)}</div>
+                                <p class="user-comment-text">${escapeHtml(snippet)}</p>
+                            </li>
+                        `;
+                    }).join('') +
+                    '</ul>';
+            } else {
+                commentsHtml = '<p class="no-data">No comments yet.</p>';
+            }
+
+            bodyEl.innerHTML = `
+                <div class="user-modal-grid">
+                    <div class="user-profile-summary">
+                        <div class="user-modal-avatar"><i class="fas fa-user-circle"></i></div>
+                        <h4>${escapeHtml(user.username || user.email || 'User')}</h4>
+                        <p class="user-modal-email">${escapeHtml(user.email || '')}</p>
+                        <span class="user-role-label user-role-${role}">Role: ${escapeHtml(roleLabel)}</span>
+                        <div class="user-meta">
+                            <p><strong>Joined:</strong> ${escapeHtml(joined)}</p>
+                            <p><strong>Last login:</strong> ${escapeHtml(lastLogin)}</p>
+                        </div>
+                        ${bio ? `<p class="user-bio">${escapeHtml(bio)}</p>` : ''}
+                        <div class="user-stats">
+                            <div><strong>Posts:</strong> ${stats.post_count || 0}</div>
+                        </div>
+                        <div class="user-role-switcher">
+                            <label for="roleSelect-${user.id}"><strong>Change Role:</strong></label>
+                            <select id="roleSelect-${user.id}" class="role-select" onchange="changeUserRole('${user.id}', this.value)">
+                                <option value="student" ${role === 'student' ? 'selected' : ''}>Student</option>
+                                <option value="teacher" ${role === 'teacher' ? 'selected' : ''}>Teacher</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="user-post-history">
+                        <h4>Recent Posts</h4>
+                        ${postsHtml}
+                    </div>
+                </div>
+            `;
+
+            const isBanned = role === 'banned';
+            const banAction = isBanned ? 'unban' : 'ban';
+            const banLabel = isBanned ? 'Unban User' : 'Ban User';
+
+            footerEl.innerHTML = `
+                <button class="btn btn-secondary btn-sm" type="button" onclick="closeUserModal()">Close</button>
+                <button class="btn btn-warning btn-sm" type="button" onclick="adminUpdateUser('${user.id}', '${banAction}')">${banLabel}</button>
+                <button class="btn btn-danger btn-sm" type="button" onclick="adminUpdateUser('${user.id}', 'delete')">Delete User</button>
+            `;
+        })
+        .catch(error => {
+            console.error('Error loading user details:', error);
+            titleEl.textContent = 'User Details';
+            bodyEl.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i><p>${escapeHtml(error.message || 'Failed to load user details')}</p></div>`;
+            footerEl.innerHTML = `
+                <button class="btn btn-secondary btn-sm" type="button" onclick="closeUserModal()">Close</button>
+            `;
+        });
+
+    modal.style.display = 'block';
+}
+
+function closeUserModal() {
+    const modal = document.getElementById('userDetailModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function changeUserRole(userId, newRole) {
+    console.log('changeUserRole called with:', { userId, newRole, userIdType: typeof userId });
+    
+    if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
+        // Refresh the modal to reset the dropdown
+        viewUserDetails(userId);
+        return;
+    }
+
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        alert('CSRF token not found. Please refresh the page.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('user_id', userId);
+    formData.append('action', 'set_role');
+    formData.append('role', newRole);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    
+    // Debug: log what we're sending
+    console.log('FormData contents:');
+    for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}: ${value}`);
+    }
+
+    fetch('/dashboard/api/update-user/', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || `HTTP error ${response.status}`);
+                }).catch(() => {
+                    throw new Error(`HTTP error ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || data.error) {
+                throw new Error(data && data.error ? data.error : 'Failed to change role');
+            }
+            alert(`User role changed to ${newRole} successfully!`);
+            closeUserModal();
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error changing user role:', error);
+            alert(`Error changing role: ${error.message || error}`);
+            // Refresh the modal to reset the dropdown
+            viewUserDetails(userId);
+        });
+}
+
+function adminUpdateUser(userId, action) {
+    let confirmText = '';
+    if (action === 'ban') {
+        confirmText = 'Are you sure you want to ban this user? They will no longer be able to log in.';
+    } else if (action === 'unban') {
+        confirmText = 'Are you sure you want to unban this user?';
+    } else if (action === 'delete') {
+        confirmText = 'Are you sure you want to permanently delete this user? This action cannot be undone.';
+    } else {
+        return;
+    }
+
+    if (!confirm(confirmText)) {
+        return;
+    }
+
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        alert('CSRF token not found. Please refresh the page.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('user_id', userId);
+    formData.append('action', action);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+
+    fetch('/dashboard/api/update-user/', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || data.error) {
+                throw new Error(data && data.error ? data.error : 'Failed to update user');
+            }
+            closeUserModal();
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error updating user:', error);
+            alert(`Error updating user: ${error.message || error}`);
+        });
 }
 
 // Helper function to escape HTML
@@ -430,9 +875,13 @@ function escapeHtml(text) {
 
 // Close modals when clicking outside
 window.onclick = function(event) {
-    const modal = document.getElementById('subjectModal');
-    if (event.target === modal) {
+    const subjectModal = document.getElementById('subjectModal');
+    if (event.target === subjectModal) {
         closeSubjectModal();
+    }
+    const userModal = document.getElementById('userDetailModal');
+    if (event.target === userModal) {
+        closeUserModal();
     }
 }
 
@@ -440,6 +889,7 @@ window.onclick = function(event) {
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         closeSubjectModal();
+        closeUserModal();
     }
 });
 

@@ -22,7 +22,14 @@
   <div class="main-layout">
     <div class="container">
 
-      {% for post in posts %}
+      {% if selected_subject %}
+<div class="subject-sort-controls">
+  <span>Sort:</span>
+  <a href="/home/?subject={{ selected_subject|urlencode }}&sort=top" class="{% if current_sort == 'top' %}active{% endif %}">Top</a>
+  <a href="/home/?subject={{ selected_subject|urlencode }}&sort=new" class="{% if current_sort == 'new' %}active{% endif %}">New</a>
+  <a href="/home/?subject={{ selected_subject|urlencode }}&sort=old" class="{% if current_sort == 'old' %}active{% endif %}">Old</a>
+</div>
+{% endif %}{% for post in posts %}
       <div class="post" id="post-{{ post.id }}">
         <div class="post-content">
 

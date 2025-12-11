@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from .models import Post
 from .forms import PostForm
+import json
 import time
 import secrets
 import os
@@ -123,6 +124,8 @@ def login_page(request):
             return render(request, "login.html", {"error": "No account found. Please register."})
 
         user = response.data[0]
+        if user.get("role") == "banned":
+            return render(request, "login.html", {"error": "This account has been banned. Please contact support."})
         if not check_password(password, user["password_hash"]):
             return render(request, "login.html", {"error": "Invalid credentials!"})
 
@@ -356,9 +359,11 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
     tree = []
     for c in comments:
         if c.get("parent_id") == parent_id_val:
-            # Get author email (retry on transient disconnects)
-            user_resp = safe_execute(lambda: supabase.table("users").select("email").eq("id", c["user_id"]).maybe_single().execute())
+            # Get author info (retry on transient disconnects)
+            user_resp = safe_execute(lambda: supabase.table("users").select("email, role").eq("id", c["user_id"]).maybe_single().execute())
             author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else "anonymous@example.com"
+            author_role = (user_resp.data.get("role") if user_resp and user_resp.data else None) or None
+            is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
 
             # Fetch votes (retry on transient disconnects)
             votes_resp = safe_execute(lambda: supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute())
@@ -381,6 +386,8 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
             comment_obj = {
                 "comment_id": c["comment_id"],
                 "author": author_email,
+                "author_role": author_role,
+                "is_verified": is_verified,
                 "text": c["text"],
                 "created_at": parse_datetime(c.get("created_at")),
                 "edited": c.get("edited", False),
@@ -456,8 +463,38 @@ def home_page(request):
     if selected_subject:
         posts_query = posts_query.eq("subject", selected_subject)
 
-    response = safe_execute(lambda: posts_query.order("created_at", desc=True).range(start, end).execute())
+    # Optional post type filter within a subject (announcement|question|discussion)
+    ptype = (request.GET.get("type") or "all").lower()
+    if ptype in ["announcement", "question", "discussion"]:
+        posts_query = posts_query.eq("post_type", ptype)
+
+    sort = (request.GET.get("sort") or "new").lower()
+    ordered_query = posts_query
+    if sort == "new":
+        ordered_query = posts_query.order("created_at", desc=True)
+    elif sort == "old":
+        ordered_query = posts_query.order("created_at", desc=False)
+
+    response = safe_execute(lambda: ordered_query.range(start, end).execute())
     posts = response.data if response.data else []
+
+    if sort == "top" and posts:
+        post_ids = [p.get("post_id") for p in posts if p.get("post_id")]
+        score_map = {}
+        if post_ids:
+            votes_resp = supabase.table("post_votes").select("*").in_("post_id", post_ids).execute()
+            for v in votes_resp.data or []:
+                pid = v.get("post_id")
+                if pid is None:
+                    continue
+                if pid not in score_map:
+                    score_map[pid] = 0
+                vt = v.get("vote_type")
+                if vt == "up":
+                    score_map[pid] += 1
+                elif vt == "down":
+                    score_map[pid] -= 1
+        posts.sort(key=lambda p: score_map.get(p.get("post_id"), 0), reverse=True)
 
     # Get current user ID for vote detection
     user_id = None
@@ -481,12 +518,17 @@ def home_page(request):
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
-        # Fetch author email for display
+        # Fetch author info for display
         author_email = "anonymous@example.com"
+        author_role = None
+        is_verified = False
         if author_id:
-            author_resp = safe_execute(lambda: supabase.table("users").select("email").eq("id", author_id).maybe_single().execute())
+            author_resp = safe_execute(lambda: supabase.table("users").select("email, role").eq("id", author_id).maybe_single().execute())
             if author_resp.data and "email" in author_resp.data:
                 author_email = author_resp.data["email"]
+            if author_resp and getattr(author_resp, "data", None):
+                author_role = author_resp.data.get("role")
+                is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
 
         # -----------------------------
         # Fetch votes for this post
@@ -520,6 +562,9 @@ def home_page(request):
             "description": description,
             "created_at": time_since(post.get("created_at")),
             "author": author_email,
+            "author_role": author_role,
+            "is_verified": is_verified,
+            "post_type": post.get("post_type") or "",
             "course": course_name,
             "is_image": is_image,
             "is_video": is_video,
@@ -547,6 +592,8 @@ def home_page(request):
         # Communities / subjects sidebar data
         "subjects": SUBJECTS,
         "selected_subject": selected_subject,
+        "current_sort": sort,
+        "current_type": ptype,
         # pagination controls
         "page": page,
         "has_next": len(posts) == page_size,
@@ -1407,14 +1454,25 @@ def profile_page(request):
                 user["last_login"] = datetime.fromisoformat(user["last_login"][:10])
 
     # --------------------------
-    # Fetch user posts
+    # Fetch user posts (batch)
     # --------------------------
     posts_resp = supabase.table("posts").select("*").eq("user_id", user["id"]).order("created_at", desc=True).execute()
     user_posts = posts_resp.data or []
+    post_ids = [post.get("post_id") for post in user_posts if post.get("post_id")]
 
-    # Build formatted posts similar to home (without comments)
+    # Batch fetch all votes for these posts
+    post_votes = {}
+    if post_ids:
+        votes_resp = supabase.table("post_votes").select("*").in_("post_id", post_ids).execute()
+        for v in votes_resp.data or []:
+            pid = v.get("post_id")
+            if pid not in post_votes:
+                post_votes[pid] = []
+            post_votes[pid].append(v)
+
     formatted_posts = []
-    for post in (user_posts or []):
+    user_id = user.get("id")
+    for post in user_posts:
         title = post.get("title") or "(No Title)"
         url = (post.get("content") or "").rstrip("?")
         course_name = post.get("subject") or "General"
@@ -1424,15 +1482,11 @@ def profile_page(request):
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
-        # Votes for this post
-        votes_resp = supabase.table("post_votes").select("*").eq("post_id", post_id).execute()
-        votes = votes_resp.data or []
+        votes = post_votes.get(post_id, [])
         upvotes = len([v for v in votes if v.get("vote_type") == "up"])
         downvotes = len([v for v in votes if v.get("vote_type") == "down"])
         net_votes = upvotes - downvotes
 
-        # Current user's vote
-        user_id = user.get("id")
         user_vote = None
         if user_id:
             uv = next((v["vote_type"] for v in votes if v.get("user_id") == user_id), None)
@@ -1455,11 +1509,10 @@ def profile_page(request):
             "downvote_count": downvotes,
             "vote_count": net_votes,
             "user_vote": user_vote,
-            # comments intentionally omitted on profile page
         })
 
     # --------------------------
-    # Fetch user's comments (flat list across posts)
+    # Fetch user's comments (batch votes and post titles)
     # --------------------------
     comments_resp = supabase.table("comments") \
         .select("*") \
@@ -1468,6 +1521,25 @@ def profile_page(request):
         .execute()
     raw_comments = comments_resp.data or []
 
+    # Batch fetch all comment votes
+    comment_ids = [c.get("comment_id") for c in raw_comments if c.get("comment_id")]
+    comment_votes = {}
+    if comment_ids:
+        cvotes_resp = supabase.table("comment_votes").select("*").in_("comment_id", comment_ids).execute()
+        for v in cvotes_resp.data or []:
+            cid = v.get("comment_id")
+            if cid not in comment_votes:
+                comment_votes[cid] = []
+            comment_votes[cid].append(v)
+
+    # Batch fetch all post titles for comments
+    comment_post_ids = list(set([c.get("post_id") for c in raw_comments if c.get("post_id")]))
+    post_titles = {}
+    if comment_post_ids:
+        posts_title_resp = supabase.table("posts").select("post_id", "title").in_("post_id", comment_post_ids).execute()
+        for p in posts_title_resp.data or []:
+            post_titles[p.get("post_id")] = p.get("title") or "(No Title)"
+
     user_comments = []
     seen_comment_ids = set()
     seen_composite = set()
@@ -1475,7 +1547,6 @@ def profile_page(request):
         cid = c.get("comment_id")
         pid = c.get("post_id")
         txt = (c.get("text") or "").strip()
-        # Truncate created_at to seconds for stable duplicate detection
         created = (c.get("created_at") or "")
         created_key = created[:19] if isinstance(created, str) else str(created)[:19]
 
@@ -1489,9 +1560,7 @@ def profile_page(request):
         seen_comment_ids.add(cid)
         seen_composite.add(comp_key)
 
-        # votes for comment (support both 'up'/'down' and 'upvote'/'downvote')
-        cv_resp = supabase.table("comment_votes").select("vote_type").eq("comment_id", cid).execute()
-        cvotes = cv_resp.data or []
+        cvotes = comment_votes.get(cid, [])
         def as_dir(val):
             if not val:
                 return None
@@ -1503,14 +1572,7 @@ def profile_page(request):
         down = sum(1 for v in cvotes if as_dir(v.get("vote_type")) == "down")
         net = up - down
 
-        # post context (title)
-        post_title = None
-        try:
-            p_resp = supabase.table("posts").select("title").eq("post_id", c["post_id"]).maybe_single().execute()
-            if p_resp.data:
-                post_title = p_resp.data.get("title") or "(No Title)"
-        except Exception:
-            post_title = "(No Title)"
+        post_title = post_titles.get(pid, "(No Title)")
 
         user_comments.append({
             "comment_id": cid,
@@ -1525,24 +1587,34 @@ def profile_page(request):
     # ensure navbar gets the profile picture URL
     profile_picture_url = user.get("profile_picture") or None
 
-    return render(request, "profile_page.html", {
+    # Use Django cache for profile page context
+    from django.core.cache import cache
+    cache_key = f"profile_page_{user['id']}"
+    context = {
         "user": user,
         "success": success,
-        "user_posts": formatted_posts,  # use formatted posts
-        "user_comments": user_comments, # NEW: flat comments list
+        "user_posts": formatted_posts,
+        "user_comments": user_comments,
         "profile_picture_url": profile_picture_url,
         "current_user_id": user.get("id")
-    })
+    }
+    cache.set(cache_key, context, timeout=60)  # cache for 1 minute
+    return render(request, "profile_page.html", context)
 
 # ============================
 # 🔵 HOME PAGE
 # ============================
 @login_required
 def home(request):
-    posts = Post.objects.all().order_by('-created_at')  # newest first
+    from django.core.cache import cache
+    cache_key = "home_page_posts"
+    posts = cache.get(cache_key)
+    if posts is None:
+        posts = Post.objects.all().order_by('-created_at')
+        cache.set(cache_key, posts, timeout=60)  # cache for 1 minute
     context = {
         "posts": posts,
-        "user_id": request.user.id,  # pass logged-in user's ID
+        "user_id": request.user.id,
     }
     return render(request, "home.html", context)
 
@@ -1819,6 +1891,13 @@ def admin_page(request):
         users_resp = supabase.table("users").select("*").execute()
         print(f"Users response: {users_resp}")
         users = users_resp.data if users_resp.data else []
+        for u in users:
+            joined_raw = u.get("date_joined") or u.get("created_at")
+            if joined_raw:
+                try:
+                    u["date_joined"] = parse_datetime(str(joined_raw))
+                except Exception:
+                    u["date_joined"] = joined_raw
         total_users = len(users)
         print(f"Total users found: {total_users}")
         
@@ -1828,9 +1907,9 @@ def admin_page(request):
         print(f"Posts response: {posts_resp}")
         posts = posts_resp.data if posts_resp.data else []
         print(f"Total posts found: {len(posts)}")
-        
-        # Count posts by subject
-        posts_by_subject = {}
+
+        # Initialize posts_by_subject so ALL configured subjects appear, even with zero posts
+        posts_by_subject = {subj: [] for subj in SUBJECTS}
         for post in posts:
             subject = post.get("course", post.get("subject", "Unknown"))
             if subject not in posts_by_subject:
@@ -2108,6 +2187,8 @@ def admin_subject_posts(request):
         return JsonResponse({"error": "Unauthorized"}, status=403)
     
     subject = request.GET.get("subject", "")
+    search = (request.GET.get("search") or "").strip()
+    sort = (request.GET.get("sort") or "new").lower()
     if not subject:
         return JsonResponse({"error": "Subject parameter required"}, status=400)
     
@@ -2121,7 +2202,24 @@ def admin_subject_posts(request):
 
         raw_posts = posts_resp.data if posts_resp.data else []
 
-        # Build full objects matching home.html needs
+        # Compute simple "top" score for each post from post_votes
+        post_ids = [p.get("post_id") for p in raw_posts if p.get("post_id")]
+        score_map = {}
+        if post_ids:
+            votes_resp = supabase.table("post_votes").select("*").in_("post_id", post_ids).execute()
+            for v in votes_resp.data or []:
+                pid = v.get("post_id")
+                if not pid:
+                    continue
+                if pid not in score_map:
+                    score_map[pid] = 0
+                vt = v.get("vote_type")
+                if vt == "up":
+                    score_map[pid] += 1
+                elif vt == "down":
+                    score_map[pid] -= 1
+
+        # Build full objects used by the admin UI
         full_posts = []
         for p in raw_posts:
             author_email = "unknown@example.com"
@@ -2131,11 +2229,15 @@ def admin_subject_posts(request):
                     author_email = u.data["email"]
 
             url = (p.get("content") or "").rstrip("?")
-            is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
-            is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+            lower_url = url.lower()
+            is_image = lower_url.endswith((".jpg", ".jpeg", ".png", ".gif"))
+            is_video = lower_url.endswith((".mp4", ".webm", ".ogg"))
+
+            pid = p.get("post_id")
+            score = score_map.get(pid, 0)
 
             full_posts.append({
-                "id": p.get("post_id"),
+                "id": pid,
                 "title": p.get("title") or "(No Title)",
                 "description": p.get("description") or "",
                 "url": url,
@@ -2145,7 +2247,28 @@ def admin_subject_posts(request):
                 "author": author_email,
                 "is_image": is_image,
                 "is_video": is_video,
+                "score": score,
             })
+
+        # Apply optional search filter (title, description, or author)
+        if search:
+            term = search.lower()
+
+            def matches(post):
+                title = (post.get("title") or "").lower()
+                desc = (post.get("description") or "").lower()
+                author = (post.get("author") or "").lower()
+                return term in title or term in desc or term in author
+
+            full_posts = [p for p in full_posts if matches(p)]
+
+        # Apply sort mode
+        if sort == "old":
+            full_posts.sort(key=lambda p: str(p.get("created_at") or ""))
+        elif sort == "top":
+            full_posts.sort(key=lambda p: (p.get("score", 0), str(p.get("created_at") or "")), reverse=True)
+        else:  # default: new
+            full_posts.sort(key=lambda p: str(p.get("created_at") or ""), reverse=True)
 
         return JsonResponse({"posts": full_posts})
         
@@ -2290,9 +2413,199 @@ def admin_all_posts(request):
         return JsonResponse({"error": f"Failed to fetch posts: {str(e)}"}, status=500)
 
 
-# --------------------------
-# Admin-only delete post
-# --------------------------
+@csrf_exempt
+def admin_user_details(request, user_id):
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+    if request.method != "GET":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+    try:
+        user_resp = supabase.table("users").select("*").eq("id", user_id).maybe_single().execute()
+        if not user_resp or not getattr(user_resp, "data", None):
+            return JsonResponse({"error": "User not found"}, status=404)
+        u = user_resp.data
+
+        def fmt(dt_val):
+            if not dt_val:
+                return None
+            s = str(dt_val)
+            try:
+                dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+                return dt.strftime("%b %d, %Y %H:%M")
+            except Exception:
+                return s
+
+        user_data = {
+            "id": u.get("id"),
+            "email": u.get("email"),
+            "username": u.get("username"),
+            "role": u.get("role") or "student",
+            "bio": u.get("bio") or "",
+            "profile_picture": u.get("profile_picture"),
+            "date_joined": fmt(u.get("date_joined") or u.get("created_at")),
+            "last_login": fmt(u.get("last_login")),
+        }
+
+        posts_resp = supabase.table("posts").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        posts_raw = posts_resp.data if posts_resp and getattr(posts_resp, "data", None) else []
+        posts = []
+        for p in posts_raw:
+            url = (p.get("content") or "").rstrip("?")
+            lower_url = url.lower()
+            is_image = lower_url.endswith((".jpg", ".jpeg", ".png", ".gif"))
+            is_video = lower_url.endswith((".mp4", ".webm", ".ogg"))
+
+            posts.append({
+                "id": p.get("post_id"),
+                "title": p.get("title") or "(No Title)",
+                "subject": p.get("subject") or p.get("course") or "Unknown",
+                "created_at": fmt(p.get("created_at")),
+                "description": p.get("description") or "",
+                "url": url,
+                "is_image": is_image,
+                "is_video": is_video,
+            })
+
+        # Fetch this user's comments; never let failures here break the whole endpoint
+        comments = []
+        comment_count = 0
+        try:
+            comments_resp = supabase.table("comments").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+            comments_raw = comments_resp.data if comments_resp and getattr(comments_resp, "data", None) else []
+
+            # Map posts for these comments to get title and subject
+            comment_post_ids = list({c.get("post_id") for c in comments_raw if c.get("post_id")})
+            posts_by_id = {}
+            if comment_post_ids:
+                posts_title_resp = supabase.table("posts").select("post_id", "title", "subject", "course_id").in_("post_id", comment_post_ids).execute()
+                if posts_title_resp and getattr(posts_title_resp, "data", None):
+                    for p in posts_title_resp.data or []:
+                        posts_by_id[p.get("post_id")] = p
+
+            for c in comments_raw:
+                post_id = c.get("post_id")
+                post_meta = posts_by_id.get(post_id, {})
+                comments.append({
+                    "comment_id": c.get("comment_id"),
+                    "post_id": post_id,
+                    "post_title": post_meta.get("title") or "(No Title)",
+                    "post_subject": post_meta.get("subject") or post_meta.get("course") or "Unknown",
+                    "text": c.get("text") or "",
+                    "created_at": fmt(c.get("created_at")),
+                })
+
+            comment_count = len(comments)
+        except Exception as ce:
+            # Log but do not fail the entire user details API
+            print(f"Error fetching comments for admin_user_details user_id={user_id}: {ce}")
+            import traceback
+            traceback.print_exc()
+            comments = []
+            comment_count = 0
+
+        return JsonResponse({
+            "user": user_data,
+            "posts": posts,
+            "comments": comments,
+            "stats": {
+                "post_count": len(posts),
+                "comment_count": comment_count,
+            },
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def admin_update_user(request):
+    if "user_email" not in request.session or request.session.get("user_email") != "admin@gmail.com":
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    # Accept both FormData and JSON payloads; be liberal in field names
+    user_id = request.POST.get("user_id") or request.POST.get("userId") or request.POST.get("id")
+    action = (request.POST.get("action") or request.POST.get("Action") or "").strip().lower()
+
+    # If action missing but role fields are present, infer set_role
+    if not action and (request.POST.get("role") or request.POST.get("new_role")):
+        action = "set_role"
+
+    # Debug logging of incoming payload (safe minimal info)
+    try:
+        print(f"admin_update_user: POST keys={list(request.POST.keys())}, user_id={user_id}, action={action}")
+    except Exception:
+        pass
+
+    # Try JSON body as fallback
+    try:
+        if (not user_id or not action) and request.body:
+            payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+            if isinstance(payload, dict):
+                user_id = user_id or payload.get("user_id") or payload.get("userId") or payload.get("id")
+                action = action or (payload.get("action") or "").strip().lower()
+    except Exception:
+        pass
+
+    # Backward-compat with older frontend naming
+    if action == "change_role":
+        action = "set_role"
+
+    if not user_id or not action:
+        return JsonResponse({"error": "Missing required fields"}, status=400)
+
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Invalid user ID"}, status=400)
+
+    if action not in ["ban", "unban", "delete", "set_role"]:
+        return JsonResponse({"error": "Invalid action"}, status=400)
+
+    try:
+        if action == "ban":
+            resp = supabase.table("users").update({"role": "banned"}).eq("id", user_id).execute()
+        elif action == "unban":
+            resp = supabase.table("users").update({"role": "student"}).eq("id", user_id).execute()
+        elif action == "set_role":
+            # Accept both FormData and JSON field names
+            new_role = (request.POST.get("role") or request.POST.get("new_role") or "").strip().lower()
+            if not new_role and request.body:
+                try:
+                    payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+                    if isinstance(payload, dict):
+                        new_role = (payload.get("role") or payload.get("new_role") or "").strip().lower()
+                except Exception:
+                    new_role = (new_role or "").strip().lower()
+            try:
+                print(f"admin_update_user: resolved new_role={new_role}")
+            except Exception:
+                pass
+            if new_role not in ["student", "teacher"]:
+                return JsonResponse({"error": "Invalid role"}, status=400)
+            resp = supabase.table("users").update({"role": new_role}).eq("id", user_id).execute()
+        else:
+            resp = supabase.table("users").delete().eq("id", user_id).execute()
+
+        if not resp or getattr(resp, "error", None):
+            return JsonResponse({"error": "Failed to update user"}, status=500)
+
+        # Optionally return the updated role to allow UI to reflect immediately
+        result_role = None
+        try:
+            if action in ["ban", "unban", "set_role"]:
+                # fetch minimal user record
+                uresp = supabase.table("users").select("role").eq("id", user_id).maybe_single().execute()
+                if uresp and getattr(uresp, "data", None):
+                    result_role = uresp.data.get("role")
+        except Exception:
+            result_role = None
+
+        return JsonResponse({"success": True, "role": result_role})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 @csrf_exempt
 def admin_delete_post(request):
     if request.method != "POST":

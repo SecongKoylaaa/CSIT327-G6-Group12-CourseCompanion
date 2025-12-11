@@ -305,6 +305,33 @@
   gap: 0.5rem;
 }
 
+.user-role-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 0.35rem;
+}
+
+.user-role-student {
+  background: #ecf5ff;
+  color: #1b6ac9;
+}
+
+.user-role-admin {
+  background: #fef5e6;
+  color: #b4690e;
+}
+
+.user-role-banned {
+  background: #fdecea;
+  color: #b3261e;
+}
+
 /* ======================= SUBJECTS TAB ======================= */
 .subjects-grid {
   display: grid;
@@ -359,11 +386,57 @@
 }
 
 /* ======================= REPORTS TAB ======================= */
+.reports-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  background: #ecf0f1;
+  padding: 0.3rem;
+  border-radius: 999px;
+}
+
+.reports-toggle-btn {
+  border: none;
+  background: transparent;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: #7f8c8d;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.reports-toggle-btn i {
+  font-size: 0.95rem;
+}
+
+.reports-toggle-btn.active {
+  background: #ffffff;
+  color: #2c3e50;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.reports-toggle-btn:hover {
+  color: #2c3e50;
+}
+
 .reports-container {
   background: white;
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.reports-section {
+  display: none;
+}
+
+.reports-section.active {
+  display: block;
 }
 
 .reports-header {
@@ -376,6 +449,33 @@
 .reports-header h2 {
   color: #2c3e50;
   font-size: 1.5rem;
+}
+
+.reports-subtitle {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.reports-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.reports-search input {
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  border: 2px solid #e8e8e8;
+  font-size: 0.95rem;
+  min-width: 220px;
+  transition: all 0.25s ease;
+}
+
+.reports-search input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.12);
 }
 
 .filter-box select {
@@ -524,6 +624,36 @@
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
 }
 
+.modal-content.user-modal {
+  width: 95%;
+  max-width: 1200px;
+  max-height: 86vh;
+}
+
+/* Fullscreen layout for the Subject Posts modal */
+#subjectModal .modal-content {
+  width: 96vw;
+  max-width: none;
+  height: 90vh;
+  max-height: 90vh;
+  margin: 2vh auto;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+#subjectModal .modal-header {
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #dde3f0;
+}
+
+#subjectModal .modal-body {
+  max-height: calc(90vh - 120px);
+  padding: 1.5rem 2rem;
+  background: radial-gradient(circle at top left, #f9fafb 0, #edf2f7 45%, #e5ecf5 100%);
+  overflow-y: auto;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -556,6 +686,175 @@
   padding: 2rem;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+/* Sleek card-like design inside the user details modal */
+.user-modal .user-modal-grid {
+  gap: 1.25rem;
+}
+
+.user-modal .user-profile-summary {
+  background: #fbfcfe;
+  border: 1px solid #e8eaf0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.user-modal .user-post-history {
+  background: #ffffff;
+  border: 1px solid #e8eaf0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  max-height: 52vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.user-modal .user-stats {
+  background: #f2f7ff;
+  border: 1px dashed #d6e4ff;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+}
+
+.user-modal .user-modal-avatar {
+  font-size: 3.25rem;
+}
+
+.user-modal .user-post-item {
+  background: #f7f9fb;
+  border-left-color: #3b82f6;
+}
+
+/* Larger media previews within the subject posts modal */
+#subjectModal .report-media img,
+#subjectModal .report-media video {
+  max-height: 48vh;
+  object-fit: contain;
+}
+
+/* Footer alignment improvements */
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e8e8e8;
+  background: #fafafa;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.user-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 2.2fr);
+  gap: 2rem;
+}
+
+.user-profile-summary {
+  border-right: 1px solid #ecf0f1;
+  padding-right: 1.5rem;
+}
+
+.user-modal-avatar {
+  font-size: 3.5rem;
+  color: #3498db;
+  margin-bottom: 0.75rem;
+}
+
+.user-modal-email {
+  margin: 0.25rem 0 0.5rem 0;
+  color: #7f8c8d;
+  font-size: 0.95rem;
+}
+
+.user-meta p {
+  margin: 0.15rem 0;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.user-bio {
+  margin-top: 0.75rem;
+  color: #555;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.user-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.user-role-switcher {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-role-switcher label {
+  font-size: 0.9rem;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.user-role-switcher .role-select {
+  padding: 0.5rem 0.75rem;
+  border: 2px solid #3498db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: white;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.user-role-switcher .role-select:hover {
+  border-color: #2980b9;
+  background: #f8f9fa;
+}
+
+.user-role-switcher .role-select:focus {
+  outline: none;
+  border-color: #2980b9;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.user-post-history h4 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: #2c3e50;
+}
+
+.user-post-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.user-post-item {
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border-left: 3px solid #3498db;
+}
+
+.user-post-title {
+  font-size: 0.95rem;
+  color: #2c3e50;
+  margin-bottom: 0.1rem;
+}
+
+.user-post-meta {
+  font-size: 0.8rem;
+  color: #7f8c8d;
 }
 
 .posts-list {
@@ -800,5 +1099,12 @@
   .modal-content {
     width: 95%;
     margin: 10% auto;
+  }
+
+  /* Make fullscreen subject modal adapt on small screens */
+  #subjectModal .modal-content {
+    width: 98vw;
+    height: 92vh;
+    margin: 2vh auto;
   }
 }
