@@ -585,7 +585,9 @@ function viewUserDetails(userId) {
     bodyEl.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading user details...</div>';
     footerEl.innerHTML = '';
 
-    fetch(`/dashboard/api/user/${userId}/`, {
+    const url = `/dashboard/api/user/${userId}/?t=${Date.now()}`;
+
+    fetch(url, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         credentials: 'same-origin'

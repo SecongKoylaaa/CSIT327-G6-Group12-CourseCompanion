@@ -2397,9 +2397,8 @@ def admin_user_details(request, user_id):
         comments = []
         comment_count = 0
         try:
-            comments_resp = supabase.table("comments").select("*", count="exact").eq("user_id", user_id).order("created_at", desc=True).execute()
+            comments_resp = supabase.table("comments").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
             comments_raw = comments_resp.data if comments_resp and getattr(comments_resp, "data", None) else []
-            comment_count = getattr(comments_resp, "count", 0) or 0
 
             # Map posts for these comments to get title and subject
             comment_post_ids = list({c.get("post_id") for c in comments_raw if c.get("post_id")})
@@ -2421,6 +2420,8 @@ def admin_user_details(request, user_id):
                     "text": c.get("text") or "",
                     "created_at": fmt(c.get("created_at")),
                 })
+
+            comment_count = len(comments)
         except Exception as ce:
             # Log but do not fail the entire user details API
             print(f"Error fetching comments for admin_user_details user_id={user_id}: {ce}")
@@ -2460,7 +2461,7 @@ def admin_update_user(request):
     except (TypeError, ValueError):
         return JsonResponse({"error": "Invalid user ID"}, status=400)
 
-    if action not in ["ban", "unban", "delete"]:
+    if action not in ["ban", "unban", "delete", "set_role"]:
         return JsonResponse({"error": "Invalid action"}, status=400)
 
     try:
@@ -2468,13 +2469,29 @@ def admin_update_user(request):
             resp = supabase.table("users").update({"role": "banned"}).eq("id", user_id).execute()
         elif action == "unban":
             resp = supabase.table("users").update({"role": "student"}).eq("id", user_id).execute()
+        elif action == "set_role":
+            new_role = (request.POST.get("role") or "").strip().lower()
+            if new_role not in ["student", "teacher"]:
+                return JsonResponse({"error": "Invalid role"}, status=400)
+            resp = supabase.table("users").update({"role": new_role}).eq("id", user_id).execute()
         else:
             resp = supabase.table("users").delete().eq("id", user_id).execute()
 
         if not resp or getattr(resp, "error", None):
             return JsonResponse({"error": "Failed to update user"}, status=500)
 
-        return JsonResponse({"success": True})
+        # Optionally return the updated role to allow UI to reflect immediately
+        result_role = None
+        try:
+            if action in ["ban", "unban", "set_role"]:
+                # fetch minimal user record
+                uresp = supabase.table("users").select("role").eq("id", user_id).maybe_single().execute()
+                if uresp and getattr(uresp, "data", None):
+                    result_role = uresp.data.get("role")
+        except Exception:
+            result_role = None
+
+        return JsonResponse({"success": True, "role": result_role})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 

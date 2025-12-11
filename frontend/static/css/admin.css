@@ -625,9 +625,9 @@
 }
 
 .modal-content.user-modal {
-  width: 92%;
-  max-width: 1100px;
-  max-height: 85vh;
+  width: 95%;
+  max-width: 1200px;
+  max-height: 86vh;
 }
 
 /* Fullscreen layout for the Subject Posts modal */
@@ -745,8 +745,8 @@
 
 .user-modal-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr);
-  gap: 1.75rem;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 2.2fr);
+  gap: 2rem;
 }
 
 .user-profile-summary {
