@@ -464,21 +464,45 @@ def home_page(request):
     # -----------------------------
     if request.method == "POST":
         post_id = request.POST.get("post_id")
-        comment_text = (request.POST.get("comment") or "").strip()
+        raw_comment = (request.POST.get("comment") or "")
+        comment_text = raw_comment.strip()
         parent_id = request.POST.get("parent_id")
+
+        # Safely cast IDs to integers to match Supabase schema
+        try:
+            post_id_int = int(post_id) if post_id else None
+        except (TypeError, ValueError):
+            post_id_int = None
+
+        if parent_id:
+            try:
+                parent_id_int = int(parent_id)
+            except (TypeError, ValueError):
+                parent_id_int = None
+        else:
+            parent_id_int = None
 
         # Get user_id
         user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
         user_id = user_resp.data["id"] if user_resp.data else None
 
-        if post_id and comment_text and user_id and len(comment_text) >= 600:
-            safe_execute(lambda: supabase.table("comments").insert({
-                "post_id": post_id,
+        # Enforce 600-character maximum on the trimmed text; ignore empty comments
+        if post_id_int and comment_text and user_id:
+            # Ensure we do not exceed 600 characters even if client-side max is bypassed
+            if len(comment_text) > 600:
+                comment_text = comment_text[:600]
+
+            resp = safe_execute(lambda: supabase.table("comments").insert({
+                "post_id": post_id_int,
                 "user_id": user_id,
-                "parent_id": parent_id,
+                "parent_id": parent_id_int,
                 "text": comment_text,
                 "created_at": datetime.now(timezone.utc).isoformat()
             }).execute())
+
+            # Simple success flag so we know the insert path ran
+            if not getattr(resp, "error", None):
+                request.session["success_message"] = "Comment posted successfully."
 
         # Redirect back to the same subject view if available
         if selected_subject:

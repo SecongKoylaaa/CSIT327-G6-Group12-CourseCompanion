@@ -329,7 +329,18 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  position: relative;
+}
+
+.comment-form .comment-input-wrapper,
+.reply-form .comment-input-wrapper,
+.edit-form .comment-input-wrapper {
+  flex: 1;
+}
+
+.comment-form .comment-input-wrapper textarea,
+.reply-form .comment-input-wrapper textarea,
+.edit-form .comment-input-wrapper textarea {
+  width: 100%;
 }
 
 .char-counter {

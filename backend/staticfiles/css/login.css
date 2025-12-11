@@ -1,26 +1,139 @@
-/* ======== LOGIN PAGE SPECIFIC ======== */
+/* =========================
+   GENERAL PAGE STYLE
+========================= */
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #1a1a1a; /* dark background */
+  color: white;
+}
+
+.container {
+  background: #222; 
+  padding: 40px 35px;
+  border-radius: 18px;
+  width: 340px;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0,0,0,0.4);
+}
+
+.container img {
+  width: 70px;
+  opacity: 0.85;
+}
+
+h2 {
+  margin: 14px 0 22px;
+  font-weight: 700;
+  font-size: 1.6em;
+}
+
+/* =========================
+   INPUT FIELDS
+========================= */
+input[type="email"],
+input[type="password"],
+input[type="text"] {               /* ✔ Fix: style remains when input type switches */
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border: 1px solid #444;
+  background: #2f2f2f;
+  color: white;
+  font-size: 0.95em;
+  transition: border 0.2s ease, background 0.2s ease;
+}
+
+input:focus {
+  border: 1px solid #4da3ff;
+  background: #3a3a3a;
+  outline: none;
+}
+
+/* =========================
+   PASSWORD FIELD WRAPPER
+========================= */
 .password-container {
-    position: relative;
-    width: 100%;
+  width: 100%;
+  position: relative;
 }
 
-.password-container input {
-    width: 100%;
-    padding-right: 40px; /* space for the show password button */
-}
-
-/* Show/Hide Password Button */
-.password-container .show-password {
+.show-password {
   position: absolute;
-  top: 15%;
-  right: 10px;
+  right: 12px;
+  top: 50%;
   transform: translateY(-50%);
-  background: transparent;
+  background: none;
   border: none;
   cursor: pointer;
-  color: white;
-  font-size: 18px;
+  color: #bbb;
+  font-size: 19px;
   padding: 0;
-  width: auto;
-  z-index: 10;
+  height: auto;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s ease;
+}
+
+.show-password:hover {
+  color: #fff;
+}
+
+/* =========================
+   LINKS
+========================= */
+.links {
+  text-align: left;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+  color: #bdbdbd;
+}
+
+.links a {
+  color: #4da3ff;
+  text-decoration: none;
+}
+
+.links a:hover {
+  text-decoration: underline;
+}
+
+/* =========================
+   BUTTON
+========================= */
+button[type="submit"] {
+  width: 100%;
+  padding: 12px;
+  background: #4da3ff;
+  border: none;
+  border-radius: 12px;
+  color: black;
+  font-weight: 700;
+  font-size: 1em;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: background 0.25s ease, transform 0.1s ease;
+}
+
+button[type="submit"]:hover {
+  background: #1d8fff;
+  transform: scale(1.03);
+}
+
+/* =========================
+   ERROR MESSAGE
+========================= */
+.error {
+  margin-top: 16px;
+  padding: 10px;
+  background: #ff3333;
+  color: white;
+  border-radius: 8px;
+  font-size: 0.9em;
 }
