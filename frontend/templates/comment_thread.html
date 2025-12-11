@@ -1,6 +1,6 @@
-<div class="comment-wrapper level-{{ level }}">
+<div class="comment-wrapper level-{{ level }}" data-level="{{ level }}">
 
-  <div class="comment level-{{ level }}"
+  <div class="comment level-{{ level }}" data-level="{{ level }}"
        id="comment-{{ comment.comment_id }}"
        data-created="{{ comment.created_at|date:'c' }}"
        data-votes="{{ comment.net_votes|default:0 }}">
@@ -104,7 +104,7 @@
   </div>
 
   {% if comment.replies %}
-  <div class="replies-wrapper level-{{ level }}"
+  <div class="replies-wrapper level-{{ level }}" data-level="{{ level }}"
        id="hidden-replies-{{ comment.comment_id }}"
        style="display:none;">
 

@@ -1,3 +1,6 @@
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib import admin
 from django.urls import path
 from . import views
 
@@ -26,7 +29,7 @@ urlpatterns = [
     # POSTS
     path('create-post-text/', views.create_post_text, name='create-post-text'),
     path('create-post-image-video/', views.create_post_image, name='create-post-image-video'),
-    path('create-post-image-link/', views.create_post_link, name='create-post-link'),
+    path('create-post-link/', views.create_post_link, name='create-post-link'),
 
     # 🔥 ADD THESE (Fix Reverse URL Errors)
     path('post/<int:post_id>/edit/', views.edit_post, name='edit_post'),
@@ -43,4 +46,5 @@ urlpatterns = [
     path('edit_comment/<int:comment_id>/', views.edit_comment, name='edit_comment'),
     path('comment/delete/<int:comment_id>/', views.delete_comment, name='delete_comment'),
     path('vote_comment/<int:comment_id>/<str:vote_type>/', views.vote_comment, name='vote_comment'),
+    
 ]

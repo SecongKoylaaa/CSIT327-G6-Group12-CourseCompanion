@@ -15,9 +15,15 @@
     <a href="{% url 'create-post-text' %}" class="create-btn">+ Create</a>
 
     <div class="profile-dropdown">
-      <button class="profile-btn">👤</button>
+      <button class="profile-btn">
+        {% if profile_picture_url %}
+          <img src="{{ profile_picture_url }}" class="profile-pic">
+        {% else %}
+          <span style="font-size: 20px;">👤</span>
+        {% endif %}
+      </button>
       <div class="dropdown-content">
-        <a href="#">View Profile</a>
+        <a href="{% url 'profile_page' %}">View Profile</a>
         <a href="{% url 'logout' %}">Logout</a>
       </div>
     </div>

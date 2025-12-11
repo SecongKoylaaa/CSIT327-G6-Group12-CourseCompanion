@@ -21,13 +21,45 @@ function toggleComments(el) {
   const post = el.closest(".post");
   if (!post) return;
 
+  // Toggle expanded UI state
   post.classList.toggle("show-expanded");
-
   post.querySelectorAll(".comment-toggle").forEach(span => {
     if (span !== el) span.classList.remove("active");
   });
-
   el.classList.toggle("active");
+
+  // Show/hide the expanded section
+  const expanded = post.querySelector('.expanded-section');
+  if (!expanded) return;
+  const isVisible = expanded.style.display === 'block';
+  if (isVisible) {
+    expanded.style.display = 'none';
+    return;
+  }
+  expanded.style.display = 'block';
+
+  // Lazy-load comments only once per post
+  const container = expanded.querySelector('.comments-section');
+  if (!container) return;
+  const loaded = container.getAttribute('data-loaded') === 'true';
+  if (loaded) return;
+
+  const postId = container.getAttribute('data-post-id');
+  if (!postId) return;
+
+  fetch(`/comments/${postId}/`, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to load comments');
+      return res.text();
+    })
+    .then(html => {
+      container.innerHTML = html;
+      container.setAttribute('data-loaded', 'true');
+    })
+    .catch(err => {
+      container.innerHTML = `<div class="comments-error">Unable to load comments. Please try again.</div>`;
+      console.error(err);
+    });
 }
 
 /* ========================================================================

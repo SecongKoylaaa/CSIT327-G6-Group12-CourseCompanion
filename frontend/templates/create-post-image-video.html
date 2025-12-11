@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="{% static 'css/layout.css' %}">
   <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
   <link rel="stylesheet" href="{% static 'css/post-create.css' %}">
+  <style>
+    .is-hidden{ display:none; }
+  </style>
 </head>
 <body>
 
@@ -168,7 +171,7 @@
             <div class="upload-area" id="uploadBox">
               <input type="file" id="fileUpload" name="fileUpload" accept="image/*,video/*" style="display:none;">
               
-              <div class="upload-prompt" id="uploadPrompt" style="{% if preview_url %}display:none;{% endif %}">
+              <div class="upload-prompt {% if preview_url %}is-hidden{% endif %}" id="uploadPrompt">
                 <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="17 8 12 3 7 8"/>
@@ -178,7 +181,7 @@
                 <p class="upload-hint">Images and videos accepted</p>
               </div>
 
-              <div class="media-preview" id="mediaPreview" style="{% if not preview_url %}display:none;{% endif %}">
+              <div class="media-preview {% if not preview_url %}is-hidden{% endif %}" id="mediaPreview">
                 <button type="button" class="remove-media" id="removeMediaBtn">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
@@ -281,37 +284,41 @@
   const tagChoices = document.getElementById("tag-choices");
   const postTypeInput = document.getElementById("post_type");
 
-  tagBtn.addEventListener("click", e => {
-    e.stopPropagation();
-    tagChoices.classList.toggle("show");
-    tagBtn.classList.toggle("active");
-  });
-
-  document.querySelectorAll(".tag-option").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const value = btn.getAttribute("data-value");
-      const badge = btn.querySelector(".tag-badge").cloneNode(true);
-      
-      tagBtn.innerHTML = '';
-      tagBtn.appendChild(badge);
-      
-      const arrow = document.createElement('svg');
-      arrow.className = 'dropdown-arrow';
-      arrow.setAttribute('viewBox', '0 0 24 24');
-      arrow.setAttribute('fill', 'none');
-      arrow.setAttribute('stroke', 'currentColor');
-      arrow.setAttribute('stroke-width', '2');
-      arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
-      tagBtn.appendChild(arrow);
-      
-      postTypeInput.value = value;
-      tagChoices.classList.remove("show");
-      tagBtn.classList.remove("active");
+  if (tagBtn && tagChoices) {
+    tagBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      tagChoices.classList.toggle("show");
+      tagBtn.classList.toggle("active");
     });
-  });
+  }
+
+  if (tagBtn && tagChoices && postTypeInput) {
+    document.querySelectorAll(".tag-option").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const value = btn.getAttribute("data-value");
+        const badge = btn.querySelector(".tag-badge").cloneNode(true);
+        
+        tagBtn.innerHTML = '';
+        tagBtn.appendChild(badge);
+        
+        const arrow = document.createElement('svg');
+        arrow.className = 'dropdown-arrow';
+        arrow.setAttribute('viewBox', '0 0 24 24');
+        arrow.setAttribute('fill', 'none');
+        arrow.setAttribute('stroke', 'currentColor');
+        arrow.setAttribute('stroke-width', '2');
+        arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+        tagBtn.appendChild(arrow);
+        
+        postTypeInput.value = value;
+        tagChoices.classList.remove("show");
+        tagBtn.classList.remove("active");
+      });
+    });
+  }
 
   document.addEventListener("click", e => {
-    if (!tagBtn.contains(e.target) && !tagChoices.contains(e.target)) {
+    if (tagBtn && tagChoices && !tagBtn.contains(e.target) && !tagChoices.contains(e.target)) {
       tagChoices.classList.remove("show");
       tagBtn.classList.remove("active");
     }
@@ -326,36 +333,42 @@
   const previewVideo = document.getElementById("previewVideo");
   const removeBtn = document.getElementById("removeMediaBtn");
 
-  uploadBox.addEventListener("click", (e) => {
-    if (!e.target.closest('.remove-media')) {
-      fileInput.click();
-    }
-  });
+  if (uploadBox && fileInput) {
+    uploadBox.addEventListener("click", (e) => {
+      if (!e.target.closest('.remove-media')) {
+        fileInput.click();
+      }
+    });
+  }
 
   // Drag and drop
-  uploadBox.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    uploadBox.classList.add("drag-over");
-  });
+  if (uploadBox && fileInput) {
+    uploadBox.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      uploadBox.classList.add("drag-over");
+    });
 
-  uploadBox.addEventListener("dragleave", () => {
-    uploadBox.classList.remove("drag-over");
-  });
+    uploadBox.addEventListener("dragleave", () => {
+      uploadBox.classList.remove("drag-over");
+    });
 
-  uploadBox.addEventListener("drop", (e) => {
-    e.preventDefault();
-    uploadBox.classList.remove("drag-over");
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      fileInput.files = files;
-      handleFileSelect(files[0]);
-    }
-  });
+    uploadBox.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadBox.classList.remove("drag-over");
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        fileInput.files = files;
+        handleFileSelect(files[0]);
+      }
+    });
+  }
 
-  fileInput.addEventListener("change", function () {
-    const file = this.files[0];
-    if (file) handleFileSelect(file);
-  });
+  if (fileInput) {
+    fileInput.addEventListener("change", function () {
+      const file = this.files[0];
+      if (file) handleFileSelect(file);
+    });
+  }
 
   function handleFileSelect(file) {
     previewImage.style.display = "none";
@@ -376,16 +389,16 @@
     reader.readAsDataURL(file);
   }
 
-  removeBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    previewImage.style.display = "none";
-    previewVideo.style.display = "none";
-    previewImage.src = "";
-    previewVideo.src = "";
-    uploadPrompt.style.display = "block";
-    mediaPreview.style.display = "none";
-    fileInput.value = "";
-  });
+  if (removeBtn && uploadPrompt && mediaPreview && fileInput) {
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (previewImage) { previewImage.style.display = "none"; previewImage.src = ""; }
+      if (previewVideo) { previewVideo.style.display = "none"; previewVideo.src = ""; }
+      uploadPrompt.style.display = "block";
+      mediaPreview.style.display = "none";
+      fileInput.value = "";
+    });
+  }
 </script>
 
 </body>
