@@ -1769,10 +1769,8 @@ def diagnostics(request):
         "WHITENOISE_ENABLED": "whitenoise.middleware.WhiteNoiseMiddleware" in settings.MIDDLEWARE,
     }
 
-    # Add static assets diagnostics via finders
+    # Add static assets diagnostics using direct path checks (robust even with Manifest storage)
     try:
-        from django.contrib.staticfiles import finders
-        import os
         assets = [
             "css/post.css",
             "js/comments.js",
@@ -1780,13 +1778,23 @@ def diagnostics(request):
             "js/media_modal.js",
         ]
         resolved = {}
+        static_dirs = getattr(settings, "STATICFILES_DIRS", [])
         for rel in assets:
-            p = finders.find(rel)
-            ok = bool(p and os.path.exists(p))
+            found_path = None
+            size = None
+            for d in static_dirs:
+                candidate = os.path.join(d, rel)
+                if os.path.exists(candidate):
+                    found_path = candidate
+                    try:
+                        size = os.path.getsize(candidate)
+                    except Exception:
+                        size = None
+                    break
             resolved[rel] = {
-                "found": ok,
-                "path": p,
-                "size": os.path.getsize(p) if ok else None,
+                "found": bool(found_path),
+                "path": found_path,
+                "size": size,
             }
         info["assets"] = resolved
     except Exception as e:
