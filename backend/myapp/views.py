@@ -1379,14 +1379,25 @@ def profile_page(request):
                 user["last_login"] = datetime.fromisoformat(user["last_login"][:10])
 
     # --------------------------
-    # Fetch user posts
+    # Fetch user posts (batch)
     # --------------------------
     posts_resp = supabase.table("posts").select("*").eq("user_id", user["id"]).order("created_at", desc=True).execute()
     user_posts = posts_resp.data or []
+    post_ids = [post.get("post_id") for post in user_posts if post.get("post_id")]
 
-    # Build formatted posts similar to home (without comments)
+    # Batch fetch all votes for these posts
+    post_votes = {}
+    if post_ids:
+        votes_resp = supabase.table("post_votes").select("*").in_("post_id", post_ids).execute()
+        for v in votes_resp.data or []:
+            pid = v.get("post_id")
+            if pid not in post_votes:
+                post_votes[pid] = []
+            post_votes[pid].append(v)
+
     formatted_posts = []
-    for post in (user_posts or []):
+    user_id = user.get("id")
+    for post in user_posts:
         title = post.get("title") or "(No Title)"
         url = (post.get("content") or "").rstrip("?")
         course_name = post.get("subject") or "General"
@@ -1396,15 +1407,11 @@ def profile_page(request):
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
-        # Votes for this post
-        votes_resp = supabase.table("post_votes").select("*").eq("post_id", post_id).execute()
-        votes = votes_resp.data or []
+        votes = post_votes.get(post_id, [])
         upvotes = len([v for v in votes if v.get("vote_type") == "up"])
         downvotes = len([v for v in votes if v.get("vote_type") == "down"])
         net_votes = upvotes - downvotes
 
-        # Current user's vote
-        user_id = user.get("id")
         user_vote = None
         if user_id:
             uv = next((v["vote_type"] for v in votes if v.get("user_id") == user_id), None)
@@ -1427,11 +1434,10 @@ def profile_page(request):
             "downvote_count": downvotes,
             "vote_count": net_votes,
             "user_vote": user_vote,
-            # comments intentionally omitted on profile page
         })
 
     # --------------------------
-    # Fetch user's comments (flat list across posts)
+    # Fetch user's comments (batch votes and post titles)
     # --------------------------
     comments_resp = supabase.table("comments") \
         .select("*") \
@@ -1440,6 +1446,25 @@ def profile_page(request):
         .execute()
     raw_comments = comments_resp.data or []
 
+    # Batch fetch all comment votes
+    comment_ids = [c.get("comment_id") for c in raw_comments if c.get("comment_id")]
+    comment_votes = {}
+    if comment_ids:
+        cvotes_resp = supabase.table("comment_votes").select("*").in_("comment_id", comment_ids).execute()
+        for v in cvotes_resp.data or []:
+            cid = v.get("comment_id")
+            if cid not in comment_votes:
+                comment_votes[cid] = []
+            comment_votes[cid].append(v)
+
+    # Batch fetch all post titles for comments
+    comment_post_ids = list(set([c.get("post_id") for c in raw_comments if c.get("post_id")]))
+    post_titles = {}
+    if comment_post_ids:
+        posts_title_resp = supabase.table("posts").select("post_id", "title").in_("post_id", comment_post_ids).execute()
+        for p in posts_title_resp.data or []:
+            post_titles[p.get("post_id")] = p.get("title") or "(No Title)"
+
     user_comments = []
     seen_comment_ids = set()
     seen_composite = set()
@@ -1447,7 +1472,6 @@ def profile_page(request):
         cid = c.get("comment_id")
         pid = c.get("post_id")
         txt = (c.get("text") or "").strip()
-        # Truncate created_at to seconds for stable duplicate detection
         created = (c.get("created_at") or "")
         created_key = created[:19] if isinstance(created, str) else str(created)[:19]
 
@@ -1461,9 +1485,7 @@ def profile_page(request):
         seen_comment_ids.add(cid)
         seen_composite.add(comp_key)
 
-        # votes for comment (support both 'up'/'down' and 'upvote'/'downvote')
-        cv_resp = supabase.table("comment_votes").select("vote_type").eq("comment_id", cid).execute()
-        cvotes = cv_resp.data or []
+        cvotes = comment_votes.get(cid, [])
         def as_dir(val):
             if not val:
                 return None
@@ -1475,14 +1497,7 @@ def profile_page(request):
         down = sum(1 for v in cvotes if as_dir(v.get("vote_type")) == "down")
         net = up - down
 
-        # post context (title)
-        post_title = None
-        try:
-            p_resp = supabase.table("posts").select("title").eq("post_id", c["post_id"]).maybe_single().execute()
-            if p_resp.data:
-                post_title = p_resp.data.get("title") or "(No Title)"
-        except Exception:
-            post_title = "(No Title)"
+        post_title = post_titles.get(pid, "(No Title)")
 
         user_comments.append({
             "comment_id": cid,
@@ -1497,24 +1512,34 @@ def profile_page(request):
     # ensure navbar gets the profile picture URL
     profile_picture_url = user.get("profile_picture") or None
 
-    return render(request, "profile_page.html", {
+    # Use Django cache for profile page context
+    from django.core.cache import cache
+    cache_key = f"profile_page_{user['id']}"
+    context = {
         "user": user,
         "success": success,
-        "user_posts": formatted_posts,  # use formatted posts
-        "user_comments": user_comments, # NEW: flat comments list
+        "user_posts": formatted_posts,
+        "user_comments": user_comments,
         "profile_picture_url": profile_picture_url,
         "current_user_id": user.get("id")
-    })
+    }
+    cache.set(cache_key, context, timeout=60)  # cache for 1 minute
+    return render(request, "profile_page.html", context)
 
 # ============================
 # 🔵 HOME PAGE
 # ============================
 @login_required
 def home(request):
-    posts = Post.objects.all().order_by('-created_at')  # newest first
+    from django.core.cache import cache
+    cache_key = "home_page_posts"
+    posts = cache.get(cache_key)
+    if posts is None:
+        posts = Post.objects.all().order_by('-created_at')
+        cache.set(cache_key, posts, timeout=60)  # cache for 1 minute
     context = {
         "posts": posts,
-        "user_id": request.user.id,  # pass logged-in user's ID
+        "user_id": request.user.id,
     }
     return render(request, "home.html", context)
 

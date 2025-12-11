@@ -16,6 +16,7 @@ urlpatterns = [
 
     # HOME
     path('home/', views.home_page, name='home'),
+    path('profile/', views.profile_page, name='profile_page'),
 
     # ADMIN
     path('dashboard/', views.admin_page, name='admin'),
@@ -43,6 +44,7 @@ urlpatterns = [
     path("vote_post/<int:post_id>/<str:vote_type>/", views.vote_post, name="vote_post"),
 
     # COMMENTS
+    path('comments/<int:post_id>/', views.comments_for_post, name='comments_for_post'),
     path('edit_comment/<int:comment_id>/', views.edit_comment, name='edit_comment'),
     path('comment/delete/<int:comment_id>/', views.delete_comment, name='delete_comment'),
     path('vote_comment/<int:comment_id>/<str:vote_type>/', views.vote_comment, name='vote_comment'),

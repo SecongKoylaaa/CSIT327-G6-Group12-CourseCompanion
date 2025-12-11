@@ -8,7 +8,6 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
 // Dashboard data cache
 let dashboardData = {
     totalUsers: 0,
@@ -211,19 +210,87 @@ function closeSubjectModal() {
     }
 }
 
-// Report Filter
-function filterReports() {
-    const filterValue = document.getElementById('report-filter').value;
-    const reportCards = document.querySelectorAll('.report-card');
-    
-    reportCards.forEach(card => {
-        const status = card.dataset.status;
-        
-        if (filterValue === 'all' || status === filterValue) {
-            card.style.display = 'block';
-        } else {
-            card.style.display = 'none';
+// Toggle between Post Reports and Comment Reports
+function showReportSection(sectionName) {
+    const postSection = document.getElementById('post-reports-section');
+    const commentSection = document.getElementById('comment-reports-section');
+
+    if (!postSection || !commentSection) {
+        return;
+    }
+
+    const postBtn = document.getElementById('toggle-post-reports');
+    const commentBtn = document.getElementById('toggle-comment-reports');
+
+    if (sectionName === 'posts') {
+        postSection.classList.add('active');
+        commentSection.classList.remove('active');
+        if (postBtn) postBtn.classList.add('active');
+        if (commentBtn) commentBtn.classList.remove('active');
+    } else if (sectionName === 'comments') {
+        commentSection.classList.add('active');
+        postSection.classList.remove('active');
+        if (commentBtn) commentBtn.classList.add('active');
+        if (postBtn) postBtn.classList.remove('active');
+    }
+
+    const activeSection = sectionName === 'posts' ? postSection : commentSection;
+    if (activeSection) {
+        const list = activeSection.querySelector('.reports-list');
+        if (list) {
+            list.scrollTop = 0;
         }
+    }
+}
+
+// Report Filters (Posts & Comments)
+function filterReports() {
+    // Convenience wrapper if we ever want to re-use a global filter
+    filterPostReports();
+    filterCommentReports();
+}
+
+function filterPostReports() {
+    const section = document.getElementById('post-reports-section');
+    if (!section) return;
+
+    const searchInput = document.getElementById('post-report-search');
+    const filterSelect = document.getElementById('post-report-filter');
+
+    const term = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const statusFilter = filterSelect ? filterSelect.value : 'all';
+
+    const cards = section.querySelectorAll('.report-card');
+    cards.forEach(card => {
+        const status = (card.dataset.status || '').toLowerCase();
+        const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+        const text = card.textContent ? card.textContent.toLowerCase() : '';
+        const matchesSearch = !term || text.includes(term);
+
+        card.style.display = matchesStatus && matchesSearch ? 'block' : 'none';
+    });
+}
+
+function filterCommentReports() {
+    const section = document.getElementById('comment-reports-section');
+    if (!section) return;
+
+    const searchInput = document.getElementById('comment-report-search');
+    const filterSelect = document.getElementById('comment-report-filter');
+
+    const term = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const statusFilter = filterSelect ? filterSelect.value : 'all';
+
+    const cards = section.querySelectorAll('.report-card');
+    cards.forEach(card => {
+        const status = (card.dataset.status || '').toLowerCase();
+        const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+        const text = card.textContent ? card.textContent.toLowerCase() : '';
+        const matchesSearch = !term || text.includes(term);
+
+        card.style.display = matchesStatus && matchesSearch ? 'block' : 'none';
     });
 }
 

@@ -152,165 +152,212 @@
 
     <div id="reports-tab" class="tab-content">
       <h1 class="admin-page-title">Reports & Moderation</h1>
+
+      <div class="reports-toggle">
+        <button type="button" class="reports-toggle-btn active" id="toggle-post-reports" onclick="showReportSection('posts')">
+          <i class="fas fa-flag"></i>
+          <span>Post Reports</span>
+        </button>
+        <button type="button" class="reports-toggle-btn" id="toggle-comment-reports" onclick="showReportSection('comments')">
+          <i class="fas fa-comments"></i>
+          <span>Comment Reports</span>
+        </button>
+      </div>
+
       <div class="reports-container">
-        <div class="reports-header">
-          <h2>Post Reports ({{ total_reports }})</h2>
-          <div class="filter-box">
-            <select id="report-filter" onchange="filterReports()">
-              <option value="all">All Reports</option>
-              <option value="pending">Pending</option>
-              <option value="under_review">Under Review</option>
-              <option value="resolved">Resolved</option>
-              <option value="dismissed">Dismissed</option>
-            </select>
-          </div>
-        </div>
-        <div class="reports-list">
-          {% for report in reports %}
-          <div class="report-card" data-status="{{ report.status }}" data-report-id="{{ report.report_id }}">
-            <div class="report-header">
-              <div class="report-info">
-                <h4>{{ report.post_title }}</h4>
-                <span class="report-status status-{{ report.status }}">{{ report.status|title }}</span>
+        <div id="post-reports-section" class="reports-section active">
+          <div class="reports-header">
+            <div>
+              <h2>Post Reports ({{ total_reports }})</h2>
+              <p class="reports-subtitle">Moderate posts that have been flagged by the community.</p>
+            </div>
+            <div class="reports-controls">
+              <div class="reports-search">
+                <input type="text"
+                       id="post-report-search"
+                       placeholder="Search post reports..."
+                       onkeyup="filterPostReports()">
               </div>
-              <div class="report-date">
-                {{ report.created_at|date:"M d, Y H:i" }}
+              <div class="filter-box">
+                <select id="post-report-filter" onchange="filterPostReports()">
+                  <option value="all">All Reports</option>
+                  <option value="pending">Pending</option>
+                  <option value="under_review">Under Review</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="dismissed">Dismissed</option>
+                </select>
               </div>
             </div>
-            <div class="report-body">
-              <div class="report-col report-post">
-                <div class="detail-row">
-                  <strong>Subject:</strong> {{ report.post_subject }}
+          </div>
+          <div class="reports-list">
+            {% for report in reports %}
+            <div class="report-card" data-status="{{ report.status }}" data-report-id="{{ report.report_id }}">
+              <div class="report-header">
+                <div class="report-info">
+                  <h4>{{ report.post_title }}</h4>
+                  <span class="report-status status-{{ report.status }}">{{ report.status|title }}</span>
                 </div>
-                <div class="detail-row">
-                  <strong>Post Author:</strong> {{ report.post_author }}
+                <div class="report-date">
+                  {{ report.created_at|date:"M d, Y H:i" }}
                 </div>
-                {% if report.post_description %}
-                <div class="detail-row">
-                  <strong>Description:</strong> {{ report.post_description }}
-                </div>
-                {% endif %}
-                {% if report.post_is_image %}
-                <div class="report-media">
-                  <img src="{{ report.post_url }}" alt="Reported post image">
-                </div>
-                {% elif report.post_is_video %}
-                <div class="report-media">
-                  <video src="{{ report.post_url }}" controls muted></video>
-                </div>
-                {% elif report.post_url %}
-                <div class="detail-row">
-                  <strong>Link:</strong> <a href="{{ report.post_url }}" target="_blank" rel="noopener noreferrer">{{ report.post_url }}</a>
-                </div>
-                {% endif %}
               </div>
-              <div class="report-col report-meta">
-                <div class="detail-row">
-                  <strong>Reported by:</strong> {{ report.reporter_email }}
-                </div>
-                <div class="detail-row">
-                  <strong>Violation Type:</strong> {{ report.violation_label|default:"Unknown" }}
-                </div>
-                {% if report.user_description %}
-                <div class="detail-row">
-                  <strong>User Description:</strong> {{ report.user_description }}
-                </div>
-                {% endif %}
-                <div class="report-actions">
+              <div class="report-body">
+                <div class="report-col report-post">
                   <div class="detail-row">
-                    <strong>Status:</strong>
-                    <select onchange="updateReportStatus('{{ report.report_id }}', this.value)">
-                      <option value="pending" {% if report.status == 'pending' %}selected{% endif %}>Pending</option>
-                      <option value="under_review" {% if report.status == 'under_review' %}selected{% endif %}>Under Review</option>
-                      <option value="resolved" {% if report.status == 'resolved' %}selected{% endif %}>Resolved</option>
-                      <option value="dismissed" {% if report.status == 'dismissed' %}selected{% endif %}>Dismissed</option>
-                    </select>
+                    <strong>Subject:</strong> {{ report.post_subject }}
                   </div>
-                  <button class="btn btn-sm btn-danger" onclick="adminDeletePost('{{ report.post_id }}')">
-                    <i class="fas fa-trash"></i> Delete Post
-                  </button>
+                  <div class="detail-row">
+                    <strong>Post Author:</strong> {{ report.post_author }}
+                  </div>
+                  {% if report.post_description %}
+                  <div class="detail-row">
+                    <strong>Description:</strong> {{ report.post_description }}
+                  </div>
+                  {% endif %}
+                  {% if report.post_is_image %}
+                  <div class="report-media">
+                    <img src="{{ report.post_url }}" alt="Reported post image">
+                  </div>
+                  {% elif report.post_is_video %}
+                  <div class="report-media">
+                    <video src="{{ report.post_url }}" controls muted></video>
+                  </div>
+                  {% elif report.post_url %}
+                  <div class="detail-row">
+                    <strong>Link:</strong> <a href="{{ report.post_url }}" target="_blank" rel="noopener noreferrer">{{ report.post_url }}</a>
+                  </div>
+                  {% endif %}
+                </div>
+                <div class="report-col report-meta">
+                  <div class="detail-row">
+                    <strong>Reported by:</strong> {{ report.reporter_email }}
+                  </div>
+                  <div class="detail-row">
+                    <strong>Violation Type:</strong> {{ report.violation_label|default:"Unknown" }}
+                  </div>
+                  {% if report.user_description %}
+                  <div class="detail-row">
+                    <strong>User Description:</strong> {{ report.user_description }}
+                  </div>
+                  {% endif %}
+                  <div class="report-actions">
+                    <div class="detail-row">
+                      <strong>Status:</strong>
+                      <select onchange="updateReportStatus('{{ report.report_id }}', this.value)">
+                        <option value="pending" {% if report.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="under_review" {% if report.status == 'under_review' %}selected{% endif %}>Under Review</option>
+                        <option value="resolved" {% if report.status == 'resolved' %}selected{% endif %}>Resolved</option>
+                        <option value="dismissed" {% if report.status == 'dismissed' %}selected{% endif %}>Dismissed</option>
+                      </select>
+                    </div>
+                    <button class="btn btn-sm btn-danger" onclick="adminDeletePost('{{ report.post_id }}')">
+                      <i class="fas fa-trash"></i> Delete Post
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
+            {% empty %}
+            <div class="no-data">
+              <i class="fas fa-flag"></i>
+              <p>No post reports found.</p>
+            </div>
+            {% endfor %}
           </div>
-          {% empty %}
-          <div class="no-data">
-            <i class="fas fa-flag"></i>
-            <p>No post reports found.</p>
-          </div>
-          {% endfor %}
         </div>
 
-        <div class="reports-header" style="margin-top: 2rem;">
-          <h2>Comment Reports ({{ total_comment_reports }})</h2>
-        </div>
-        <div class="reports-list">
-          {% for c_report in comment_reports %}
-          <div class="report-card" data-status="{{ c_report.status }}" data-comment-report-id="{{ c_report.report_id }}">
-            <div class="report-header">
-              <div class="report-info">
-                <h4>Comment on: {{ c_report.post_title }}</h4>
-                <span class="report-status status-{{ c_report.status }}">{{ c_report.status|title }}</span>
+        <div id="comment-reports-section" class="reports-section">
+          <div class="reports-header">
+            <div>
+              <h2>Comment Reports ({{ total_comment_reports }})</h2>
+              <p class="reports-subtitle">Review comments that may violate community guidelines.</p>
+            </div>
+            <div class="reports-controls">
+              <div class="reports-search">
+                <input type="text"
+                       id="comment-report-search"
+                       placeholder="Search comment reports..."
+                       onkeyup="filterCommentReports()">
               </div>
-              <div class="report-date">
-                {{ c_report.created_at|date:"M d, Y H:i" }}
+              <div class="filter-box">
+                <select id="comment-report-filter" onchange="filterCommentReports()">
+                  <option value="all">All Reports</option>
+                  <option value="pending">Pending</option>
+                  <option value="under_review">Under Review</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="dismissed">Dismissed</option>
+                </select>
               </div>
             </div>
-            <div class="report-body">
-              <div class="report-col report-post">
-                <div class="detail-row">
-                  <strong>Subject:</strong> {{ c_report.post_subject }}
+          </div>
+          <div class="reports-list">
+            {% for c_report in comment_reports %}
+            <div class="report-card" data-status="{{ c_report.status }}" data-comment-report-id="{{ c_report.report_id }}">
+              <div class="report-header">
+                <div class="report-info">
+                  <h4>Comment on: {{ c_report.post_title }}</h4>
+                  <span class="report-status status-{{ c_report.status }}">{{ c_report.status|title }}</span>
                 </div>
-                <div class="detail-row">
-                  <strong>Post Title:</strong> {{ c_report.post_title }}
-                </div>
-                {% if c_report.post_description %}
-                <div class="detail-row">
-                  <strong>Post Description:</strong> {{ c_report.post_description }}
-                </div>
-                {% endif %}
-                <div class="detail-row">
-                  <strong>Comment Author:</strong> {{ c_report.comment_author }}
-                </div>
-                <div class="detail-row">
-                  <strong>Comment Text:</strong> {{ c_report.comment_text }}
+                <div class="report-date">
+                  {{ c_report.created_at|date:"M d, Y H:i" }}
                 </div>
               </div>
-              <div class="report-col report-meta">
-                <div class="detail-row">
-                  <strong>Reported by:</strong> {{ c_report.reporter_email }}
-                </div>
-                <div class="detail-row">
-                  <strong>Violation Type:</strong> {{ c_report.violation_label|default:"Unknown" }}
-                </div>
-                {% if c_report.user_description %}
-                <div class="detail-row">
-                  <strong>User Description:</strong> {{ c_report.user_description }}
-                </div>
-                {% endif %}
-                <div class="report-actions">
+              <div class="report-body">
+                <div class="report-col report-post">
                   <div class="detail-row">
-                    <strong>Status:</strong>
-                    <select onchange="updateCommentReportStatus('{{ c_report.report_id }}', this.value)">
-                      <option value="pending" {% if c_report.status == 'pending' %}selected{% endif %}>Pending</option>
-                      <option value="under_review" {% if c_report.status == 'under_review' %}selected{% endif %}>Under Review</option>
-                      <option value="resolved" {% if c_report.status == 'resolved' %}selected{% endif %}>Resolved</option>
-                      <option value="dismissed" {% if c_report.status == 'dismissed' %}selected{% endif %}>Dismissed</option>
-                    </select>
+                    <strong>Subject:</strong> {{ c_report.post_subject }}
                   </div>
-                  <button class="btn btn-sm btn-danger" onclick="adminDeleteComment('{{ c_report.comment_id }}')">
-                    <i class="fas fa-trash"></i> Delete Comment
-                  </button>
+                  <div class="detail-row">
+                    <strong>Post Title:</strong> {{ c_report.post_title }}
+                  </div>
+                  {% if c_report.post_description %}
+                  <div class="detail-row">
+                    <strong>Post Description:</strong> {{ c_report.post_description }}
+                  </div>
+                  {% endif %}
+                  <div class="detail-row">
+                    <strong>Comment Author:</strong> {{ c_report.comment_author }}
+                  </div>
+                  <div class="detail-row">
+                    <strong>Comment Text:</strong> {{ c_report.comment_text }}
+                  </div>
+                </div>
+                <div class="report-col report-meta">
+                  <div class="detail-row">
+                    <strong>Reported by:</strong> {{ c_report.reporter_email }}
+                  </div>
+                  <div class="detail-row">
+                    <strong>Violation Type:</strong> {{ c_report.violation_label|default:"Unknown" }}
+                  </div>
+                  {% if c_report.user_description %}
+                  <div class="detail-row">
+                    <strong>User Description:</strong> {{ c_report.user_description }}
+                  </div>
+                  {% endif %}
+                  <div class="report-actions">
+                    <div class="detail-row">
+                      <strong>Status:</strong>
+                      <select onchange="updateCommentReportStatus('{{ c_report.report_id }}', this.value)">
+                        <option value="pending" {% if c_report.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="under_review" {% if c_report.status == 'under_review' %}selected{% endif %}>Under Review</option>
+                        <option value="resolved" {% if c_report.status == 'resolved' %}selected{% endif %}>Resolved</option>
+                        <option value="dismissed" {% if c_report.status == 'dismissed' %}selected{% endif %}>Dismissed</option>
+                      </select>
+                    </div>
+                    <button class="btn btn-sm btn-danger" onclick="adminDeleteComment('{{ c_report.comment_id }}')">
+                      <i class="fas fa-trash"></i> Delete Comment
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
+            {% empty %}
+            <div class="no-data">
+              <i class="fas fa-comment-slash"></i>
+              <p>No comment reports found.</p>
+            </div>
+            {% endfor %}
           </div>
-          {% empty %}
-          <div class="no-data">
-            <i class="fas fa-comment-slash"></i>
-            <p>No comment reports found.</p>
-          </div>
-          {% endfor %}
         </div>
       </div>
     </div>
