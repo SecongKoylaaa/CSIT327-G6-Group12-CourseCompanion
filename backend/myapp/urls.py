@@ -33,6 +33,9 @@ urlpatterns = [
     # REPORTING
     path('report_post/', views.report_post, name='report_post'),
 
+    # Diagnostics
+    path('diagnostics/', views.diagnostics, name='diagnostics'),
+
     # POST VOTING
     path("vote_post/<int:post_id>/<str:vote_type>/", views.vote_post, name="vote_post"),
 

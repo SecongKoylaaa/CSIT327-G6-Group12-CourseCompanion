@@ -8,6 +8,7 @@ from supabase import create_client
 from django.http import HttpResponse, HttpResponseForbidden
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from .models import Post
 from .forms import PostForm
 import time
@@ -1751,3 +1752,19 @@ def report_post(request):
 def logout_page(request):
     request.session.flush()
     return redirect("/")
+
+
+# --------------------------
+# Diagnostics: env + static
+# --------------------------
+def diagnostics(request):
+    info = {
+        "RENDER": os.environ.get("RENDER"),
+        "DEBUG": settings.DEBUG,
+        "ALLOWED_HOSTS": settings.ALLOWED_HOSTS,
+        "STATIC_URL": settings.STATIC_URL,
+        "STATIC_ROOT": str(getattr(settings, "STATIC_ROOT", "")),
+        "STATICFILES_DIRS": [str(p) for p in getattr(settings, "STATICFILES_DIRS", [])],
+        "WHITENOISE_ENABLED": "whitenoise.middleware.WhiteNoiseMiddleware" in settings.MIDDLEWARE,
+    }
+    return JsonResponse(info)
