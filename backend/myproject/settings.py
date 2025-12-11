@@ -11,7 +11,7 @@ import dj_database_url
 
 # Load .env in local dev only
 if os.environ.get("RENDER", "") != "true":
-    load_dotenv()
+    load_dotenv(".env")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -19,10 +19,12 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "unsafe-dev-key")
 DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
-
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://tkyztssepvewbmgsaaeq.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+# Supabase configuration should come from environment; avoid hard-coded secrets
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "post_media")
+SUPABASE_BUCKET_PROFILE = os.getenv("SUPABASE_BUCKET_PROFILE", "profile_picture")
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 
 # Application definition

@@ -1,20 +1,22 @@
-from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.conf import settings
-from django.shortcuts import redirect
 from django.contrib.auth.hashers import make_password, check_password
 from datetime import datetime, timezone, timedelta
 from supabase import create_client
+from django.http import HttpResponse, HttpResponseForbidden
+from django.template.loader import render_to_string
+from django.contrib.auth.decorators import login_required
+from .models import Post
+from .forms import PostForm
 import time
 import secrets
 
-
 # --------------------------
-# Initialize Supabase client
-# --------------------------
-supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+# Initialize Supabase client (use service role if available)
+SUPABASE_AUTH_KEY = getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None) or settings.SUPABASE_KEY
+supabase = create_client(settings.SUPABASE_URL, SUPABASE_AUTH_KEY)
 
 # Available academic subjects used across post creation and communities
 SUBJECTS = [
@@ -42,11 +44,6 @@ SUBJECTS = [
 # Utility: Safe Supabase execute with retries
 # --------------------------
 def safe_execute(request_fn, retries=3, delay=0.1):
-    """
-    request_fn: lambda that calls supabase execute()
-    retries: number of retries on failure
-    delay: seconds to wait between retries
-    """
     for attempt in range(retries):
         try:
             return request_fn()
@@ -55,72 +52,23 @@ def safe_execute(request_fn, retries=3, delay=0.1):
                 time.sleep(delay)
                 continue
             raise
-    # final attempt
     return request_fn()
 
 # --------------------------
 # Root: splash / landing page
 # --------------------------
 def root_redirect(request):
-    # Always show the splash page first
     return render(request, "splash_page.html")
 
-def register_page(request):
-    if request.method == "POST":
-        MAX_EMAIL_LENGTH = 50
-        MAX_PASSWORD_LENGTH = 30
-
-        email = request.POST.get("email", "").strip()
-        password = request.POST.get("password", "").strip()
-        confirm = request.POST.get("confirmPassword", "").strip()
-
-        # ---------- Validation ----------
-        if not email or not password or not confirm:
-            return render(request, "register.html", {"error": "All fields are required."})
-
-        if len(email) > MAX_EMAIL_LENGTH:
-            return render(request, "register.html", {"error": "Email is too long."})
-
-        if len(password) > MAX_PASSWORD_LENGTH:
-            return render(request, "register.html", {"error": "Password is too long."})
-
-        if password != confirm:
-            return render(request, "register.html", {"error": "Passwords do not match."})
-
-        # ---------- Check if email exists ----------
-        try:
-            existing = supabase.table("users").select("*").eq("email", email).execute()
-            if existing.data:
-                return render(request, "register.html", {"error": "Account already exists. Please login."})
-        except Exception as e:
-            return render(request, "register.html", {"error": f"Database error: {str(e)}"})
-
-        # ---------- Insert User ----------
-        password_hash = make_password(password)
-        date_joined = datetime.now(timezone.utc).isoformat()
-
-        try:
-            response = supabase.table("users").insert({
-                "email": email,
-                "password_hash": password_hash,
-                "username": None,
-                "role": "student",        # default role, or change as needed
-                "profile_picture": None,
-                "bio": None,
-                "last_login": None,
-                "date_joined": date_joined
-            }).execute()
-
-            if getattr(response, "error", None):
-                return render(request, "register.html", {"error": f"Error registering: {response.error}"})
-
-        except Exception as e:
-            return render(request, "register.html", {"error": f"Error registering: {str(e)}"})
-
-        return redirect("/login/")
-
-    return render(request, "register.html")
-
+# --------------------------
+# Helper: Fetch profile picture URL for navbar
+# --------------------------
+def get_profile_picture_url(request):
+    email = request.session.get("user_email")
+    if not email:
+        return None
+    resp = supabase.table("users").select("profile_picture").eq("email", email).maybe_single().execute()
+    return resp.data.get("profile_picture") if resp and resp.data else None
 
 # --------------------------
 # Login View
@@ -143,7 +91,7 @@ def login_page(request):
             return render(request, "login.html", {"error": "Email and password are required."})
 
         try:
-            response = supabase.table("users").select("*").eq("email", email).execute()
+            response = safe_execute(lambda: supabase.table("users").select("*").eq("email", email).execute())
         except Exception as e:
             return render(request, "login.html", {"error": f"Error connecting to database: {str(e)}"})
 
@@ -154,13 +102,76 @@ def login_page(request):
         if not check_password(password, user["password_hash"]):
             return render(request, "login.html", {"error": "Invalid credentials!"})
 
-        # Save user session
         request.session["user_email"] = email
         request.session["role"] = user.get("role", "student")
 
+        try:
+            supabase.table("users").update({
+                "last_login": datetime.now(timezone.utc).isoformat()
+            }).eq("email", email).execute()
+        except Exception:
+            pass
+
         return redirect("/home/")
 
-    return render(request, "login.html")
+    return render(request, "login.html", {
+        "profile_picture_url": get_profile_picture_url(request)
+    })
+
+# --------------------------
+# Registration View
+# --------------------------
+def register_page(request):
+    if request.method == "POST":
+        MAX_EMAIL_LENGTH = 50
+        MAX_PASSWORD_LENGTH = 30
+
+        email = request.POST.get("email", "").strip()
+        password = request.POST.get("password", "").strip()
+        confirm = request.POST.get("confirmPassword", "").strip()
+
+        # Validation
+        if not email or not password or not confirm:
+            return render(request, "register.html", {"error": "All fields are required."})
+        if len(email) > MAX_EMAIL_LENGTH:
+            return render(request, "register.html", {"error": "Email is too long."})
+        if len(password) > MAX_PASSWORD_LENGTH:
+            return render(request, "register.html", {"error": "Password is too long."})
+        if password != confirm:
+            return render(request, "register.html", {"error": "Passwords do not match."})
+
+        # Check if email exists
+        try:
+            existing = safe_execute(lambda: supabase.table("users").select("*").eq("email", email).execute())
+            if existing.data:
+                return render(request, "register.html", {"error": "Account already exists. Please login."})
+        except Exception as e:
+            return render(request, "register.html", {"error": f"Database error: {str(e)}"})
+
+        # Insert User
+        password_hash = make_password(password)
+        date_joined = datetime.now(timezone.utc).isoformat()
+        try:
+            response = safe_execute(lambda: supabase.table("users").insert({
+                "email": email,
+                "password_hash": password_hash,
+                "username": None,
+                "role": "student",
+                "profile_picture": None,
+                "bio": None,
+                "last_login": None,
+                "date_joined": date_joined
+            }).execute())
+            if getattr(response, "error", None):
+                return render(request, "register.html", {"error": f"Error registering: {response.error}"})
+        except Exception as e:
+            return render(request, "register.html", {"error": f"Error registering: {str(e)}"})
+
+        return redirect("/login/")
+
+    return render(request, "register.html", {
+        "profile_picture_url": get_profile_picture_url(request)
+    })
 
 # --------------------------
 # Password Recovery View
@@ -174,7 +185,7 @@ def recover_password_page(request):
 
         # Check if user exists
         try:
-            response = supabase.table("users").select("*").eq("email", email).execute()
+                response = safe_execute(lambda: supabase.table("users").select("*").eq("email", email).execute())
         except Exception as e:
             return render(request, "recover_password.html", {"error": f"Error connecting to database: {str(e)}", "email": email})
 
@@ -208,12 +219,14 @@ def recover_password_page(request):
             "error": None,
             "message": "If this email exists, a recovery link has been generated.",
             "email": email,
-            "reset_link": reset_link
+            "reset_link": reset_link,
+            "profile_picture_url": get_profile_picture_url(request)
         })
 
-    return render(request, "recover_password.html", {"email": email})
-
-
+    return render(request, "recover_password.html", {
+        "email": email,
+        "profile_picture_url": get_profile_picture_url(request)
+    })
 
 # --------------------------
 # Password Reset View
@@ -289,12 +302,15 @@ def reset_password_page(request, reset_token):
         except Exception as e:
             return render(request, "reset_password.html", {"error": f"Password changed, but failed to clean up token: {str(e)}", "reset_token": reset_token})
 
-        return render(request, "reset_password.html", {"message": "Password reset successful! You can now log in."})
+        return render(request, "reset_password.html", {
+            "message": "Password reset successful! You can now log in.",
+            "profile_picture_url": get_profile_picture_url(request)
+        })
 
-    return render(request, "reset_password.html", {"reset_token": reset_token})
-
-
-from django.http import HttpResponseForbidden
+    return render(request, "reset_password.html", {
+        "reset_token": reset_token,
+        "profile_picture_url": get_profile_picture_url(request)
+    })
 
 # -----------------------------
 # Helper: parse datetime string
@@ -316,12 +332,12 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
     tree = []
     for c in comments:
         if c.get("parent_id") == parent_id_val:
-            # Get author email
-            user_resp = supabase.table("users").select("email").eq("id", c["user_id"]).maybe_single().execute()
+            # Get author email (retry on transient disconnects)
+            user_resp = safe_execute(lambda: supabase.table("users").select("email").eq("id", c["user_id"]).maybe_single().execute())
             author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else "anonymous@example.com"
 
-            # Fetch votes
-            votes_resp = supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute()
+            # Fetch votes (retry on transient disconnects)
+            votes_resp = safe_execute(lambda: supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute())
             votes = votes_resp.data or []
 
             upvotes = len([v for v in votes if v["vote_type"] == "upvote"])
@@ -353,15 +369,21 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
             tree.append(comment_obj)
     return tree
 
-
 # -----------------------------
 # Home page view
 # -----------------------------
 def home_page(request):
     if "user_email" not in request.session:
         return redirect("/login/")
-
-    user_email = request.session.get("user_email")
+    try:
+        user_email = request.session.get("user_email")
+        # Wrap Supabase calls with retries to avoid transient disconnects
+        user_resp = safe_execute(lambda: supabase.table("users").select("*").eq("email", user_email).maybe_single().execute())
+        profile_picture_url = user_resp.data["profile_picture"] if user_resp.data and user_resp.data.get("profile_picture") else None
+    except Exception:
+        # Graceful banner if a transient crash occurs; user doesn't need to refresh
+        request.session["success_message"] = "We hit a brief connection hiccup and auto-retried."
+        profile_picture_url = None
 
     # Optional subject filter from query string or POST (for comment submissions)
     selected_subject = request.GET.get("subject") or request.POST.get("subject") or None
@@ -393,22 +415,33 @@ def home_page(request):
         return redirect("/home/")
 
     # -----------------------------
-    # Fetch posts (optionally filtered by subject)
+    # Fetch posts (optionally filtered by subject) with pagination
     # -----------------------------
+    page_size = 15
+    try:
+        page = int(request.GET.get("page", "1"))
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    start = (page - 1) * page_size
+    end = start + page_size - 1
+
     posts_query = supabase.table("posts").select("*")
     if selected_subject:
         posts_query = posts_query.eq("subject", selected_subject)
 
-    response = posts_query.order("created_at", desc=True).execute()
+    response = safe_execute(lambda: posts_query.order("created_at", desc=True).range(start, end).execute())
     posts = response.data if response.data else []
 
     # Get current user ID for vote detection
     user_id = None
     if user_email:
-        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+        user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
         if user_resp.data:
             user_id = user_resp.data["id"]
-    print("Current user:", user_email, "ID:", user_id)
+    # Removed debug print for cleanliness
 
 
     formatted_posts = []
@@ -421,20 +454,20 @@ def home_page(request):
         post_id = post.get("post_id")
         author_id = post.get("user_id")
 
-        is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif"))
+        is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
         # Fetch author email for display
         author_email = "anonymous@example.com"
         if author_id:
-            author_resp = supabase.table("users").select("email").eq("id", author_id).maybe_single().execute()
+            author_resp = safe_execute(lambda: supabase.table("users").select("email").eq("id", author_id).maybe_single().execute())
             if author_resp.data and "email" in author_resp.data:
                 author_email = author_resp.data["email"]
 
         # -----------------------------
         # Fetch votes for this post
         # -----------------------------
-        votes_resp = supabase.table("post_votes").select("*").eq("post_id", post_id).execute()
+        votes_resp = safe_execute(lambda: supabase.table("post_votes").select("*").eq("post_id", post_id).execute())
         votes = votes_resp.data or []
 
         upvotes = len([v for v in votes if v["vote_type"] == "up"])
@@ -453,15 +486,8 @@ def home_page(request):
 
 
         # -----------------------------
-        # Fetch all comments for this post
-        # -----------------------------
-        comment_resp = supabase.table("comments").select("*").eq("post_id", post_id).order("created_at", desc=False).execute()
-        all_comments = comment_resp.data if comment_resp.data else []
-
-        # -----------------------------
-        # Build nested comment tree
-        # -----------------------------
-        nested_comments = build_comment_tree(all_comments, user_id=user_id)
+        # Defer comments: loaded on demand via AJAX
+        nested_comments = []
 
         formatted_posts.append({
             "id": post_id,
@@ -474,28 +500,89 @@ def home_page(request):
             "is_image": is_image,
             "is_video": is_video,
             "comments": nested_comments,
-            "upvote_count": upvotes,
-            "downvote_count": downvotes,
+                "upvote_count": upvotes,
             "vote_count": net_votes,
             "user_vote": user_vote,
-            "comment_count": len(all_comments),
+            # comment_count fetched lazily (approximate from table)
+            "comment_count": safe_execute(lambda: supabase.table("comments").select("comment_id", count="exact").eq("post_id", post_id).execute()).count or 0,
             # owner of the post, used to control author-only UI (3-dots menu)
             "user_id": author_id,
         })
+
+    # Pull and clear any success message (e.g., from profile edit)
+    success_message = request.session.pop("success_message", None)
 
     return render(request, "home.html", {
         "user_email": user_email,
         "role": request.session.get("role", "student"),
         "posts": formatted_posts,
+        "profile_picture_url": profile_picture_url,  # unchanged
+        "success": success_message,
         # current logged-in user's id, used in template for author-only controls
         "current_user_id": user_id,
         # Communities / subjects sidebar data
         "subjects": SUBJECTS,
         "selected_subject": selected_subject,
+        # pagination controls
+        "page": page,
+        "has_next": len(posts) == page_size,
+        "has_prev": page > 1,
     })
 
+# -----------------------------
+# AJAX: Load comments for a post on demand
+# -----------------------------
+@csrf_exempt
+def comments_for_post(request, post_id):
+    if request.method != "GET":
+        return HttpResponseForbidden("Invalid method")
 
+    user_email = request.session.get("user_email")
+    user_id = None
+    if user_email:
+        user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
+        if user_resp.data:
+            user_id = user_resp.data["id"]
 
+    comment_resp = safe_execute(lambda: supabase.table("comments").select("*").eq("post_id", post_id).order("created_at", desc=False).execute())
+    all_comments = comment_resp.data if comment_resp.data else []
+
+    seen_cids = set()
+    seen_composite = set()
+    dedup_comments = []
+    for c in all_comments:
+        cid = c.get("comment_id")
+        pid = c.get("post_id")
+        txt = (c.get("text") or "").strip()
+        created = (c.get("created_at") or "")
+        created_key = created[:19] if isinstance(created, str) else str(created)[:19]
+        comp = (pid, txt, created_key)
+        if cid:
+            if cid in seen_cids or comp in seen_composite:
+                continue
+            seen_cids.add(cid)
+            seen_composite.add(comp)
+            dedup_comments.append(c)
+        else:
+            if comp in seen_composite:
+                continue
+            seen_composite.add(comp)
+            dedup_comments.append(c)
+
+    nested = build_comment_tree(dedup_comments, user_id=user_id)
+
+    post_ctx = {
+        "id": post_id,
+        "comments": nested
+    }
+    # Include selected_subject and render with request to inject CSRF token
+    selected_subject = request.GET.get("subject") or None
+    html = render_to_string(
+        "comments.html",
+        {"post": post_ctx, "selected_subject": selected_subject, "user_email": user_email},
+        request=request,
+    )
+    return HttpResponse(html)
 
 # --------------------------
 # Comment Editing & Deletion
@@ -505,24 +592,24 @@ def edit_comment(request, comment_id):
         return redirect(request.META.get('HTTP_REFERER', '/'))
 
     # Fetch comment
-    resp = supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute()
+    resp = safe_execute(lambda: supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute())
     comment = resp.data
     if not comment:
         return HttpResponseForbidden("Comment not found.")
 
     # Get current user
     user_email = request.session.get("user_email")
-    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
     user_id = user_resp.data["id"] if user_resp.data else None
 
     if comment["user_id"] != user_id:
         return HttpResponseForbidden("You can't edit this comment.")
 
     # Update comment
-    supabase.table("comments").update({
+    safe_execute(lambda: supabase.table("comments").update({
         "text": request.POST.get("comment"),
         "edited": True
-    }).eq("comment_id", comment_id).execute()
+    }).eq("comment_id", comment_id).execute())
 
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
@@ -532,21 +619,21 @@ def delete_comment(request, comment_id):
         return redirect(request.META.get('HTTP_REFERER', '/'))
 
     # Fetch comment
-    resp = supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute()
+    resp = safe_execute(lambda: supabase.table("comments").select("*").eq("comment_id", comment_id).maybe_single().execute())
     comment = resp.data
     if not comment:
         return HttpResponseForbidden("Comment not found.")
 
     # Get current user
     user_email = request.session.get("user_email")
-    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
     user_id = user_resp.data["id"] if user_resp.data else None
 
     if comment["user_id"] != user_id:
         return HttpResponseForbidden("You can't delete this comment.")
 
     # Delete comment
-    supabase.table("comments").delete().eq("comment_id", comment_id).execute()
+    safe_execute(lambda: supabase.table("comments").delete().eq("comment_id", comment_id).execute())
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
@@ -561,19 +648,19 @@ def vote_comment(request, comment_id, vote_type):
     user_email = request.session.get("user_email")
 
     # Fetch user ID safely
-    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
     if not user_resp or not user_resp.data:
         return JsonResponse({"error": "User not found"}, status=404)
 
     user_id = user_resp.data["id"]
 
     # Check if vote exists for this user/comment
-    existing_vote_resp = supabase.table("comment_votes") \
+    existing_vote_resp = safe_execute(lambda: supabase.table("comment_votes") \
         .select("*") \
         .eq("user_id", user_id) \
         .eq("comment_id", comment_id) \
         .maybe_single() \
-        .execute()
+        .execute())
 
     existing_vote = existing_vote_resp.data if existing_vote_resp and existing_vote_resp.data else None
 
@@ -581,26 +668,26 @@ def vote_comment(request, comment_id, vote_type):
     if existing_vote:
         if existing_vote["vote_type"] == vote_type:
             # Same vote again → remove it (unvote)
-            supabase.table("comment_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute()
+            safe_execute(lambda: supabase.table("comment_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute())
             message = "Vote removed"
         else:
             # Switch vote type
-            supabase.table("comment_votes").update({"vote_type": vote_type}).eq("vote_id", existing_vote["vote_id"]).execute()
+            safe_execute(lambda: supabase.table("comment_votes").update({"vote_type": vote_type}).eq("vote_id", existing_vote["vote_id"]).execute())
             message = "Vote updated"
     else:
         # New vote
-        supabase.table("comment_votes").insert({
+        safe_execute(lambda: supabase.table("comment_votes").insert({
             "user_id": user_id,
             "comment_id": comment_id,
             "vote_type": vote_type
-        }).execute()
+        }).execute())
         message = "Vote added"
 
     # Get updated totals
-    votes_resp = supabase.table("comment_votes") \
+    votes_resp = safe_execute(lambda: supabase.table("comment_votes") \
         .select("vote_type") \
         .eq("comment_id", comment_id) \
-        .execute()
+        .execute())
 
     if not votes_resp or votes_resp.data is None:
         total_votes = 0
@@ -613,10 +700,6 @@ def vote_comment(request, comment_id, vote_type):
         "user_vote": vote_type if message != "Vote removed" else None
     })
 
-
-
-
-
 # --------------------------
 # Post Voting
 # --------------------------
@@ -628,19 +711,19 @@ def vote_post(request, post_id, vote_type):
     user_email = request.session.get("user_email")
 
     # Fetch user ID
-    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
     if not user_resp or not user_resp.data:
         return JsonResponse({"error": "User not found"}, status=404)
 
     user_id = user_resp.data["id"]
 
     # Check existing vote
-    existing_vote_resp = supabase.table("post_votes") \
+    existing_vote_resp = safe_execute(lambda: supabase.table("post_votes") \
         .select("*") \
         .eq("user_id", user_id) \
         .eq("post_id", post_id) \
         .maybe_single() \
-        .execute()
+        .execute())
 
     existing_vote = existing_vote_resp.data if existing_vote_resp and existing_vote_resp.data else None
 
@@ -648,33 +731,33 @@ def vote_post(request, post_id, vote_type):
     if existing_vote:
         if existing_vote["vote_type"] == vote_type:
             # Same vote → remove
-            supabase.table("post_votes") \
+            safe_execute(lambda: supabase.table("post_votes") \
                 .delete() \
                 .eq("vote_id", existing_vote["vote_id"]) \
-                .execute()
+                .execute())
             message = "Vote removed"
         else:
             # Switch vote
-            supabase.table("post_votes") \
+            safe_execute(lambda: supabase.table("post_votes") \
                 .update({"vote_type": vote_type}) \
                 .eq("vote_id", existing_vote["vote_id"]) \
-                .execute()
+                .execute())
             message = "Vote updated"
     else:
         # New vote
-        supabase.table("post_votes").insert({
+        safe_execute(lambda: supabase.table("post_votes").insert({
             "user_id": user_id,
             "post_id": post_id,
             "vote_type": vote_type
-        }).execute()
+        }).execute())
         message = "Vote added"
 
     # ---- FIX: Read updated counts from posts table ----
-    post_resp = supabase.table("posts") \
+    post_resp = safe_execute(lambda: supabase.table("posts") \
         .select("upvote_count, downvote_count") \
         .eq("post_id", post_id) \
         .maybe_single() \
-        .execute()
+        .execute())
 
     if not post_resp or not post_resp.data:
         return JsonResponse({"error": "Post not found after vote"}, status=404)
@@ -725,8 +808,6 @@ def time_since(created_at_str):
         return f"{int(seconds // 29030400)}y ago"
 
 
-
-
 FRONTEND_TO_DB = {
     "upvote": "up",
     "downvote": "down"
@@ -740,7 +821,7 @@ def vote_post(request, post_id, vote_type):
     user_email = request.session.get("user_email")
 
     # Get user ID
-    user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+    user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
     if not user_resp.data:
         return JsonResponse({"error": "User not found"}, status=404)
     user_id = user_resp.data["id"]
@@ -751,17 +832,17 @@ def vote_post(request, post_id, vote_type):
     db_vote_value = FRONTEND_TO_DB[vote_type]
 
     # Check if post exists
-    post_resp = supabase.table("posts").select("post_id").eq("post_id", post_id).maybe_single().execute()
+    post_resp = safe_execute(lambda: supabase.table("posts").select("post_id").eq("post_id", post_id).maybe_single().execute())
     if not post_resp.data:
         return JsonResponse({"error": "Post not found"}, status=404)
 
     # Check for existing vote
-    existing_vote_resp = supabase.table("post_votes")\
+    existing_vote_resp = safe_execute(lambda: supabase.table("post_votes")\
         .select("*")\
         .eq("post_id", post_id)\
         .eq("user_id", user_id)\
         .maybe_single()\
-        .execute()
+        .execute())
     existing_vote = existing_vote_resp.data if existing_vote_resp and existing_vote_resp.data else None
 
     user_vote = None
@@ -769,41 +850,41 @@ def vote_post(request, post_id, vote_type):
     if existing_vote:
         if existing_vote.get("vote_type") == db_vote_value:
             # Same vote again → remove vote
-            supabase.table("post_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute()
+            safe_execute(lambda: supabase.table("post_votes").delete().eq("vote_id", existing_vote["vote_id"]).execute())
         else:
             # Change vote type
-            supabase.table("post_votes").update({"vote_type": db_vote_value}).eq("vote_id", existing_vote["vote_id"]).execute()
+            safe_execute(lambda: supabase.table("post_votes").update({"vote_type": db_vote_value}).eq("vote_id", existing_vote["vote_id"]).execute())
             user_vote = vote_type
     else:
         # Insert new vote safely
         try:
-            supabase.table("post_votes").insert({
+            safe_execute(lambda: supabase.table("post_votes").insert({
                 "user_id": user_id,
                 "post_id": post_id,
                 "vote_type": db_vote_value
-            }).execute()
+            }).execute())
             user_vote = vote_type
         except Exception as e:
             if "duplicate key value" in str(e):
                 # Handle race condition / duplicate insert
-                existing_vote_resp = supabase.table("post_votes")\
+                existing_vote_resp = safe_execute(lambda: supabase.table("post_votes")\
                     .select("*")\
                     .eq("post_id", post_id)\
                     .eq("user_id", user_id)\
                     .maybe_single()\
-                    .execute()
+                    .execute())
                 existing_vote = existing_vote_resp.data
                 if existing_vote:
-                    supabase.table("post_votes")\
+                    safe_execute(lambda: supabase.table("post_votes")\
                         .update({"vote_type": db_vote_value})\
                         .eq("vote_id", existing_vote["vote_id"])\
-                        .execute()
+                        .execute())
                     user_vote = vote_type
             else:
                 raise e
 
     # Compute net votes
-    votes_resp = supabase.table("post_votes").select("vote_type").eq("post_id", post_id).execute()
+    votes_resp = safe_execute(lambda: supabase.table("post_votes").select("vote_type").eq("post_id", post_id).execute())
     votes = votes_resp.data or []
     net_votes = sum(1 if v.get("vote_type") == "up" else -1 for v in votes)
 
@@ -811,10 +892,6 @@ def vote_post(request, post_id, vote_type):
         "net_votes": net_votes,
         "user_vote": user_vote
     })
-
-from django.shortcuts import render, redirect
-from django.conf import settings
-
 
 # --------------------------
 # Create Post - Text
@@ -824,10 +901,13 @@ def create_post_text(request):
         return redirect("/login/")
 
     user_email = request.session.get("user_email")
-    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+    # FIX: fetch profile_picture as well
+    user_resp = supabase.table("users").select("id, profile_picture").eq("email", user_email).maybe_single().execute()
     if not user_resp.data:
         return render(request, "create-post-text.html", {"error": "User not found."})
-    user_id = user_resp.data[0]["id"]
+    user_data = user_resp.data
+    user_id = user_data["id"]
+    profile_picture_url = user_data.get("profile_picture")
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -879,25 +959,26 @@ def create_post_text(request):
                 "subject": subject
             })
 
-    return render(request, "create-post-text.html")
-
+    return render(request, "create-post-text.html", {
+        "profile_picture_url": profile_picture_url
+    })
 
 # --------------------------
 # Create Post - Image/Video
 # --------------------------
-from django.conf import settings
-
 def create_post_image(request):
     if "user_email" not in request.session:
         return redirect("/login/")
 
     # Get user
     user_email = request.session.get("user_email")
-    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
+    # FIX: fetch profile_picture as well
+    user_resp = supabase.table("users").select("id, profile_picture").eq("email", user_email).maybe_single().execute()
     if not user_resp.data:
-        return render(request, "create-post-image-video.html", {"error": "User not found."})
-
-    user_id = user_resp.data[0]["id"]
+        return render(request, "create-post-text.html", {"error": "User not found."})
+    user_data = user_resp.data
+    user_id = user_data["id"]
+    profile_picture_url = user_data.get("profile_picture")
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -974,8 +1055,9 @@ def create_post_image(request):
             })
 
     # GET
-    return render(request, "create-post-image-video.html")
-
+    return render(request, "create-post-image-video.html", {
+        "profile_picture_url": profile_picture_url
+    })
 
 # --------------------------
 # Create Post - Link
@@ -986,12 +1068,12 @@ def create_post_link(request):
 
     # Get logged-in user
     user_email = request.session.get("user_email")
-    user_resp = supabase.table("users").select("id").eq("email", user_email).execute()
-
+    user_resp = supabase.table("users").select("id, profile_picture").eq("email", user_email).maybe_single().execute()
     if not user_resp.data:
-        return render(request, "create-post-link.html", {"error": "User not found."})
-
-    user_id = user_resp.data[0]["id"]
+        return render(request, "create-post-text.html", {"error": "User not found."})
+    user_data = user_resp.data
+    user_id = user_data["id"]
+    profile_picture_url = user_data.get("profile_picture")
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -1024,11 +1106,12 @@ def create_post_link(request):
                     "user_id": user_id
                 }
             ).execute()
-
+            
             return render(
                 request,
                 "create-post-link.html",
-                {"success": "Link post created successfully!"}
+                {"success": "Link post created successfully!",
+                 "profile_picture_url": profile_picture_url}
             )
 
         except Exception as e:
@@ -1040,27 +1123,341 @@ def create_post_link(request):
                     "title": title,
                     "post_type": post_type,
                     "subject": subject,
-                    "url": url
+                    "url": url,
+                    "profile_picture_url": profile_picture_url
                 }
             )
 
     # GET request
-    return render(request, "create-post-link.html")
+    return render(request, "create-post-link.html", {"profile_picture_url": profile_picture_url})
 
+# --------------------------
+# Profile Page
+# --------------------------
+def profile_page(request):
+    # Require login
+    if "user_email" not in request.session:
+        return redirect("login")
 
+    user_email = request.session.get("user_email")
+    success = None
 
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
-from .models import Post
-from .forms import PostForm
+    # --------------------------
+    # GET: Fetch current user
+    # --------------------------
+    response = supabase.table("users").select("*").eq("email", user_email).execute()
+    if not response.data:
+        return render(request, "profile_page.html", {"error": "User not found."})
+    
+    user = response.data[0]
 
+    # Fix dates (remove timezone)
+    if user.get("date_joined"):
+        user["date_joined"] = datetime.fromisoformat(user["date_joined"][:10])
+    if user.get("last_login"):
+        user["last_login"] = datetime.fromisoformat(user["last_login"][:10])
 
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import HttpResponseForbidden
-from django.contrib.auth.decorators import login_required
-from .models import Post
-from .forms import PostForm
+    # --------------------------
+    # POST: Update Profile
+    # --------------------------
+    if request.method == "POST":
+        new_username = request.POST.get("username")
+        new_bio = request.POST.get("bio")
+        uploaded_file = request.FILES.get("profile_picture")
+        remove_picture_flag = request.POST.get("remove_profile_picture") == "1"
+
+        update_data = {
+            "username": new_username,
+            "bio": new_bio,
+        }
+
+        def storage_path_from_public_url(public_url, bucket_name):
+            """Extract storage relative path from Supabase public URL.
+            Expected format: .../storage/v1/object/public/<bucket>/<path>?...
+            Returns '<path>' or None if not parsable.
+            """
+            try:
+                base = public_url.split("?")[0]
+                key = "/storage/v1/object/public/"
+                if key in base:
+                    after = base.split(key, 1)[1]  # '<bucket>/<path>'
+                    bucket_in_url, rel_path = after.split("/", 1)
+                    if bucket_in_url == bucket_name:
+                        return rel_path
+            except Exception:
+                pass
+            return None
+
+        old_file_url = user.get("profile_picture")
+        old_file_path = None
+        if old_file_url:
+            old_file_path = storage_path_from_public_url(old_file_url, settings.SUPABASE_BUCKET_PROFILE)
+
+        # --------------------------
+        # Remove existing picture
+        # --------------------------
+        if remove_picture_flag and old_file_url:
+            try:
+                bucket = settings.SUPABASE_BUCKET_PROFILE
+                to_remove = []
+                if old_file_path:
+                    to_remove.append(old_file_path)
+
+                # Also remove any other files left in the user's folder to ensure cleanup
+                user_folder = f"profile_pictures/{user_email}"
+                try:
+                    # First attempt: direct list of the folder
+                    listed = supabase.storage.from_(bucket).list(user_folder)
+                    # supabase-py may return list or dict with 'data'
+                    items = listed.get("data", listed) if isinstance(listed, dict) else listed
+                    # No-op; ensure block is not empty
+                    pass
+                    # Fallback attempt: list from root with prefix (handles cases where 'user_folder' isn't treated as a directory)
+                    if not items:
+                        fallback = supabase.storage.from_(bucket).list("", {"prefix": user_folder})
+                        items = fallback.get("data", fallback) if isinstance(fallback, dict) else fallback
+                        # No-op; ensure block is not empty
+                        pass
+                    if items:
+                        for item in items:
+                            name = item.get("name") if isinstance(item, dict) else None
+                            if name:
+                                to_remove.append(f"{user_folder}/{name}")
+                except Exception:
+                    # listing failed; continue
+                    pass
+
+                # De-duplicate and remove
+                if to_remove:
+                    unique_paths = list(dict.fromkeys(to_remove))
+                    # Ensure subsequent block has content
+                    pass
+                    supabase.storage.from_(bucket).remove(unique_paths)
+                else:
+                    # nothing to remove
+                    pass
+
+                # Verify removal; if any files still present, try prefix-based removal comprehensively
+                try:
+                    remaining = supabase.storage.from_(bucket).list(user_folder)
+                    remaining_items = remaining.get("data", remaining) if isinstance(remaining, dict) else remaining
+                    if not remaining_items:
+                        remaining_prefix = supabase.storage.from_(bucket).list("", {"prefix": user_folder})
+                        remaining_items = remaining_prefix.get("data", remaining_prefix) if isinstance(remaining_prefix, dict) else remaining_prefix
+                    # Removed PFP-DELETE debug logs
+                    if remaining_items:
+                        # Attempt overwrite with zero bytes (break potential cache/stale state), then remove again
+                        try:
+                            for itm in remaining_items:
+                                nm = itm.get("name") if isinstance(itm, dict) else None
+                                if nm:
+                                    pth = f"{user_folder}/{nm}"
+                                    # Removed PFP-DELETE debug logs
+                                    supabase.storage.from_(bucket).upload(pth, b"", file_options={"contentType": "application/octet-stream", "upsert": True})
+                        except Exception as e:
+                            # overwrite failed; continue
+                            pass
+                        # Build full paths from names and attempt second removal
+                        retry_paths = []
+                        for item in remaining_items:
+                            nm = item.get("name") if isinstance(item, dict) else None
+                            if nm:
+                                retry_paths.append(f"{user_folder}/{nm}")
+                        if retry_paths:
+                            # Removed PFP-DELETE debug logs
+                            supabase.storage.from_(bucket).remove(retry_paths)
+                except Exception:
+                    # verification failed; continue
+                    pass
+            except Exception:
+                # swallow errors so UX isn't blocked, but attribute will be cleared
+                pass
+            update_data["profile_picture"] = None
+            old_file_url = None  # prevent duplicate deletion below
+
+        # --------------------------
+        # Upload new picture
+        # --------------------------
+        if uploaded_file:
+            import os
+            # Ensure only one picture per user by clearing existing files in user's folder
+            user_folder = f"profile_pictures/{user_email}"
+            try:
+                existing = supabase.storage.from_(settings.SUPABASE_BUCKET_PROFILE).list(user_folder)
+                if existing:
+                    # Build full relative paths to remove
+                    to_remove = [f"{user_folder}/{item['name']}" for item in existing if 'name' in item]
+                    if to_remove:
+                        try:
+                            supabase.storage.from_(settings.SUPABASE_BUCKET_PROFILE).remove(to_remove)
+                        except Exception:
+                            pass
+            except Exception:
+                # listing may fail; continue with upload
+                pass
+
+            # Use deterministic filename to avoid accumulating files
+            _, ext = os.path.splitext(uploaded_file.name)
+            # default to .jpg if no extension
+            ext = ext if ext else ".jpg"
+            file_path = f"{user_folder}/profile{ext}"
+            file_bytes = uploaded_file.read()
+
+            # Upload to Supabase Storage
+            # Some clients support upsert; python client may overwrite when same path is used.
+            supabase.storage.from_(settings.SUPABASE_BUCKET_PROFILE).upload(file_path, file_bytes)
+
+            # Get public URL
+            file_url = (
+                supabase.storage
+                .from_(settings.SUPABASE_BUCKET_PROFILE)
+                .get_public_url(file_path)
+                .split("?")[0]
+            )
+            update_data["profile_picture"] = file_url
+
+        # --------------------------
+        # Update user record
+        # --------------------------
+        supabase.table("users").update(update_data).eq("email", user_email).execute()
+        success = "Profile updated successfully!"
+        
+        # Refresh user data in-place to reflect changes on profile page
+        response = supabase.table("users").select("*").eq("email", user_email).execute()
+        if response.data:
+            user = response.data[0]
+            if user.get("date_joined"):
+                user["date_joined"] = datetime.fromisoformat(user["date_joined"][:10])
+            if user.get("last_login"):
+                user["last_login"] = datetime.fromisoformat(user["last_login"][:10])
+
+    # --------------------------
+    # Fetch user posts
+    # --------------------------
+    posts_resp = supabase.table("posts").select("*").eq("user_id", user["id"]).order("created_at", desc=True).execute()
+    user_posts = posts_resp.data or []
+
+    # Build formatted posts similar to home (without comments)
+    formatted_posts = []
+    for post in (user_posts or []):
+        title = post.get("title") or "(No Title)"
+        url = (post.get("content") or "").rstrip("?")
+        course_name = post.get("subject") or "General"
+        description = post.get("description", "")
+        post_id = post.get("post_id")
+
+        is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
+        is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+        # Votes for this post
+        votes_resp = supabase.table("post_votes").select("*").eq("post_id", post_id).execute()
+        votes = votes_resp.data or []
+        upvotes = len([v for v in votes if v.get("vote_type") == "up"])
+        downvotes = len([v for v in votes if v.get("vote_type") == "down"])
+        net_votes = upvotes - downvotes
+
+        # Current user's vote
+        user_id = user.get("id")
+        user_vote = None
+        if user_id:
+            uv = next((v["vote_type"] for v in votes if v.get("user_id") == user_id), None)
+            if uv == "up":
+                user_vote = "upvote"
+            elif uv == "down":
+                user_vote = "downvote"
+
+        formatted_posts.append({
+            "id": post_id,
+            "title": title,
+            "url": url,
+            "description": description,
+            "created_at": time_since(post.get("created_at")),
+            "author": post.get("author", "Unknown"),
+            "course": course_name,
+            "is_image": is_image,
+            "is_video": is_video,
+            "upvote_count": upvotes,
+            "downvote_count": downvotes,
+            "vote_count": net_votes,
+            "user_vote": user_vote,
+            # comments intentionally omitted on profile page
+        })
+
+    # --------------------------
+    # Fetch user's comments (flat list across posts)
+    # --------------------------
+    comments_resp = supabase.table("comments") \
+        .select("*") \
+        .eq("user_id", user["id"]) \
+        .order("created_at", desc=True) \
+        .execute()
+    raw_comments = comments_resp.data or []
+
+    user_comments = []
+    seen_comment_ids = set()
+    seen_composite = set()
+    for c in raw_comments:
+        cid = c.get("comment_id")
+        pid = c.get("post_id")
+        txt = (c.get("text") or "").strip()
+        # Truncate created_at to seconds for stable duplicate detection
+        created = (c.get("created_at") or "")
+        created_key = created[:19] if isinstance(created, str) else str(created)[:19]
+
+        if not cid:
+            continue
+
+        comp_key = (pid, txt, created_key)
+        if cid in seen_comment_ids or comp_key in seen_composite:
+            continue
+
+        seen_comment_ids.add(cid)
+        seen_composite.add(comp_key)
+
+        # votes for comment (support both 'up'/'down' and 'upvote'/'downvote')
+        cv_resp = supabase.table("comment_votes").select("vote_type").eq("comment_id", cid).execute()
+        cvotes = cv_resp.data or []
+        def as_dir(val):
+            if not val:
+                return None
+            v = str(val).lower()
+            if v in ("up", "upvote"): return "up"
+            if v in ("down", "downvote"): return "down"
+            return None
+        up = sum(1 for v in cvotes if as_dir(v.get("vote_type")) == "up")
+        down = sum(1 for v in cvotes if as_dir(v.get("vote_type")) == "down")
+        net = up - down
+
+        # post context (title)
+        post_title = None
+        try:
+            p_resp = supabase.table("posts").select("title").eq("post_id", c["post_id"]).maybe_single().execute()
+            if p_resp.data:
+                post_title = p_resp.data.get("title") or "(No Title)"
+        except Exception:
+            post_title = "(No Title)"
+
+        user_comments.append({
+            "comment_id": cid,
+            "post_id": pid,
+            "post_title": post_title,
+            "text": txt,
+            "created_at": time_since(created),
+            "net_votes": net,
+            "edited": c.get("edited", False)
+        })
+
+    # ensure navbar gets the profile picture URL
+    profile_picture_url = user.get("profile_picture") or None
+
+    return render(request, "profile_page.html", {
+        "user": user,
+        "success": success,
+        "user_posts": formatted_posts,  # use formatted posts
+        "user_comments": user_comments, # NEW: flat comments list
+        "profile_picture_url": profile_picture_url,
+        "current_user_id": user.get("id")
+    })
 
 # ============================
 # 🔵 HOME PAGE
@@ -1077,9 +1474,6 @@ def home(request):
 # ============================
 # 🔵 EDIT POST
 # ============================
-from django.http import HttpResponse, HttpResponseForbidden
-from django.template.loader import render_to_string
-
 def edit_post(request, post_id):
 
     # 1. Get logged-in user
@@ -1212,6 +1606,25 @@ def delete_post(request, post_id):
     # Check ownership
     if post["user_id"] != user_id:
         return HttpResponseForbidden("You are not allowed to delete this post.")
+
+    # If post has media content in Storage, delete the file from the post_media bucket
+    content_url = (post.get("content") or "").strip()
+    if content_url:
+        try:
+            # Extract storage path: after '/storage/v1/object/public/<bucket>/'
+            base = content_url.split("?")[0]
+            key = "/storage/v1/object/public/"
+            if key in base:
+                prefix_idx = base.find(key)
+                remainder = base[prefix_idx + len(key):]  # '<bucket>/<path>'
+                parts = remainder.split("/", 1)
+                bucket_name = parts[0] if parts else settings.SUPABASE_BUCKET
+                rel_path = parts[1] if len(parts) > 1 else ""
+                if rel_path:
+                    supabase.storage.from_(bucket_name).remove([rel_path])
+        except Exception:
+            # Swallow storage errors so delete continues
+            pass
 
     # Delete post (IMPORTANT: use post_id column)
     try:

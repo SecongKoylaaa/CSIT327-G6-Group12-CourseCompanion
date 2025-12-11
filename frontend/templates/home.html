@@ -23,7 +23,7 @@
     <div class="container">
 
       {% for post in posts %}
-      <div class="post">
+      <div class="post" id="post-{{ post.id }}">
         <div class="post-content">
 
           <!-- POST HEADER -->
@@ -66,7 +66,7 @@
           {% endif %}
 
           {% if post.is_image %}
-            <img src="{{ post.url }}" class="post-thumbnail clickable-media" alt="Post Image">
+            <img src="{{ post.url }}" class="post-thumbnail clickable-media" alt="Post Image" loading="lazy">
           {% elif post.is_video %}
             <video src="{{ post.url }}" class="post-thumbnail clickable-media" controls muted></video>
           {% elif post.url %}
@@ -96,7 +96,9 @@
 
           <!-- COMMENTS SECTION -->
           <div class="expanded-section">
-            {% include "comments.html" with post=post %}
+            <div class="comments-section" id="comments-{{ post.id }}" data-post-id="{{ post.id }}" data-loaded="false">
+              <div class="comments-placeholder">Comments will load when opened…</div>
+            </div>
           </div>
 
         </div>
@@ -220,6 +222,17 @@
   <script src="{% static 'js/post_menu.js' %}"></script>
   <script src="{% static 'js/edit_modal.js' %}"></script>
   <script src="{% static 'js/report_modal.js' %}"></script>
+
+  <!-- Pagination Controls -->
+  <div class="pagination" style="text-align:center; padding:20px;">
+    {% if has_prev %}
+      <a class="btn" href="/home/?page={{ page|add:-1 }}{% if selected_subject %}&subject={{ selected_subject|urlencode }}{% endif %}">Previous</a>
+    {% endif %}
+    <span style="margin:0 12px;">Page {{ page }}</span>
+    {% if has_next %}
+      <a class="btn" href="/home/?page={{ page|add:1 }}{% if selected_subject %}&subject={{ selected_subject|urlencode }}{% endif %}">Next</a>
+    {% endif %}
+  </div>
 
 </body>
 </html>
