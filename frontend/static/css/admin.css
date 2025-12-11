@@ -628,6 +628,30 @@
   max-width: 900px;
 }
 
+/* Fullscreen layout for the Subject Posts modal */
+#subjectModal .modal-content {
+  width: 96vw;
+  max-width: none;
+  height: 90vh;
+  max-height: 90vh;
+  margin: 2vh auto;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+#subjectModal .modal-header {
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #dde3f0;
+}
+
+#subjectModal .modal-body {
+  max-height: calc(90vh - 120px);
+  padding: 1.5rem 2rem;
+  background: radial-gradient(circle at top left, #f9fafb 0, #edf2f7 45%, #e5ecf5 100%);
+  overflow-y: auto;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -660,6 +684,61 @@
   padding: 2rem;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+/* Sleek card-like design inside the user details modal */
+.user-modal .user-modal-grid {
+  gap: 1.25rem;
+}
+
+.user-modal .user-profile-summary {
+  background: #fbfcfe;
+  border: 1px solid #e8eaf0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.user-modal .user-post-history {
+  background: #ffffff;
+  border: 1px solid #e8eaf0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  max-height: 52vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.user-modal .user-stats {
+  background: #f2f7ff;
+  border: 1px dashed #d6e4ff;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+}
+
+.user-modal .user-modal-avatar {
+  font-size: 3.25rem;
+}
+
+.user-modal .user-post-item {
+  background: #f7f9fb;
+  border-left-color: #3b82f6;
+}
+
+/* Larger media previews within the subject posts modal */
+#subjectModal .report-media img,
+#subjectModal .report-media video {
+  max-height: 48vh;
+  object-fit: contain;
+}
+
+/* Footer alignment improvements */
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e8e8e8;
+  background: #fafafa;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .user-modal-grid {
@@ -980,5 +1059,12 @@
   .modal-content {
     width: 95%;
     margin: 10% auto;
+  }
+
+  /* Make fullscreen subject modal adapt on small screens */
+  #subjectModal .modal-content {
+    width: 98vw;
+    height: 92vh;
+    margin: 2vh auto;
   }
 }

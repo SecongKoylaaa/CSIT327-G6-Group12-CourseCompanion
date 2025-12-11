@@ -577,10 +577,47 @@ function viewUserDetails(userId) {
                     limited.map(p => {
                         const subj = p.subject || 'Unknown';
                         const created = p.created_at || '';
+                        const title = p.title || '(No Title)';
+                        const description = p.description || '';
+                        const url = p.url || '';
+
+                        let descriptionHtml = '';
+                        if (description) {
+                            const snippet = description.length > 200 ? description.slice(0, 200) + '...' : description;
+                            descriptionHtml = `<p class="post-content">${escapeHtml(snippet)}</p>`;
+                        }
+
+                        let mediaHtml = '';
+                        if (url) {
+                            const safeUrl = escapeHtml(url);
+                            if (p.is_image) {
+                                mediaHtml = `
+                                    <div class="report-media">
+                                        <img src="${safeUrl}" alt="Post image">
+                                    </div>
+                                `;
+                            } else if (p.is_video) {
+                                mediaHtml = `
+                                    <div class="report-media">
+                                        <video src="${safeUrl}" controls muted></video>
+                                    </div>
+                                `;
+                            } else {
+                                mediaHtml = `
+                                    <p class="post-content">
+                                        <strong>Link:</strong>
+                                        <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>
+                                    </p>
+                                `;
+                            }
+                        }
+
                         return `
                             <li class="user-post-item">
-                                <div class="user-post-title">${escapeHtml(p.title || '(No Title)')}</div>
+                                <div class="user-post-title">${escapeHtml(title)}</div>
                                 <div class="user-post-meta">${escapeHtml(subj)} • ${escapeHtml(created)}</div>
+                                ${descriptionHtml}
+                                ${mediaHtml}
                             </li>
                         `;
                     }).join('') +

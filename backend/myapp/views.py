@@ -2333,12 +2333,20 @@ def admin_user_details(request, user_id):
         posts_raw = posts_resp.data if posts_resp and getattr(posts_resp, "data", None) else []
         posts = []
         for p in posts_raw:
+            url = (p.get("content") or "").rstrip("?")
+            lower_url = url.lower()
+            is_image = lower_url.endswith((".jpg", ".jpeg", ".png", ".gif"))
+            is_video = lower_url.endswith((".mp4", ".webm", ".ogg"))
+
             posts.append({
                 "id": p.get("post_id"),
                 "title": p.get("title") or "(No Title)",
                 "subject": p.get("subject") or p.get("course") or "Unknown",
                 "created_at": fmt(p.get("created_at")),
                 "description": p.get("description") or "",
+                "url": url,
+                "is_image": is_image,
+                "is_video": is_video,
             })
 
         comments_resp = supabase.table("comments").select("comment_id", count="exact").eq("user_id", user_id).execute()
