@@ -506,6 +506,10 @@ def home_page(request):
 
 
     formatted_posts = []
+    # Track UnknownN placeholders to ensure uniqueness and consistency per author on this page
+    unknown_map = {}
+    unknown_index = 1
+    used_names = set()
 
     for post in posts:
         title = post.get("title") or "(No Title)"
@@ -522,13 +526,35 @@ def home_page(request):
         author_email = "anonymous@example.com"
         author_role = None
         is_verified = False
+        author_username = None
+        author_display = None
         if author_id:
-            author_resp = safe_execute(lambda: supabase.table("users").select("email, role").eq("id", author_id).maybe_single().execute())
+            author_resp = safe_execute(lambda: supabase.table("users").select("email, role, username").eq("id", author_id).maybe_single().execute())
             if author_resp.data and "email" in author_resp.data:
                 author_email = author_resp.data["email"]
             if author_resp and getattr(author_resp, "data", None):
                 author_role = author_resp.data.get("role")
                 is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
+                raw_username = author_resp.data.get("username")
+                author_username = (raw_username or "").strip() if isinstance(raw_username, str) else None
+
+        # Determine display name: prefer username; otherwise assign a unique UnknownN per author for this page
+        if author_username:
+            author_display = author_username
+            used_names.add(author_display)
+        else:
+            if author_id in unknown_map:
+                author_display = unknown_map[author_id]
+            else:
+                # generate a unique placeholder not in used_names
+                while True:
+                    candidate = f"Unknown{unknown_index}"
+                    unknown_index += 1
+                    if candidate not in used_names:
+                        unknown_map[author_id] = candidate
+                        author_display = candidate
+                        used_names.add(candidate)
+                        break
 
         # -----------------------------
         # Fetch votes for this post
@@ -562,6 +588,7 @@ def home_page(request):
             "description": description,
             "created_at": time_since(post.get("created_at")),
             "author": author_email,
+            "author_name": author_display,
             "author_role": author_role,
             "is_verified": is_verified,
             "post_type": post.get("post_type") or "",
