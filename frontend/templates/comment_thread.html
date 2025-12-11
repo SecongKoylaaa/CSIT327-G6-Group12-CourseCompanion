@@ -14,20 +14,24 @@
         {% if comment.edited %}[edited]{% endif %}
       </span>
 
-      {% if user_email == comment.author %}
       <div class="comment-menu-wrapper">
         <span class="comment-menu-btn" onclick="toggleCommentMenu('{{ comment.comment_id }}')">⋯</span>
 
         <div class="comment-menu" id="comment-menu-{{ comment.comment_id }}" style="display:none;">
-          <span class="edit-btn" onclick="toggleEditForm('{{ comment.comment_id }}')">Edit</span>
+          {% if user_email == comment.author %}
+            <button type="button" class="edit-btn" onclick="toggleEditForm('{{ comment.comment_id }}')">Edit</button>
 
-          <form method="POST" action="{% url 'delete_comment' comment.comment_id %}" style="display:inline;">
-            {% csrf_token %}
-            <button type="submit" class="delete-btn">Delete</button>
-          </form>
+            <form method="POST" action="{% url 'delete_comment' comment.comment_id %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="delete-btn">Delete</button>
+            </form>
+
+            <button type="button" class="report-btn" onclick="openReportCommentModal('{{ comment.comment_id }}')">Report</button>
+          {% else %}
+            <button type="button" class="report-btn" onclick="openReportCommentModal('{{ comment.comment_id }}')">Report</button>
+          {% endif %}
         </div>
       </div>
-      {% endif %}
     </div>
 
     <!-- REPLY-TO BOX -->

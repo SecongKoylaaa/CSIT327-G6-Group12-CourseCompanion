@@ -16,11 +16,16 @@ urlpatterns = [
 
     # HOME
     path('home/', views.home_page, name='home'),
-    path('comments/<int:post_id>/', views.comments_for_post, name='comments_for_post'),
-    
-    # PROFILE
-    path('profile/', views.profile_page, name='profile_page'),
-    
+
+    # ADMIN
+    path('dashboard/', views.admin_page, name='admin'),
+    path('dashboard/api/subject-posts/', views.admin_subject_posts, name='admin_subject_posts'),
+    path('dashboard/api/update-report/', views.admin_update_report, name='admin_update_report'),
+    path('dashboard/api/update-comment-report/', views.admin_update_comment_report, name='admin_update_comment_report'),
+    path('dashboard/api/all-posts/', views.admin_all_posts, name='admin_all_posts'),
+    path('dashboard/api/admin-delete-post/', views.admin_delete_post, name='admin_delete_post'),
+    path('dashboard/api/admin-delete-comment/', views.admin_delete_comment, name='admin_delete_comment'),
+
     # POSTS
     path('create-post-text/', views.create_post_text, name='create-post-text'),
     path('create-post-image-video/', views.create_post_image, name='create-post-image-video'),
@@ -32,6 +37,7 @@ urlpatterns = [
 
     # REPORTING
     path('report_post/', views.report_post, name='report_post'),
+    path('report_comment/', views.report_comment, name='report_comment'),
 
     # POST VOTING
     path("vote_post/<int:post_id>/<str:vote_type>/", views.vote_post, name="vote_post"),
