@@ -1046,15 +1046,25 @@ def create_post_image(request):
                 "subject": subject,
             })
 
-        # Upload file to Supabase Storage
+        # Upload file to Supabase Storage (reuse existing if duplicate)
         try:
             file_path = f"{user_email}/{uploaded_file.name}"
             file_bytes = uploaded_file.read()
 
-            supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
-                file_path,
-                file_bytes
-            )
+            # Try to upload; allow upsert so duplicate names are reused
+            try:
+                supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
+                    file_path,
+                    file_bytes,
+                    file_options={"upsert": True, "contentType": uploaded_file.content_type or "application/octet-stream"}
+                )
+            except Exception as up_err:
+                # If duplicate, still proceed by using existing public URL
+                msg = str(up_err).lower()
+                if "409" in msg or "duplicate" in msg or "already exists" in msg:
+                    pass  # safe to ignore and reuse existing file
+                else:
+                    raise up_err
 
             file_url = supabase.storage.from_(settings.SUPABASE_BUCKET)\
                         .get_public_url(file_path)\
