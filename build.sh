@@ -8,9 +8,8 @@ echo "==> Installing dependencies"
 pip install --upgrade pip
 pip install -r requirements.txt
 
-echo "==> Running database migrations"
-python backend/manage.py makemigrations
-python backend/manage.py migrate --noinput
+# ==> Skipping migrations during build to avoid Session pooler limits
+# Migrations should be run post-deploy or manually once the app is up.
 
 echo "==> Collecting static files"
 python backend/manage.py collectstatic --noinput

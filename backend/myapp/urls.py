@@ -17,6 +17,9 @@ urlpatterns = [
     # HOME
     path('home/', views.home_page, name='home'),
 
+    # PROFILE
+    path('profile/', views.profile_page, name='profile_page'),
+
     # ADMIN
     path('dashboard/', views.admin_page, name='admin'),
     path('dashboard/api/subject-posts/', views.admin_subject_posts, name='admin_subject_posts'),
