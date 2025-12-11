@@ -147,8 +147,35 @@
             </label>
             <input id="url" name="url" type="url" placeholder="https://example.com" value="{{ url }}" required>
           </div>
-
-          <!-- Messages -->
+          <!-- Description (Rich Text) -->
+          <div class="form-group">
+            <label for="descEditor">
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              Description
+            </label>
+            <div class="rte-toolbar">
+              <button type="button" class="rte-btn" data-cmd="bold"><b>B</b></button>
+              <button type="button" class="rte-btn" data-cmd="italic"><i>I</i></button>
+              <button type="button" class="rte-btn" data-cmd="underline"><u>U</u></button>
+              <span class="rte-sep"></span>
+              <button type="button" class="rte-btn" data-cmd="justifyLeft">Left</button>
+              <button type="button" class="rte-btn" data-cmd="justifyCenter">Center</button>
+              <button type="button" class="rte-btn" data-cmd="justifyRight">Right</button>
+              <span class="rte-sep"></span>
+              <button type="button" class="rte-btn" data-cmd="insertUnorderedList">• List</button>
+              <button type="button" class="rte-btn" data-cmd="insertOrderedList">1. List</button>
+            </div>
+            <div id="descEditor" class="rte-editor" contenteditable="true">{{ description|default:''|safe }}</div>
+            <textarea name="description" id="description" maxlength="1000" style="display:none;">{{ description|default:'' }}</textarea>
+            <div class="char-count" id="desc-count">{{ description|length|default:0 }}/1000</div>
+          </div>
+    
           {% if error %}
             <div class="alert alert-error">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -250,5 +277,20 @@
   });
 </script>
 
+<script>
+(function(){
+  const editor = document.getElementById('descEditor');
+  const hidden = document.getElementById('description');
+  const counter = document.getElementById('desc-count');
+  const MAX = 1000;
+  function updateCount(){ if(!editor||!counter) return; const t=(editor.innerText||''); counter.textContent = `${t.length}/${MAX}`; counter.classList.toggle('char-limit-reached', t.length>=MAX); }
+  document.querySelectorAll('.rte-btn').forEach(b=>b.addEventListener('click',()=>{ document.execCommand(b.dataset.cmd,false,null); editor&&editor.focus(); updateCount(); }));
+  const form = document.getElementById('post-form');
+  if(form && editor && hidden){ form.addEventListener('submit',()=>{ hidden.value = (editor.innerHTML||'').trim(); }); }
+  editor && editor.addEventListener('input', updateCount);
+  updateCount();
+})();
+</script>
 </body>
 </html>
+

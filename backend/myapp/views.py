@@ -445,6 +445,11 @@ def home_page(request):
     if selected_subject:
         posts_query = posts_query.eq("subject", selected_subject)
 
+    # Optional post type filter within a subject (announcement|question|discussion)
+    ptype = (request.GET.get("type") or "all").lower()
+    if ptype in ["announcement", "question", "discussion"]:
+        posts_query = posts_query.eq("post_type", ptype)
+
     sort = (request.GET.get("sort") or "new").lower()
     ordered_query = posts_query
     if sort == "new":
@@ -541,6 +546,7 @@ def home_page(request):
             "author": author_email,
             "author_role": author_role,
             "is_verified": is_verified,
+            "post_type": post.get("post_type") or "",
             "course": course_name,
             "is_image": is_image,
             "is_video": is_video,
@@ -569,6 +575,7 @@ def home_page(request):
         "subjects": SUBJECTS,
         "selected_subject": selected_subject,
         "current_sort": sort,
+        "current_type": ptype,
         # pagination controls
         "page": page,
         "has_next": len(posts) == page_size,
