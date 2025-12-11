@@ -528,6 +528,18 @@ def home_page(request):
         post_id = post.get("post_id")
         author_id = post.get("user_id")
 
+        # Check if content is a JSON array (multiple images)
+        import json
+        is_multiple_images = False
+        image_urls = []
+        try:
+            if url.startswith("["):
+                image_urls = json.loads(url)
+                is_multiple_images = True
+                url = image_urls[0] if image_urls else ""  # Use first image as primary
+        except:
+            pass
+
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
@@ -585,6 +597,8 @@ def home_page(request):
             "course": course_name,
             "is_image": is_image,
             "is_video": is_video,
+            "is_multiple_images": is_multiple_images,
+            "image_urls": image_urls,
             "comments": nested_comments,
             "upvote_count": upvotes,
             "vote_count": net_votes,
@@ -1138,43 +1152,79 @@ def create_post_image(request):
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
-        subject = request.POST.get("subject", "").strip()   # changed from course → subject
+        subject = request.POST.get("subject", "").strip()
         is_forum = request.POST.get("is_forum") == "true"
-        uploaded_file = request.FILES.get("fileUpload")
+        uploaded_files = request.FILES.getlist("fileUpload")  # Changed to getlist for multiple files
 
         # Validate
-        if not title or not post_type or not subject or not uploaded_file:
+        if not title or not post_type or not subject or not uploaded_files:
             return render(request, "create-post-image-video.html", {
-                "error": "All fields are required.",
+                "error": "Title, tag, subject, and at least one file are required.",
                 "title": title,
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
             })
 
-        # Upload file to Supabase Storage (reuse existing if duplicate)
+        # Check file types: either images OR video (mutually exclusive)
+        image_files = [f for f in uploaded_files if f.content_type and f.content_type.startswith("image")]
+        video_files = [f for f in uploaded_files if f.content_type and f.content_type.startswith("video")]
+        
+        # Validate mutually exclusive constraint
+        if image_files and video_files:
+            return render(request, "create-post-image-video.html", {
+                "error": "Cannot mix images and videos. Choose either up to 10 images OR 1 video.",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "subject": subject,
+            })
+        
+        # Validate video: only 1 allowed
+        if video_files and len(video_files) > 1:
+            return render(request, "create-post-image-video.html", {
+                "error": "Only 1 video allowed per post.",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "subject": subject,
+            })
+        
+        # Validate images: max 10
+        if image_files and len(image_files) > 10:
+            return render(request, "create-post-image-video.html", {
+                "error": "Maximum 10 images allowed.",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "subject": subject,
+            })
+
+        # Upload files to Supabase Storage
+        uploaded_urls = []
         try:
-            file_path = f"{user_email}/{uploaded_file.name}"
-            file_bytes = uploaded_file.read()
+            for uploaded_file in uploaded_files:
+                file_path = f"{user_email}/{uploaded_file.name}"
+                file_bytes = uploaded_file.read()
 
-            # Try to upload; allow upsert so duplicate names are reused
-            try:
-                supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
-                    file_path,
-                    file_bytes,
-                    file_options={"contentType": uploaded_file.content_type or "application/octet-stream", "upsert": "true"}
-                )
-            except Exception as up_err:
-                # If duplicate, still proceed by using existing public URL
-                msg = str(up_err).lower()
-                if "409" in msg or "duplicate" in msg or "already exists" in msg:
-                    pass  # safe to ignore and reuse existing file
-                else:
-                    raise up_err
+                # Try to upload; allow upsert so duplicate names are reused
+                try:
+                    supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
+                        file_path,
+                        file_bytes,
+                        file_options={"contentType": uploaded_file.content_type or "application/octet-stream", "upsert": "true"}
+                    )
+                except Exception as up_err:
+                    msg = str(up_err).lower()
+                    if "409" in msg or "duplicate" in msg or "already exists" in msg:
+                        pass  # safe to ignore and reuse existing file
+                    else:
+                        raise up_err
 
-            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET)\
-                        .get_public_url(file_path)\
-                        .split("?")[0]
+                file_url = supabase.storage.from_(settings.SUPABASE_BUCKET)\
+                            .get_public_url(file_path)\
+                            .split("?")[0]
+                uploaded_urls.append(file_url)
 
         except Exception as e:
             return render(request, "create-post-image-video.html", {
@@ -1185,14 +1235,17 @@ def create_post_image(request):
                 "subject": subject,
             })
 
-        # Insert post record
+        # Insert post record - store multiple URLs as JSON array string
         try:
+            import json
+            content_data = json.dumps(uploaded_urls) if len(uploaded_urls) > 1 else uploaded_urls[0]
+            
             post_data = {
                 "title": title,
                 "description": description,
-                "content": file_url,
+                "content": content_data,
                 "post_type": post_type,
-                "subject": subject,       # SAVE SUBJECT HERE
+                "subject": subject,
                 "user_id": user_id,
                 "is_forum": is_forum
             }
@@ -1201,14 +1254,9 @@ def create_post_image(request):
             
             supabase.table("posts").insert(post_data).execute()
 
-            preview_type = "video" if uploaded_file.content_type.startswith("video") else "image"
-
             return render(request, "create-post-image-video.html", {
                 "success": "Post created successfully!",
-                "preview_url": file_url,
-                "preview_type": preview_type,
-
-                # Clear form after success
+                "preview_urls": uploaded_urls,
                 "title": "",
                 "description": "",
                 "post_type": "",

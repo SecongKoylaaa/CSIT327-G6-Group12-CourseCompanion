@@ -7,20 +7,25 @@
 
   // Guard: only bind if modal elements exist on this page
   if (modal && modalImg && modalVideo && closeModal) {
-    document.querySelectorAll('.clickable-media').forEach(el => {
-      el.addEventListener('click', () => {
+    // Use event delegation to handle dynamically loaded media
+    document.addEventListener('click', (e) => {
+      const clickedMedia = e.target.closest('.clickable-media');
+      if (clickedMedia) {
+        e.preventDefault();
+        e.stopPropagation();
+        
         modal.classList.add('show');
-        if (el.tagName.toLowerCase() === 'img') {
-          modalImg.src = el.src;
+        if (clickedMedia.tagName.toLowerCase() === 'img') {
+          modalImg.src = clickedMedia.src;
           modalImg.style.display = 'block';
           modalVideo.style.display = 'none';
-        } else if (el.tagName.toLowerCase() === 'video') {
-          modalVideo.src = el.src;
+        } else if (clickedMedia.tagName.toLowerCase() === 'video') {
+          modalVideo.src = clickedMedia.src;
           modalVideo.style.display = 'block';
           modalImg.style.display = 'none';
           try { modalVideo.play(); } catch (_) {}
         }
-      });
+      }
     });
 
     closeModal.addEventListener('click', () => {

@@ -92,7 +92,28 @@
             <p class="post-description">{{ post.description }}</p>
           {% endif %}
 
-          {% if post.is_image %}
+          {% if post.is_multiple_images %}
+            <!-- Image Carousel for Multiple Images -->
+            <div class="image-carousel" id="carousel-{{ post.id }}">
+              <div class="carousel-container">
+                {% for img_url in post.image_urls %}
+                  <img src="{{ img_url }}" class="carousel-image clickable-media {% if forloop.first %}active{% endif %}" alt="Post Image {{ forloop.counter }}" loading="lazy">
+                {% endfor %}
+              </div>
+              {% if post.image_urls|length > 1 %}
+                <button class="carousel-btn prev" data-post-id="{{ post.id }}" data-direction="-1">❮</button>
+                <button class="carousel-btn next" data-post-id="{{ post.id }}" data-direction="1">❯</button>
+                <div class="carousel-indicators">
+                  {% for img_url in post.image_urls %}
+                    <span class="indicator {% if forloop.first %}active{% endif %}" data-post-id="{{ post.id }}" data-index="{{ forloop.counter0 }}"></span>
+                  {% endfor %}
+                </div>
+                <div class="carousel-counter">
+                  <span class="current-slide">1</span> / {{ post.image_urls|length }}
+                </div>
+              {% endif %}
+            </div>
+          {% elif post.is_image %}
             <img src="{{ post.url }}" class="post-thumbnail clickable-media" alt="Post Image" loading="lazy">
           {% elif post.is_video %}
             <video src="{{ post.url }}" class="post-thumbnail clickable-media" controls muted></video>
@@ -288,6 +309,83 @@
   <script src="{% static 'js/post_menu.js' %}?v=20251211"></script>
   <script src="{% static 'js/edit_modal.js' %}?v=20251211"></script>
   <script src="{% static 'js/report_modal.js' %}?v=20251211"></script>
+
+  <!-- Carousel JavaScript -->
+  <script>
+    const carouselStates = {};
+
+    function changeSlide(postId, direction) {
+      if (!carouselStates[postId]) {
+        carouselStates[postId] = { currentIndex: 0 };
+      }
+
+      const carousel = document.getElementById('carousel-' + postId);
+      const images = carousel.querySelectorAll('.carousel-image');
+      const indicators = carousel.querySelectorAll('.indicator');
+      const counter = carousel.querySelector('.current-slide');
+      
+      images[carouselStates[postId].currentIndex].classList.remove('active');
+      indicators[carouselStates[postId].currentIndex].classList.remove('active');
+      
+      carouselStates[postId].currentIndex += direction;
+      
+      if (carouselStates[postId].currentIndex >= images.length) {
+        carouselStates[postId].currentIndex = 0;
+      } else if (carouselStates[postId].currentIndex < 0) {
+        carouselStates[postId].currentIndex = images.length - 1;
+      }
+      
+      images[carouselStates[postId].currentIndex].classList.add('active');
+      indicators[carouselStates[postId].currentIndex].classList.add('active');
+      counter.textContent = carouselStates[postId].currentIndex + 1;
+    }
+
+    function goToSlide(postId, index) {
+      if (!carouselStates[postId]) {
+        carouselStates[postId] = { currentIndex: 0 };
+      }
+
+      const carousel = document.getElementById('carousel-' + postId);
+      const images = carousel.querySelectorAll('.carousel-image');
+      const indicators = carousel.querySelectorAll('.indicator');
+      const counter = carousel.querySelector('.current-slide');
+      
+      images[carouselStates[postId].currentIndex].classList.remove('active');
+      indicators[carouselStates[postId].currentIndex].classList.remove('active');
+      
+      carouselStates[postId].currentIndex = index;
+      
+      images[carouselStates[postId].currentIndex].classList.add('active');
+      indicators[carouselStates[postId].currentIndex].classList.add('active');
+      counter.textContent = carouselStates[postId].currentIndex + 1;
+    }
+
+    // Initialize carousel states and event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize states
+      document.querySelectorAll('.image-carousel').forEach(carousel => {
+        const postId = carousel.id.replace('carousel-', '');
+        carouselStates[postId] = { currentIndex: 0 };
+      });
+
+      // Event delegation for carousel buttons
+      document.addEventListener('click', (e) => {
+        // Handle prev/next buttons
+        if (e.target.classList.contains('carousel-btn')) {
+          const postId = e.target.dataset.postId;
+          const direction = parseInt(e.target.dataset.direction);
+          changeSlide(postId, direction);
+        }
+        
+        // Handle indicator dots
+        if (e.target.classList.contains('indicator')) {
+          const postId = e.target.dataset.postId;
+          const index = parseInt(e.target.dataset.index);
+          goToSlide(postId, index);
+        }
+      });
+    });
+  </script>
 
   <!-- Pagination Controls -->
   <div class="pagination" style="text-align:center; padding:20px;">
