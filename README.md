@@ -92,7 +92,7 @@ Edzel C. Señor	Developer	edzel.senor@cit.edu
 ## 🌍 Deployment Link
 
 🔗 **To be determined (TBD)**  
-_The application is not yet deployed. The link will be added once available._
+https://csit327-g6-group12-coursecompanion.onrender.com
 
 
 

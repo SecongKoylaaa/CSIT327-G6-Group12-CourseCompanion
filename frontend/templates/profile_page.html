@@ -28,20 +28,18 @@
         <p>{{ error }}</p>
     {% else %}
 
-    <!-- PROFILE PIC OUTSIDE TABLE -->
-    <div style="text-align: center; margin: 20px 0;">
+
+    <!-- Profile Picture and Edit Button -->
+    <div class="profile-pic-wrapper" style="margin-top: 90px;">
       {% if user.profile_picture %}
-        <img src="{{ user.profile_picture }}"
-            style="width:150px; height:150px; border-radius:50%; object-fit:cover; border:2px solid #ccc;">
+        <img src="{{ user.profile_picture }}" alt="Profile Picture">
       {% else %}
-        <span style="font-size:150px; display:inline-block; width:150px; height:150px;
-                    line-height:150px; border-radius:50%; background:#eee; color:#555;">
-          👤
-        </span>
+        <span>👤</span>
       {% endif %}
     </div>
+    <!-- Move edit button below info card -->
 
-    <!-- USER INFO: nicer card layout -->
+
     <div class="profile-info-card">
       <div class="info-row">
         <div class="info-label">Email</div>
@@ -59,92 +57,37 @@
         <div class="info-label">Bio</div>
         <div class="info-value">{{ user.bio }}</div>
       </div>
-      <div class="info-row">
-        <div class="info-label">Date Joined</div>
-        <div class="info-value">{{ user.date_joined|date:"F j, Y" }}</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Last Login</div>
-        <div class="info-value">{{ user.last_login|date:"F j, Y" }}</div>
-      </div>
     </div>
 
-    <!-- Edit Profile Button (styled, placed under info box aligned left) -->
     <div class="profile-actions">
       <button id="editBtn" class="btn-edit">Edit Profile</button>
     </div>
 
-    <!-- EDIT MODAL -->
+    <!-- Edit Profile Modal -->
     <div class="popup" id="editPopup">
       <div class="popup-content">
         <span class="close-btn" onclick="closeEditPopup()">&times;</span>
-
         <h3>Edit Profile</h3>
-
-        <form method="POST"
-          id="editProfileForm" 
-          enctype="multipart/form-data" 
-          class="edit-form">
+        <form method="POST" enctype="multipart/form-data" class="edit-form">
           {% csrf_token %}
-
-          <!-- Hidden field for delete request -->
-          <input type="hidden" name="remove_profile_picture" id="removePictureFlag" value="0">
-          <!-- PROFILE PIC + UPLOAD SIDE BY SIDE -->
-          <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
-
-            <!-- CURRENT PROFILE PIC -->
-            <div id="previewProfileImage" style="width:100px; height:100px; border-radius:50%; overflow:hidden;">
-              {% if user.profile_picture %}
-                <img id="previewProfileImg" src="{{ user.profile_picture }}" style="width:100%; height:100%; object-fit:cover;">
-              {% else %}
-                <img id="previewProfileImg" style="width:100%; height:100%; object-fit:cover; display:none;">
-                <div id="previewPlaceholder" style="width:100%; height:100%; background:#eee;
-                            display:flex; justify-content:center; align-items:center;
-                            font-size:50px; color:#777;">
-                  👤
-                </div>
-              {% endif %}
-            </div>
-
-            <!-- UPLOAD BOX -->
-            <div class="upload-box" id="profileUploadBox" style="flex:1; height:120px;">
-
-              <p id="profileUploadText"
-                {% if user.profile_picture %}
-                  style="display:none;"
-                {% else %}
-                  style="display:block;"
-                {% endif %}>
-                Drag & Drop or Click to Upload
-              </p>
-
-              <!-- Hidden actual preview image (shown after selecting file) -->
-              <img id="realPreviewImage" style="display:none;">
-
-              <div id="removeProfileBtn" class="remove-btn"
-                {% if user.profile_picture %}
-                  style="display:flex;"
-                {% else %}
-                  style="display:none;"
-                {% endif %}>
-                ✖
-              </div>
-
-              <input type="file" id="profilePicInput" name="profile_picture" accept="image/*" style="display:none;">
-            </div>
-
-            </div>
-
-            <!-- Username -->
-            <label>Username:</label>
-            <input type="text" name="username" placeholder="Enter new username" value="{{ user.username }}">
-
-            <!-- Bio -->
-            <label>Bio:</label>
-            <textarea name="bio" placeholder="Enter new bio">{{ user.bio }}</textarea>
-
+          <div class="upload-box" id="profileUploadBox">
+            <input type="file" id="profilePicInput" name="profile_picture" accept="image/*" style="display:none;">
+            {% if user.profile_picture %}
+              <img id="previewProfileImg" src="{{ user.profile_picture }}" alt="Profile Picture" style="display:block;">
+              <span id="previewPlaceholder" style="display:none;">👤</span>
+            {% else %}
+              <img id="previewProfileImg" src="" alt="Profile Picture" style="display:none;">
+              <span id="previewPlaceholder" style="display:flex; font-size:60px; align-items:center; justify-content:center; width:100%; height:100%;">👤</span>
+            {% endif %}
+            <p id="profileUploadText">Click or drag to upload a new profile picture</p>
+            <input type="hidden" id="removePictureFlag" name="remove_profile_picture" value="0">
+            <button type="button" class="remove-btn" id="removeProfileBtn" style="display:none;">Remove</button>
+          </div>
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" value="{{ user.username }}" maxlength="150" required>
+          <label for="bio">Bio</label>
+          <textarea id="bio" name="bio" maxlength="500">{{ user.bio }}</textarea>
           <button type="submit">Save Changes</button>
-
         </form>
       </div>
     </div>
@@ -163,23 +106,30 @@
           <h3 style="margin-top: 10px;">Your Posts</h3>
           <div class="user-posts">
             {% for post in user_posts %}
-              <div class="post">
+              <div class="post" id="post-{{ post.id }}">
                 <div class="post-content">
-                  <!-- POST HEADER (match home structure) -->
+                  <!-- POST HEADER (identical to home.html) -->
                   <div class="post-header" style="display:flex; justify-content: space-between; align-items: center;">
                     <div>
                       <p>
                         <span class="subject-tag subject-{{ post.course|slugify }}">{{ post.course }}</span>
-                        • {{ user.email }} • {{ post.created_at }}
+                        • {{ post.author_name }} • {{ post.created_at }}
+                        {% if post.is_forum %}
+                          {% if post.status == 'open' %}
+                            <span class="status-badge status-open">🟢 Open</span>
+                          {% elif post.status == 'answered' %}
+                            <span class="status-badge status-answered">🟡 Answered</span>
+                          {% elif post.status == 'solved' %}
+                            <span class="status-badge status-solved">✅ Solved</span>
+                          {% endif %}
+                        {% endif %}
                       </p>
                       <h3>{{ post.title }}</h3>
                     </div>
-
-                    <!-- POST MENU (author options on profile) -->
+                    <!-- POST MENU (author options only) -->
                     <div class="post-menu-wrapper">
                       <span class="post-menu-btn" onclick="togglePostMenu('{{ post.id }}')">⋯</span>
                       <div class="post-menu" id="post-menu-{{ post.id }}">
-                        <!-- Author options only -->
                         <button type="button" class="edit-btn" onclick="openEditModal('{{ post.id }}'); event.stopPropagation();">Edit</button>
                         <form method="POST" action="{% url 'delete_post' post.id %}">
                           {% csrf_token %}
@@ -191,30 +141,58 @@
                   </div>
 
                   {% if post.post_type %}
-                    <p class="post-type">Type: {{ post.post_type }}</p>
+                    <span class="type-tag type-{{ post.post_type|lower }}">{{ post.post_type|title }}</span>
                   {% endif %}
 
                   {% if post.description %}
-                    <p class="post-description">{{ post.description }}</p>
+                    <p class="post-description">{{ post.description|safe }}</p>
                   {% endif %}
 
-                  {% if post.is_image %}
-                    <img src="{{ post.url }}" alt="Post Image" class="post-thumbnail clickable-media" loading="lazy">
+                  {% if post.is_multiple_images %}
+                    <div class="image-carousel" id="carousel-{{ post.id }}">
+                      <div class="carousel-container">
+                        {% for img_url in post.image_urls %}
+                          <img src="{{ img_url }}" class="carousel-image clickable-media{% if forloop.first %} active{% endif %}" alt="Post Image {{ forloop.counter }}" loading="lazy">
+                        {% endfor %}
+                      </div>
+                      {% if post.image_urls|length > 1 %}
+                        <button class="carousel-btn prev" data-post-id="{{ post.id }}" data-direction="-1">❮</button>
+                        <button class="carousel-btn next" data-post-id="{{ post.id }}" data-direction="1">❯</button>
+                        <div class="carousel-indicators">
+                          {% for img_url in post.image_urls %}
+                            <span class="indicator {% if forloop.first %}active{% endif %}" data-post-id="{{ post.id }}" data-index="{{ forloop.counter0 }}"></span>
+                          {% endfor %}
+                        </div>
+                        <div class="carousel-counter">
+                          <span class="current-slide">1</span> / {{ post.image_urls|length }}
+                        </div>
+                      {% endif %}
+                    </div>
+                  {% elif post.is_image %}
+                    <img src="{{ post.url }}" class="post-thumbnail clickable-media" alt="Post Image" loading="lazy">
                   {% elif post.is_video %}
                     <video src="{{ post.url }}" class="post-thumbnail clickable-media" controls muted></video>
                   {% elif post.url %}
-                    <a href="{{ post.url }}" target="_blank">{{ post.url }}</a>
+                    <a href="{{ post.url }}" target="_blank" rel="noopener noreferrer">{{ post.url }}</a>
                   {% endif %}
 
                   <div class="actions" data-post-id="{{ post.id }}" data-user-vote="{{ post.user_vote|default:'' }}">
-                    <button class="vote-btn upvote {% if post.user_vote == 'upvote' %}active-upvote{% endif %}" 
-                            onclick="votePost('{{ post.id }}', 'upvote', this)" 
+                    <button class="vote-btn upvote {% if post.user_vote == 'upvote' %}active-upvote{% endif %}"
+                            onclick="votePost('{{ post.id }}', 'upvote', this)"
                             aria-label="Upvote">⬆️</button>
                     <span class="vote-count" id="vote-count-{{ post.id }}">{{ post.vote_count }}</span>
-                    <button class="vote-btn downvote {% if post.user_vote == 'downvote' %}active-downvote{% endif %}" 
-                            onclick="votePost('{{ post.id }}', 'downvote', this)" 
+                    <button class="vote-btn downvote {% if post.user_vote == 'downvote' %}active-downvote{% endif %}"
+                            onclick="votePost('{{ post.id }}', 'downvote', this)"
                             aria-label="Downvote">⬇️</button>
+                    <span class="comment-toggle" onclick="toggleComments(this)">💬 {{ post.comment_count }}</span>
                     <span class="share-btn" onclick="sharePost('{{ post.id }}')">🔗 Share</span>
+                  </div>
+
+                  <!-- COMMENTS SECTION (placeholder, not loaded on profile) -->
+                  <div class="expanded-section">
+                    <div class="comments-section" id="comments-{{ post.id }}" data-post-id="{{ post.id }}" data-loaded="false">
+                      <div class="comments-placeholder">Comments will load when opened…</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -249,10 +227,8 @@
           {% endif %}
         </div>
       </section>
+
     </div>
-
-    
-
     {% endif %}
     {% endblock %}
 
@@ -292,8 +268,8 @@
     <!-- IMAGE & VIDEO MODAL (same behavior as home.html) -->
     <div id="mediaModal" class="media-modal">
       <span class="close-modal">&times;</span>
-      <img id="modalImage" class="modal-content" style="display:none;">
-      <video id="modalVideo" class="modal-content" controls style="display:none;"></video>
+      <img id="modalImage" class="modal-content" style="display:none;max-width:90vw;max-height:80vh;">
+      <video id="modalVideo" class="modal-content" controls style="display:none;max-width:90vw;max-height:80vh;"></video>
     </div>
 
     <!-- EDIT POST MODAL (match home) -->
@@ -356,25 +332,76 @@
     </div>
 
     <script>
+    // ==================== CAROUSEL FUNCTIONS ====================
+    function changeSlide(postId, direction) {
+      const carousel = document.getElementById(`carousel-${postId}`);
+      const images = carousel.querySelectorAll('.carousel-image');
+      const indicators = document.querySelectorAll(`.indicator[data-post-id="${postId}"]`);
+      
+      let currentIndex = Array.from(images).findIndex(img => img.style.display !== 'none');
+      images[currentIndex].style.display = 'none';
+      indicators[currentIndex].classList.remove('active');
+      
+      currentIndex = (currentIndex + direction + images.length) % images.length;
+      images[currentIndex].style.display = 'block';
+      indicators[currentIndex].classList.add('active');
+    }
+
+    function goToSlide(postId, index) {
+      const carousel = document.getElementById(`carousel-${postId}`);
+      const images = carousel.querySelectorAll('.carousel-image');
+      const indicators = document.querySelectorAll(`.indicator[data-post-id="${postId}"]`);
+      
+      images.forEach(img => img.style.display = 'none');
+      indicators.forEach(ind => ind.classList.remove('active'));
+      
+      images[index].style.display = 'block';
+      indicators[index].classList.add('active');
+    }
+
+    // Event delegation for carousel controls
+    document.addEventListener('click', function(e) {
+      // Handle carousel buttons
+      const carouselBtn = e.target.closest('.carousel-btn');
+      if (carouselBtn) {
+        const postId = carouselBtn.dataset.postId;
+        const direction = parseInt(carouselBtn.dataset.direction);
+        changeSlide(postId, direction);
+        return;
+      }
+      
+      // Handle carousel indicators
+      const indicator = e.target.closest('.indicator');
+      if (indicator) {
+        const postId = indicator.dataset.postId;
+        const index = parseInt(indicator.dataset.index);
+        goToSlide(postId, index);
+        return;
+      }
+    });
+
+    // ==================== MEDIA MODAL ====================
     const modal = document.getElementById('mediaModal');
     const modalImg = document.getElementById('modalImage');
     const modalVideo = document.getElementById('modalVideo');
     const closeModal = document.querySelector('.close-modal');
 
-    document.querySelectorAll('.clickable-media').forEach(el => {
-      el.addEventListener('click', () => {
+    // Event delegation for clickable media
+    document.addEventListener('click', function(e) {
+      const clickableMedia = e.target.closest('.clickable-media');
+      if (clickableMedia) {
         modal.classList.add('show');
-        if (el.tagName.toLowerCase() === 'img') {
-          modalImg.src = el.src;
+        if (clickableMedia.tagName.toLowerCase() === 'img') {
+          modalImg.src = clickableMedia.src;
           modalImg.style.display = 'block';
           modalVideo.style.display = 'none';
-        } else if (el.tagName.toLowerCase() === 'video') {
-          modalVideo.src = el.src;
+        } else if (clickableMedia.tagName.toLowerCase() === 'video') {
+          modalVideo.src = clickableMedia.src;
           modalVideo.style.display = 'block';
           modalImg.style.display = 'none';
           modalVideo.play();
         }
-      });
+      }
     });
 
     closeModal.addEventListener('click', () => {

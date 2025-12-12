@@ -16,6 +16,14 @@
 
   {% include "navbar.html" %}
 
+  <!-- Success message at top -->
+  {% if success %}
+  <div class="profile-success" id="successMessage" style="margin: 20px auto; max-width: 800px;">
+    <span>{{ success }}</span>
+    <button type="button" class="success-close" aria-label="Close" onclick="document.getElementById('successMessage').style.display='none'">✖</button>
+  </div>
+  {% endif %}
+
   <div class="create-container">
     <div class="create-wrapper">
       
@@ -87,6 +95,22 @@
             </select>
           </div>
 
+          <!-- Forum Question Toggle -->
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" name="is_forum" id="is_forum" value="true">
+              <span class="checkbox-text">
+                <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Post as a Forum Question (Q&A format)
+              </span>
+            </label>
+            <p class="help-text">Forum questions allow others to provide answers and you can mark the best answer.</p>
+          </div>
+
           <!-- Title -->
           <div class="form-group">
             <label for="title">
@@ -102,6 +126,35 @@
                    value="{{ title|default:'' }}"
                    placeholder="What's on your mind?" required>
             <div class="char-count" id="title-count">{{ title|length|default:0 }}/300</div>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label for="description">
+              <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              Description <span style="color: #999; font-size: 0.9em;">(Optional)</span>
+            </label>
+            <div class="rte-toolbar">
+              <button type="button" class="rte-btn" data-cmd="bold"><b>B</b></button>
+              <button type="button" class="rte-btn" data-cmd="italic"><i>I</i></button>
+              <button type="button" class="rte-btn" data-cmd="underline"><u>U</u></button>
+              <span class="rte-sep"></span>
+              <button type="button" class="rte-btn" data-cmd="justifyLeft">Left</button>
+              <button type="button" class="rte-btn" data-cmd="justifyCenter">Center</button>
+              <button type="button" class="rte-btn" data-cmd="justifyRight">Right</button>
+              <span class="rte-sep"></span>
+              <button type="button" class="rte-btn" data-cmd="insertUnorderedList"> List</button>
+              <button type="button" class="rte-btn" data-cmd="insertOrderedList">1. List</button>
+            </div>
+            <div id="descEditor" class="rte-editor" contenteditable="true">{{ description|default:''|safe }}</div>
+            <textarea name="description" id="description" style="display:none;" maxlength="1000" placeholder="Share more details...">{{ description|default:'' }}</textarea>
+            <div class="char-count" id="desc-count">{{ description|length|default:0 }}/1000</div>
           </div>
 
           <!-- Tag Selector -->
@@ -153,36 +206,21 @@
             </label>
 
             <div class="upload-area" id="uploadBox">
-              <input type="file" id="fileUpload" name="fileUpload" accept="image/*,video/*" style="display:none;">
+              <input type="file" id="fileUpload" name="fileUpload" accept="image/*,.gif,video/*" multiple style="display:none;">
               
-              <div class="upload-prompt {% if preview_url %}is-hidden{% endif %}" id="uploadPrompt">
+              <div class="upload-prompt" id="uploadPrompt">
                 <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="17 8 12 3 7 8"/>
                   <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
                 <p class="upload-text">Drag & drop or click to upload</p>
-                <p class="upload-hint">Images and videos accepted</p>
+                <p class="upload-hint" id="uploadHint">Up to 10 images/GIFs OR 1 video (mutually exclusive)</p>
+                <p class="upload-count" id="uploadCount" style="margin-top: 8px; color: #666; font-size: 0.9em;">0 files selected</p>
               </div>
 
-              <div class="media-preview {% if not preview_url %}is-hidden{% endif %}" id="mediaPreview">
-                <button type="button" class="remove-media" id="removeMediaBtn">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-
-                {% if preview_type == "image" %}
-                  <img id="previewImage" src="{{ preview_url }}" style="display:block;">
-                  <video id="previewVideo" style="display:none;" controls></video>
-                {% elif preview_type == "video" %}
-                  <video id="previewVideo" src="{{ preview_url }}" style="display:block;" controls></video>
-                  <img id="previewImage" style="display:none;">
-                {% else %}
-                  <img id="previewImage" style="display:none;">
-                  <video id="previewVideo" style="display:none;" controls></video>
-                {% endif %}
+              <div class="media-preview-grid" id="mediaPreviewGrid" style="display: none;">
+                <!-- Previews will be added here dynamically -->
               </div>
             </div>
           </div>
@@ -196,16 +234,6 @@
                 <line x1="9" y1="9" x2="15" y2="15"/>
               </svg>
               <span>{{ error }}</span>
-            </div>
-          {% endif %}
-
-          {% if success %}
-            <div class="alert alert-success">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-              <span>{{ success }}</span>
             </div>
           {% endif %}
 
@@ -267,12 +295,40 @@
   const tagBtn = document.getElementById("tag-btn");
   const tagChoices = document.getElementById("tag-choices");
   const postTypeInput = document.getElementById("post_type");
+  const forumCheckbox = document.getElementById("is_forum");
+
+  // Auto-lock tag to Question when forum is checked
+  if (forumCheckbox) {
+    forumCheckbox.addEventListener('change', () => {
+      if (forumCheckbox.checked) {
+        postTypeInput.value = 'question';
+        tagBtn.innerHTML = '<span class="tag-badge tag-question">Question</span>';
+        const arrow = document.createElement('svg');
+        arrow.className = 'dropdown-arrow';
+        arrow.setAttribute('viewBox', '0 0 24 24');
+        arrow.setAttribute('fill', 'none');
+        arrow.setAttribute('stroke', 'currentColor');
+        arrow.setAttribute('stroke-width', '2');
+        arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+        tagBtn.appendChild(arrow);
+        tagBtn.disabled = true;
+        tagBtn.style.opacity = '0.6';
+        tagBtn.style.cursor = 'not-allowed';
+      } else {
+        tagBtn.disabled = false;
+        tagBtn.style.opacity = '1';
+        tagBtn.style.cursor = 'pointer';
+      }
+    });
+  }
 
   if (tagBtn && tagChoices) {
     tagBtn.addEventListener("click", e => {
       e.stopPropagation();
-      tagChoices.classList.toggle("show");
-      tagBtn.classList.toggle("active");
+      if (!tagBtn.disabled) {
+        tagChoices.classList.toggle("show");
+        tagBtn.classList.toggle("active");
+      }
     });
   }
 
@@ -308,18 +364,17 @@
     }
   });
 
-  // Media upload
+  // Media upload - Multiple files
   const uploadBox = document.getElementById("uploadBox");
   const fileInput = document.getElementById("fileUpload");
   const uploadPrompt = document.getElementById("uploadPrompt");
-  const mediaPreview = document.getElementById("mediaPreview");
-  const previewImage = document.getElementById("previewImage");
-  const previewVideo = document.getElementById("previewVideo");
-  const removeBtn = document.getElementById("removeMediaBtn");
+  const uploadCount = document.getElementById("uploadCount");
+  const mediaPreviewGrid = document.getElementById("mediaPreviewGrid");
+  let selectedFiles = [];
 
   if (uploadBox && fileInput) {
     uploadBox.addEventListener("click", (e) => {
-      if (!e.target.closest('.remove-media')) {
+      if (!e.target.closest('.remove-preview-btn')) {
         fileInput.click();
       }
     });
@@ -341,48 +396,169 @@
       uploadBox.classList.remove("drag-over");
       const files = e.dataTransfer.files;
       if (files.length > 0) {
-        fileInput.files = files;
-        handleFileSelect(files[0]);
+        handleMultipleFiles(files);
       }
     });
   }
 
   if (fileInput) {
     fileInput.addEventListener("change", function () {
-      const file = this.files[0];
-      if (file) handleFileSelect(file);
-    });
-  }
-
-  function handleFileSelect(file) {
-    previewImage.style.display = "none";
-    previewVideo.style.display = "none";
-
-    const reader = new FileReader();
-    reader.onload = e => {
-      if (file.type.startsWith("image/")) {
-        previewImage.src = e.target.result;
-        previewImage.style.display = "block";
-      } else if (file.type.startsWith("video/")) {
-        previewVideo.src = e.target.result;
-        previewVideo.style.display = "block";
+      if (this.files.length > 0) {
+        handleMultipleFiles(this.files);
       }
-      uploadPrompt.style.display = "none";
-      mediaPreview.style.display = "block";
-    };
-    reader.readAsDataURL(file);
-  }
-
-  if (removeBtn && uploadPrompt && mediaPreview && fileInput) {
-    removeBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (previewImage) { previewImage.style.display = "none"; previewImage.src = ""; }
-      if (previewVideo) { previewVideo.style.display = "none"; previewVideo.src = ""; }
-      uploadPrompt.style.display = "block";
-      mediaPreview.style.display = "none";
-      fileInput.value = "";
     });
   }
+
+  function handleMultipleFiles(files) {
+    const filesArray = Array.from(files);
+    const imageFiles = filesArray.filter(file => file.type.startsWith("image/"));
+    const videoFiles = filesArray.filter(file => file.type.startsWith("video/"));
+    
+    // Check for mutually exclusive constraint
+    if (imageFiles.length > 0 && videoFiles.length > 0) {
+      alert("You cannot upload images and videos together. Please choose either images (up to 10) OR 1 video.");
+      return;
+    }
+    
+    // If user is trying to add videos when images already exist
+    if (videoFiles.length > 0 && selectedFiles.length > 0 && selectedFiles[0].type.startsWith("image/")) {
+      alert("You already have images selected. Please remove them first to upload a video.");
+      return;
+    }
+    
+    // If user is trying to add images when video already exists
+    if (imageFiles.length > 0 && selectedFiles.length > 0 && selectedFiles[0].type.startsWith("video/")) {
+      alert("You already have a video selected. Please remove it first to upload images.");
+      return;
+    }
+    
+    // Handle video upload (only 1 allowed)
+    if (videoFiles.length > 0) {
+      if (videoFiles.length > 1) {
+        alert("Only 1 video allowed. Using the first video.");
+      }
+      selectedFiles = [videoFiles[0]];
+      updatePreviews();
+      updateFileInput();
+      return;
+    }
+    
+    // Handle image upload (up to 10 allowed)
+    if (imageFiles.length > 0) {
+      selectedFiles.push(...imageFiles);
+      
+      // Limit to 10 files
+      if (selectedFiles.length > 10) {
+        selectedFiles = selectedFiles.slice(0, 10);
+        alert("Maximum 10 images allowed. Only first 10 will be uploaded.");
+      }
+      
+      updatePreviews();
+      updateFileInput();
+      return;
+    }
+    
+    // No valid files
+    alert("Please select valid image or video files.");
+  }
+
+  function updatePreviews() {
+    mediaPreviewGrid.innerHTML = '';
+    const uploadHint = document.getElementById('uploadHint');
+    
+    if (selectedFiles.length === 0) {
+      mediaPreviewGrid.style.display = 'none';
+      uploadPrompt.style.display = 'block';
+      uploadCount.textContent = '0 files selected';
+      uploadHint.textContent = 'Up to 10 images/GIFs OR 1 video (mutually exclusive)';
+      return;
+    }
+
+    mediaPreviewGrid.style.display = 'grid';
+    uploadPrompt.style.display = 'none';
+    
+    // Update hint based on file type
+    const isVideo = selectedFiles[0].type.startsWith('video/');
+    if (isVideo) {
+      uploadCount.textContent = '1 video selected';
+      uploadHint.textContent = '1 video • Remove to upload images';
+    } else {
+      uploadCount.textContent = `${selectedFiles.length} image(s) selected`;
+      uploadHint.textContent = `${selectedFiles.length}/10 images • Remove all to upload video`;
+    }
+
+    selectedFiles.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const previewItem = document.createElement('div');
+        previewItem.className = 'preview-item';
+        
+        // Check if it's a video
+        if (file.type.startsWith('video/')) {
+          previewItem.innerHTML = `
+            <video src="${e.target.result}" controls style="width: 100%; height: 100%; object-fit: cover;"></video>
+            <button type="button" class="remove-preview-btn" data-index="${index}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            <span class="preview-number">VIDEO</span>
+          `;
+        } else {
+          previewItem.innerHTML = `
+            <img src="${e.target.result}" alt="Preview ${index + 1}">
+            <button type="button" class="remove-preview-btn" data-index="${index}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            <span class="preview-number">${index + 1}</span>
+          `;
+        }
+        
+        // Add remove handler
+        previewItem.querySelector('.remove-preview-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeFile(index);
+        });
+        
+        mediaPreviewGrid.appendChild(previewItem);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    updatePreviews();
+    updateFileInput();
+  }
+
+  function updateFileInput() {
+    // Create a new DataTransfer object to update the file input
+    const dt = new DataTransfer();
+    selectedFiles.forEach(file => dt.items.add(file));
+    fileInput.files = dt.files;
+  }
+
+  // Form validation
+  const form = document.getElementById("post-form");
+  const subjectSelect = document.getElementById("subject");
+
+  form.addEventListener("submit", e => {
+    if (!postTypeInput.value || !subjectSelect.value) {
+      e.preventDefault();
+      alert("Please select a subject and a tag before posting!");
+      if (!subjectSelect.value) subjectSelect.focus();
+      else tagBtn.focus();
+    } else if (selectedFiles.length === 0) {
+      e.preventDefault();
+      alert("Please upload at least one image or video!");
+      fileInput.focus();
+    }
+  });
 </script>
 
 <script>
@@ -399,32 +575,6 @@
   updateCount();
 })();
 </script>
-  <div id="cc-success-overlay" class="cc-success-modal-overlay">
-    <div class="cc-success-modal">
-      <div class="cc-success-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="16 8 11 13 8 10"/>
-        </svg>
-      </div>
-      <h3>Post created</h3>
-      <p>{% if success %}{{ success }}{% else %}Your post has been created successfully.{% endif %}</p>
-      <button type="button" id="cc-success-close" class="cc-success-btn">Got it</button>
-    </div>
-  </div>
-<script>
-(function(){
-  var hasSuccess = "{% if success %}1{% else %}0{% endif %}" === "1";
-  if (!hasSuccess) return;
-  document.body.classList.add('cc-success-open');
-  var overlay = document.getElementById('cc-success-overlay');
-  if (overlay) overlay.style.display = 'flex';
-  var btn = document.getElementById('cc-success-close');
-  function hide(){ if(overlay){overlay.style.display='none'}; document.body.classList.remove('cc-success-open'); }
-  if (btn) btn.addEventListener('click', hide);
-  if (overlay) overlay.addEventListener('click', function(e){ if(e.target === overlay) hide(); });
-  setTimeout(hide, 1800);
-})();
-</script>
+
 </body>
 </html>

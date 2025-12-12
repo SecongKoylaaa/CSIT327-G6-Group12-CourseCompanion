@@ -13,6 +13,14 @@
 
   {% include "navbar.html" %}
 
+  <!-- Success message at top -->
+  {% if success %}
+  <div class="profile-success" id="successMessage" style="margin: 20px auto; max-width: 800px;">
+    <span>{{ success }}</span>
+    <button type="button" class="success-close" aria-label="Close" onclick="document.getElementById('successMessage').style.display='none'">✖</button>
+  </div>
+  {% endif %}
+
   <div class="create-container">
     <div class="create-wrapper">
       
@@ -85,6 +93,22 @@
             </select>
           </div>
 
+          <!-- Forum Question Toggle -->
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" name="is_forum" id="is_forum" value="true">
+              <span class="checkbox-text">
+                <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Post as a Forum Question (Q&A format)
+              </span>
+            </label>
+            <p class="help-text">Forum questions allow others to provide answers and you can mark the best answer.</p>
+          </div>
+
           <!-- Title -->
           <div class="form-group">
             <label for="title">
@@ -112,9 +136,22 @@
                 <line x1="16" y1="17" x2="8" y2="17"/>
                 <polyline points="10 9 9 9 8 9"/>
               </svg>
-              Description
+              Description <span style="color: #999; font-size: 0.9em;">(Optional)</span>
             </label>
-            <textarea name="description" id="description" maxlength="1000" placeholder="Share more details...">{{ description|default:'' }}</textarea>
+            <div class="rte-toolbar">
+              <button type="button" class="rte-btn" data-cmd="bold"><b>B</b></button>
+              <button type="button" class="rte-btn" data-cmd="italic"><i>I</i></button>
+              <button type="button" class="rte-btn" data-cmd="underline"><u>U</u></button>
+              <span class="rte-sep"></span>
+              <button type="button" class="rte-btn" data-cmd="justifyLeft">Left</button>
+              <button type="button" class="rte-btn" data-cmd="justifyCenter">Center</button>
+              <button type="button" class="rte-btn" data-cmd="justifyRight">Right</button>
+              <span class="rte-sep"></span>
+              <button type="button" class="rte-btn" data-cmd="insertUnorderedList"> List</button>
+              <button type="button" class="rte-btn" data-cmd="insertOrderedList">1. List</button>
+            </div>
+            <div id="descEditor" class="rte-editor" contenteditable="true">{{ description|default:''|safe }}</div>
+            <textarea name="description" id="description" style="display:none;" maxlength="1000" placeholder="Share more details...">{{ description|default:'' }}</textarea>
             <div class="char-count" id="desc-count">{{ description|length|default:0 }}/1000</div>
           </div>
 
@@ -168,16 +205,6 @@
             </div>
           {% endif %}
 
-          {% if success %}
-            <div class="alert alert-success">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-              <span>{{ success }}</span>
-            </div>
-          {% endif %}
-
           <!-- Action Buttons -->
           <div class="form-actions">
             <a href="/" class="btn-cancel">Cancel</a>
@@ -216,32 +243,50 @@ const updateTitleCount = () => {
   titleCount.classList.toggle('char-limit-reached', val.length >= MAX_TITLE);
 };
 
-const updateDescCount = () => {
-  if (!descInput) return;
-  let val = descInput.value || '';
-  if (val.length > MAX_DESC) {
-    val = val.slice(0, MAX_DESC);
-    descInput.value = val;
-  }
-  descCount.textContent = `${val.length}/${MAX_DESC}`;
-  descCount.classList.toggle('char-limit-reached', val.length >= MAX_DESC);
-};
-
 updateTitleCount();
-updateDescCount();
 
 titleInput.addEventListener('input', updateTitleCount);
-descInput.addEventListener('input', updateDescCount);
 
 // Tag dropdown
 const tagBtn = document.getElementById("tag-btn");
 const tagChoices = document.getElementById("tag-choices");
 const postTypeInput = document.getElementById("post_type");
+const forumCheckbox = document.getElementById("is_forum");
+
+// Auto-lock tag to Question when forum is checked
+if (forumCheckbox) {
+  forumCheckbox.addEventListener("change", () => {
+    if (forumCheckbox.checked) {
+      // Set to Question
+      postTypeInput.value = "question";
+      tagBtn.innerHTML = '<span class="tag-badge tag-question">Question</span>';
+      const arrow = document.createElement('svg');
+      arrow.className = 'dropdown-arrow';
+      arrow.setAttribute('viewBox', '0 0 24 24');
+      arrow.setAttribute('fill', 'none');
+      arrow.setAttribute('stroke', 'currentColor');
+      arrow.setAttribute('stroke-width', '2');
+      arrow.innerHTML = '<polyline points="6 9 12 15 18 9"/>';
+      tagBtn.appendChild(arrow);
+      // Disable tag selector
+      tagBtn.disabled = true;
+      tagBtn.style.opacity = "0.6";
+      tagBtn.style.cursor = "not-allowed";
+    } else {
+      // Enable tag selector
+      tagBtn.disabled = false;
+      tagBtn.style.opacity = "1";
+      tagBtn.style.cursor = "pointer";
+    }
+  });
+}
 
 tagBtn.addEventListener("click", e => {
   e.stopPropagation();
-  tagChoices.classList.toggle("show");
-  tagBtn.classList.toggle("active");
+  if (!tagBtn.disabled) {
+    tagChoices.classList.toggle("show");
+    tagBtn.classList.toggle("active");
+  }
 });
 
 document.querySelectorAll(".tag-option").forEach(btn => {
@@ -286,6 +331,21 @@ form.addEventListener("submit", e => {
     else tagBtn.focus();
   }
 });
+</script>
+
+<script>
+(function(){
+  const editor = document.getElementById('descEditor');
+  const hidden = document.getElementById('description');
+  const counter = document.getElementById('desc-count');
+  const MAX = 1000;
+  function updateCount(){ if(!editor||!counter) return; const t=(editor.innerText||''); counter.textContent = `${t.length}/${MAX}`; counter.classList.toggle('char-limit-reached', t.length>=MAX); }
+  document.querySelectorAll('.rte-btn').forEach(b=>b.addEventListener('click',()=>{ document.execCommand(b.dataset.cmd,false,null); editor&&editor.focus(); updateCount(); }));
+  const form = document.getElementById('post-form');
+  if(form && editor && hidden){ form.addEventListener('submit',()=>{ hidden.value = (editor.innerHTML||'').trim(); }); }
+  editor && editor.addEventListener('input', updateCount);
+  updateCount();
+})();
 </script>
 
 </body>

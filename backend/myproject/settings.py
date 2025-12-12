@@ -65,7 +65,7 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 # Database - Fixed for Supabase Session Pooler
 DATABASES = {
     'default': dj_database_url.config(
-        default="postgresql://your_user:your_password@your_host:5432/your_db_name",
+        default="postgresql://postgres.tkyztssepvewbmgsaaeq:yyRym9ST6zityusL@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require",
         conn_max_age=0,  # Don't persist connections to avoid pool exhaustion
         ssl_require=True,
         conn_health_checks=True,  # Enable health checks to prevent stale connections

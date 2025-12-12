@@ -111,3 +111,115 @@ document.addEventListener("DOMContentLoaded", () => {
   showSection("profilePostsSection");
 });
 
+// ==================== CAROUSEL & MEDIA MODAL (from template) ====================
+function sharePost(postId){
+  try {
+    const url = `${window.location.origin}/home/#post-${postId}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        alert('Post link copied to clipboard');
+      });
+      return;
+    }
+    const tmp = document.createElement('input');
+    tmp.value = url;
+    document.body.appendChild(tmp);
+    tmp.select();
+    document.execCommand('copy');
+    document.body.removeChild(tmp);
+    alert('Post link copied to clipboard');
+  } catch(e){
+    console.error('Share failed', e);
+  }
+}
+
+const carouselStates = {};
+
+function changeSlide(postId, direction) {
+  if (!carouselStates[postId]) {
+    carouselStates[postId] = { currentIndex: 0 };
+  }
+  const carousel = document.getElementById('carousel-' + postId);
+  const images = carousel.querySelectorAll('.carousel-image');
+  const indicators = carousel.querySelectorAll('.indicator');
+  const counter = carousel.querySelector('.current-slide');
+  images[carouselStates[postId].currentIndex].classList.remove('active');
+  indicators[carouselStates[postId].currentIndex].classList.remove('active');
+  carouselStates[postId].currentIndex += direction;
+  if (carouselStates[postId].currentIndex >= images.length) {
+    carouselStates[postId].currentIndex = 0;
+  } else if (carouselStates[postId].currentIndex < 0) {
+    carouselStates[postId].currentIndex = images.length - 1;
+  }
+  images[carouselStates[postId].currentIndex].classList.add('active');
+  indicators[carouselStates[postId].currentIndex].classList.add('active');
+  counter.textContent = carouselStates[postId].currentIndex + 1;
+}
+
+function goToSlide(postId, index) {
+  if (!carouselStates[postId]) {
+    carouselStates[postId] = { currentIndex: 0 };
+  }
+  const carousel = document.getElementById('carousel-' + postId);
+  const images = carousel.querySelectorAll('.carousel-image');
+  const indicators = carousel.querySelectorAll('.indicator');
+  const counter = carousel.querySelector('.current-slide');
+  images[carouselStates[postId].currentIndex].classList.remove('active');
+  indicators[carouselStates[postId].currentIndex].classList.remove('active');
+  carouselStates[postId].currentIndex = index;
+  images[carouselStates[postId].currentIndex].classList.add('active');
+  indicators[carouselStates[postId].currentIndex].classList.add('active');
+  counter.textContent = carouselStates[postId].currentIndex + 1;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.image-carousel').forEach(carousel => {
+    const postId = carousel.id.replace('carousel-', '');
+    carouselStates[postId] = { currentIndex: 0 };
+  });
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('carousel-btn')) {
+      const postId = e.target.dataset.postId;
+      const direction = parseInt(e.target.dataset.direction);
+      changeSlide(postId, direction);
+    }
+    if (e.target.classList.contains('indicator')) {
+      const postId = e.target.dataset.postId;
+      const index = parseInt(e.target.dataset.index);
+      goToSlide(postId, index);
+    }
+  });
+});
+
+// MEDIA MODAL (from template)
+const modal = document.getElementById('mediaModal');
+const modalImg = document.getElementById('modalImage');
+const modalVideo = document.getElementById('modalVideo');
+const closeModal = document.querySelector('.close-modal');
+document.addEventListener('click', function(e) {
+  const clickableMedia = e.target.closest('.clickable-media');
+  if (clickableMedia) {
+    modal.classList.add('show');
+    if (clickableMedia.tagName.toLowerCase() === 'img') {
+      modalImg.src = clickableMedia.src;
+      modalImg.style.display = 'block';
+      modalVideo.style.display = 'none';
+    } else if (clickableMedia.tagName.toLowerCase() === 'video') {
+      modalVideo.src = clickableMedia.src;
+      modalVideo.style.display = 'block';
+      modalImg.style.display = 'none';
+      modalVideo.play();
+    }
+  }
+});
+closeModal.addEventListener('click', () => {
+  modal.classList.remove('show');
+  modalVideo.pause();
+});
+modal.addEventListener('click', e => {
+  if (e.target === modal) {
+    modal.classList.remove('show');
+    modalVideo.pause();
+  }
+});
+

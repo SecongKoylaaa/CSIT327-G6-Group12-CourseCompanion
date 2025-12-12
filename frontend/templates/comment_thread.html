@@ -20,6 +20,10 @@
         {% if comment.edited %}[edited]{% endif %}
       </span>
 
+      {% if is_forum and best_answer_id == comment.comment_id %}
+        <span class="best-answer-badge">✅ Best Answer</span>
+      {% endif %}
+
       <div class="comment-menu-wrapper">
         <span class="comment-menu-btn" onclick="toggleCommentMenu('{{ comment.comment_id }}')">⋯</span>
 
@@ -34,6 +38,9 @@
 
             <button type="button" class="report-btn" onclick="openReportCommentModal('{{ comment.comment_id }}')">Report</button>
           {% else %}
+            {% if is_forum and current_user_id == post_author_id and not best_answer_id %}
+              <button type="button" class="mark-best-btn" onclick="markBestAnswer('{{ post_id }}', '{{ comment.comment_id }}')">Mark as Best Answer</button>
+            {% endif %}
             <button type="button" class="report-btn" onclick="openReportCommentModal('{{ comment.comment_id }}')">Report</button>
           {% endif %}
         </div>
@@ -82,6 +89,7 @@
     </form>
 
     <!-- REPLY BUTTON (always visible) -->
+    {% if not is_forum or post_status != 'solved' %}
     <button class="reply-btn"
             onclick="showReplyForm('{{ comment.comment_id }}', '{{ comment.author }}')">
       Reply
@@ -102,6 +110,7 @@
       </div>
       <button type="submit">Reply</button>
     </form>
+    {% endif %}
 
     <!-- VIEW REPLIES BUTTON -->
     {% if comment.replies %}
@@ -121,7 +130,7 @@
        style="display:none;">
 
     {% for reply in comment.replies %}
-      {% include "comment_thread.html" with comment=reply post_id=post_id user_email=user_email level=level|add:1 %}
+      {% include "comment_thread.html" with comment=reply post_id=post_id user_email=user_email level=level|add:1 is_forum=is_forum best_answer_id=best_answer_id post_author_id=post_author_id post_status=post_status %}
     {% endfor %}
 
   </div>

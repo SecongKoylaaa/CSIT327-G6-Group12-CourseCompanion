@@ -446,6 +446,35 @@ function cancelEdit(commentId) {
 }
 
 // =========================
+// MARK BEST ANSWER (FORUM Q&A)
+// =========================
+function markBestAnswer(postId, commentId) {
+    if (!confirm("Mark this as the best answer? This will mark the question as solved.")) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch(`/post/${postId}/mark-best-answer/${commentId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload(); // Reload to show best answer badge and update status
+        } else {
+            alert('Error: ' + (data.error || 'Could not mark best answer'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to mark best answer');
+    });
+}
 // CHARACTER COUNTER
 // =========================
 function updateCharCount(textarea, counterId) {

@@ -458,6 +458,9 @@ def home_page(request):
 
     # Optional subject filter from query string or POST (for comment submissions)
     selected_subject = request.GET.get("subject") or request.POST.get("subject") or None
+    
+    # Optional search query from navbar
+    search_query = request.GET.get("search", "").strip()
 
     # -----------------------------
     # Handle new comment or reply
@@ -486,23 +489,24 @@ def home_page(request):
         user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
         user_id = user_resp.data["id"] if user_resp.data else None
 
-        # Enforce 600-character maximum on the trimmed text; ignore empty comments
-        if post_id_int and comment_text and user_id:
-            # Ensure we do not exceed 600 characters even if client-side max is bypassed
-            if len(comment_text) > 600:
-                comment_text = comment_text[:600]
+        if post_id and comment_text and user_id:
+            # Check if post is a solved forum - if so, prevent new comments
+            post_check = safe_execute(lambda: supabase.table("posts").select("is_forum, status").eq("post_id", post_id).maybe_single().execute())
+            if post_check.data and post_check.data.get("is_forum") and post_check.data.get("status") == "solved":
+                # Optionally set an error message
+                request.session["error_message"] = "This question has been solved and is now locked for new comments."
+            else:
+                resp = safe_execute(lambda: supabase.table("comments").insert({
+                    "post_id": post_id,
+                    "user_id": user_id,
+                    "parent_id": parent_id,
+                    "text": comment_text,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }).execute())
 
-            resp = safe_execute(lambda: supabase.table("comments").insert({
-                "post_id": post_id_int,
-                "user_id": user_id,
-                "parent_id": parent_id_int,
-                "text": comment_text,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }).execute())
-
-            # Simple success flag so we know the insert path ran
-            if not getattr(resp, "error", None):
-                request.session["success_message"] = "Comment posted successfully."
+                # Simple success flag so we know the insert path ran
+                if resp and not getattr(resp, "error", None):
+                    request.session["success_message"] = "Comment posted successfully."
 
         # Redirect back to the same subject view if available
         if selected_subject:
@@ -510,7 +514,7 @@ def home_page(request):
         return redirect("/home/")
 
     # -----------------------------
-    # Fetch posts (optionally filtered by subject) with pagination
+    # Fetch posts (optionally filtered by subject and/or search) with pagination
     # -----------------------------
     page_size = 15
     try:
@@ -526,6 +530,10 @@ def home_page(request):
     posts_query = supabase.table("posts").select("*")
     if selected_subject:
         posts_query = posts_query.eq("subject", selected_subject)
+    
+    # Apply search filter if query exists
+    if search_query:
+        posts_query = posts_query.ilike("title", f"%{search_query}%")
 
     # Optional post type filter within a subject (announcement|question|discussion)
     ptype = (request.GET.get("type") or "all").lower()
@@ -580,29 +588,36 @@ def home_page(request):
         author_id = post.get("user_id")
         updated_at = post.get("updated_at")
 
+        # Check if content is a JSON array (multiple images)
+        import json
+        is_multiple_images = False
+        image_urls = []
+        try:
+            if url.startswith("["):
+                image_urls = json.loads(url)
+                is_multiple_images = True
+                url = image_urls[0] if image_urls else ""  # Use first image as primary
+        except:
+            pass
+
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
-        # Fetch author info for display
-        author_email = "anonymous@example.com"
+        # Fetch author username and email for display
+        author_username = None
+        author_email = None
         author_role = None
         is_verified = False
-        author_username = None
-        author_display = None
+        author_display = "anonymous"
         if author_id:
-            author_resp = safe_execute(lambda: supabase.table("users").select("email, role, username").eq("id", author_id).maybe_single().execute())
-            if author_resp and getattr(author_resp, "data", None):
-                author_email = author_resp.data.get("email", "anonymous@example.com")
+            author_resp = safe_execute(lambda: supabase.table("users").select("username, email, role").eq("id", author_id).maybe_single().execute())
+            if author_resp.data:
+                author_username = author_resp.data.get("username")
+                author_email = author_resp.data.get("email")
                 author_role = author_resp.data.get("role")
                 is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
-                raw_username = author_resp.data.get("username")
-                author_username = (raw_username or "").strip() if isinstance(raw_username, str) else None
-
-        # Determine display name: prefer username; otherwise show email
-        if author_username:
-            author_display = author_username
-        else:
-            author_display = author_email
+                # Use username if available, otherwise use email
+                author_display = author_username if author_username else (author_email or "anonymous")
 
         # -----------------------------
         # Fetch votes for this post
@@ -644,14 +659,20 @@ def home_page(request):
             "course": course_name,
             "is_image": is_image,
             "is_video": is_video,
+            "is_multiple_images": is_multiple_images,
+            "image_urls": image_urls,
             "comments": nested_comments,
-                "upvote_count": upvotes,
+            "upvote_count": upvotes,
             "vote_count": net_votes,
             "user_vote": user_vote,
             # comment_count fetched lazily (approximate from table)
             "comment_count": safe_execute(lambda: supabase.table("comments").select("comment_id", count="exact").eq("post_id", post_id).execute()).count or 0,
             # owner of the post, used to control author-only UI (3-dots menu)
             "user_id": author_id,
+            # Forum Q&A fields
+            "is_forum": post.get("is_forum", False),
+            "status": post.get("status"),
+            "best_answer_id": post.get("best_answer_id"),
         })
 
     # Pull and clear any success message (e.g., from profile edit)
@@ -668,6 +689,8 @@ def home_page(request):
         # Communities / subjects sidebar data
         "subjects": SUBJECTS,
         "selected_subject": selected_subject,
+        # search query for navbar persistence
+        "search_query": search_query,
         "current_sort": sort,
         "current_type": ptype,
         # pagination controls
@@ -718,9 +741,17 @@ def comments_for_post(request, post_id):
 
     nested = build_comment_tree(dedup_comments, user_id=user_id)
 
+    # Fetch post data for is_forum and best_answer_id
+    post_resp = safe_execute(lambda: supabase.table("posts").select("is_forum, best_answer_id, user_id, status").eq("post_id", post_id).maybe_single().execute())
+    post_data = post_resp.data if post_resp.data else {}
+
     post_ctx = {
         "id": post_id,
-        "comments": nested
+        "comments": nested,
+        "is_forum": post_data.get("is_forum", False),
+        "best_answer_id": post_data.get("best_answer_id"),
+        "user_id": post_data.get("user_id"),  # Post author ID for marking best answer
+        "status": post_data.get("status", "open"),
     }
     # Include selected_subject and render with request to inject CSRF token
     selected_subject = request.GET.get("subject") or None
@@ -1107,6 +1138,7 @@ def create_post_text(request):
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
         subject = request.POST.get("subject", "").strip()
+        is_forum = request.POST.get("is_forum") == "true"
 
         # Enforce max lengths
         if len(title) > 300:
@@ -1114,33 +1146,40 @@ def create_post_text(request):
         if len(description) > 1000:
             description = description[:1000]
 
-        # Validate
-        if not title or not description or not post_type or not subject:
+        # Validate (description is optional)
+        if not title or not post_type or not subject:
             return render(request, "create-post-text.html", {
-                "error": "All fields are required.",
+                "error": "Title, tag, and subject are required.",
                 "title": title,
                 "description": description,
                 "post_type": post_type,
-                "subject": subject
+                "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
         # Insert post
         try:
-            supabase.table("posts").insert({
+            post_data = {
                 "title": title,
                 "description": description,
                 "content": "",
                 "post_type": post_type,
                 "user_id": user_id,
-                "subject": subject
-            }).execute()
+                "subject": subject,
+                "is_forum": is_forum
+            }
+            if is_forum:
+                post_data["status"] = "open"
+            
+            supabase.table("posts").insert(post_data).execute()
 
             return render(request, "create-post-text.html", {
                 "success": "Post created successfully!",
                 "title": "",
                 "description": "",
                 "post_type": "",
-                "subject": ""
+                "subject": "",
+                "profile_picture_url": profile_picture_url
             })
 
         except Exception as e:
@@ -1149,7 +1188,8 @@ def create_post_text(request):
                 "title": title,
                 "description": description,
                 "post_type": post_type,
-                "subject": subject
+                "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
     return render(request, "create-post-text.html", {
@@ -1177,42 +1217,83 @@ def create_post_image(request):
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         post_type = request.POST.get("post_type", "").strip()
-        subject = request.POST.get("subject", "").strip()   # changed from course → subject
-        uploaded_file = request.FILES.get("fileUpload")
+        subject = request.POST.get("subject", "").strip()
+        is_forum = request.POST.get("is_forum") == "true"
+        uploaded_files = request.FILES.getlist("fileUpload")  # Changed to getlist for multiple files
 
         # Validate
-        if not title or not post_type or not subject or not uploaded_file:
+        if not title or not post_type or not subject or not uploaded_files:
             return render(request, "create-post-image-video.html", {
-                "error": "All fields are required.",
+                "error": "Title, tag, subject, and at least one file are required.",
                 "title": title,
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
-        # Upload file to Supabase Storage (reuse existing if duplicate)
+        # Check file types: either images OR video (mutually exclusive)
+        image_files = [f for f in uploaded_files if f.content_type and f.content_type.startswith("image")]
+        video_files = [f for f in uploaded_files if f.content_type and f.content_type.startswith("video")]
+        
+        # Validate mutually exclusive constraint
+        if image_files and video_files:
+            return render(request, "create-post-image-video.html", {
+                "error": "Cannot mix images and videos. Choose either up to 10 images OR 1 video.",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "subject": subject,
+                "profile_picture_url": profile_picture_url
+            })
+        
+        # Validate video: only 1 allowed
+        if video_files and len(video_files) > 1:
+            return render(request, "create-post-image-video.html", {
+                "error": "Only 1 video allowed per post.",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "subject": subject,
+                "profile_picture_url": profile_picture_url
+            })
+        
+        # Validate images: max 10
+        if image_files and len(image_files) > 10:
+            return render(request, "create-post-image-video.html", {
+                "error": "Maximum 10 images allowed.",
+                "title": title,
+                "description": description,
+                "post_type": post_type,
+                "subject": subject,
+                "profile_picture_url": profile_picture_url
+            })
+
+        # Upload files to Supabase Storage
+        uploaded_urls = []
         try:
-            file_path = f"{user_email}/{uploaded_file.name}"
-            file_bytes = uploaded_file.read()
+            for uploaded_file in uploaded_files:
+                file_path = f"{user_email}/{uploaded_file.name}"
+                file_bytes = uploaded_file.read()
 
-            # Try to upload; allow upsert so duplicate names are reused
-            try:
-                supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
-                    file_path,
-                    file_bytes,
-                    file_options={"contentType": uploaded_file.content_type or "application/octet-stream", "upsert": "true"}
-                )
-            except Exception as up_err:
-                # If duplicate, still proceed by using existing public URL
-                msg = str(up_err).lower()
-                if "409" in msg or "duplicate" in msg or "already exists" in msg:
-                    pass  # safe to ignore and reuse existing file
-                else:
-                    raise up_err
+                # Try to upload; allow upsert so duplicate names are reused
+                try:
+                    supabase.storage.from_(settings.SUPABASE_BUCKET).upload(
+                        file_path,
+                        file_bytes,
+                        file_options={"contentType": uploaded_file.content_type or "application/octet-stream", "upsert": "true"}
+                    )
+                except Exception as up_err:
+                    msg = str(up_err).lower()
+                    if "409" in msg or "duplicate" in msg or "already exists" in msg:
+                        pass  # safe to ignore and reuse existing file
+                    else:
+                        raise up_err
 
-            file_url = supabase.storage.from_(settings.SUPABASE_BUCKET)\
-                        .get_public_url(file_path)\
-                        .split("?")[0]
+                file_url = supabase.storage.from_(settings.SUPABASE_BUCKET)\
+                            .get_public_url(file_path)\
+                            .split("?")[0]
+                uploaded_urls.append(file_url)
 
         except Exception as e:
             return render(request, "create-post-image-video.html", {
@@ -1221,31 +1302,36 @@ def create_post_image(request):
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
-        # Insert post record
+        # Insert post record - store multiple URLs as JSON array string
         try:
-            supabase.table("posts").insert({
+            import json
+            content_data = json.dumps(uploaded_urls) if len(uploaded_urls) > 1 else uploaded_urls[0]
+            
+            post_data = {
                 "title": title,
                 "description": description,
-                "content": file_url,
+                "content": content_data,
                 "post_type": post_type,
-                "subject": subject,       # SAVE SUBJECT HERE
-                "user_id": user_id
-            }).execute()
-
-            preview_type = "video" if uploaded_file.content_type.startswith("video") else "image"
+                "subject": subject,
+                "user_id": user_id,
+                "is_forum": is_forum
+            }
+            if is_forum:
+                post_data["status"] = "open"
+            
+            supabase.table("posts").insert(post_data).execute()
 
             return render(request, "create-post-image-video.html", {
                 "success": "Post created successfully!",
-                "preview_url": file_url,
-                "preview_type": preview_type,
-
-                # Clear form after success
+                "preview_urls": uploaded_urls,
                 "title": "",
                 "description": "",
                 "post_type": "",
-                "subject": ""
+                "subject": "",
+                "profile_picture_url": profile_picture_url
             })
 
         except Exception as e:
@@ -1255,6 +1341,7 @@ def create_post_image(request):
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
     # GET
@@ -1283,6 +1370,7 @@ def create_post_link(request):
         post_type = request.POST.get("post_type", "").strip()
         subject = request.POST.get("subject", "").strip()
         url = request.POST.get("url", "").strip()
+        is_forum = request.POST.get("is_forum") == "true"
 
         # Required fields check
         if not title or not post_type or not subject or not url:
@@ -1294,21 +1382,25 @@ def create_post_link(request):
                     "title": title,
                     "post_type": post_type,
                     "subject": subject,
-                    "url": url
+                    "url": url,
+                    "profile_picture_url": profile_picture_url
                 }
             )
 
         try:
             # Insert post
-            supabase.table("posts").insert(
-                {
-                    "title": title,
-                    "content": url,  # For link posts, URL = content
-                    "post_type": post_type,
-                    "subject": subject,
-                    "user_id": user_id
-                }
-            ).execute()
+            post_data = {
+                "title": title,
+                "content": url,  # For link posts, URL = content
+                "post_type": post_type,
+                "subject": subject,
+                "user_id": user_id,
+                "is_forum": is_forum
+            }
+            if is_forum:
+                post_data["status"] = "open"
+            
+            supabase.table("posts").insert(post_data).execute()
             
             return render(
                 request,
@@ -1559,9 +1651,39 @@ def profile_page(request):
         course_name = post.get("subject") or "General"
         description = post.get("description", "")
         post_id = post.get("post_id")
+        author_id = post.get("user_id")
+        updated_at = post.get("updated_at")
+
+        # Check if content is a JSON array (multiple images)
+        import json
+        is_multiple_images = False
+        image_urls = []
+        try:
+            if url.startswith("["):
+                image_urls = json.loads(url)
+                is_multiple_images = True
+                url = image_urls[0] if image_urls else ""  # Use first image as primary
+        except:
+            pass
 
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+        # Fetch author username and email for display
+        author_username = None
+        author_email = None
+        author_role = None
+        is_verified = False
+        author_display = "anonymous"
+        if author_id:
+            author_resp = safe_execute(lambda: supabase.table("users").select("username, email, role").eq("id", author_id).maybe_single().execute())
+            if author_resp.data:
+                author_username = author_resp.data.get("username")
+                author_email = author_resp.data.get("email")
+                author_role = author_resp.data.get("role")
+                is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
+                # Use username if available, otherwise use email
+                author_display = author_username if author_username else (author_email or "anonymous")
 
         votes = post_votes.get(post_id, [])
         upvotes = len([v for v in votes if v.get("vote_type") == "up"])
@@ -1575,6 +1697,8 @@ def profile_page(request):
                 user_vote = "upvote"
             elif uv == "down":
                 user_vote = "downvote"
+            else:
+                user_vote = None
 
         formatted_posts.append({
             "id": post_id,
@@ -1582,14 +1706,29 @@ def profile_page(request):
             "url": url,
             "description": description,
             "created_at": time_since(post.get("created_at")),
-            "author": post.get("author", "Unknown"),
+            "edited": bool(updated_at),
+            "author": author_email,
+            "author_name": author_display,
+            "author_role": author_role,
+            "is_verified": is_verified,
+            "post_type": post.get("post_type") or "",
             "course": course_name,
             "is_image": is_image,
             "is_video": is_video,
+            "is_multiple_images": is_multiple_images,
+            "image_urls": image_urls,
+            "comments": [],
             "upvote_count": upvotes,
-            "downvote_count": downvotes,
             "vote_count": net_votes,
             "user_vote": user_vote,
+            # comment_count fetched lazily (approximate from table)
+            "comment_count": safe_execute(lambda: supabase.table("comments").select("comment_id", count="exact").eq("post_id", post_id).execute()).count or 0,
+            # owner of the post, used to control author-only UI (3-dots menu)
+            "user_id": author_id,
+            # Forum Q&A fields
+            "is_forum": post.get("is_forum", False),
+            "status": post.get("status"),
+            "best_answer_id": post.get("best_answer_id"),
         })
 
     # --------------------------
@@ -2784,3 +2923,53 @@ def diagnostics(request):
         info["assets_error"] = str(e)
 
     return JsonResponse(info)
+
+# --------------------------
+# Mark Best Answer (Forum Q&A)
+# --------------------------
+def mark_best_answer(request, post_id, comment_id):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Method not allowed"}, status=405)
+    
+    if "user_email" not in request.session:
+        return JsonResponse({"success": False, "error": "Not authenticated"}, status=401)
+    
+    user_email = request.session.get("user_email")
+    
+    try:
+        # Get user ID
+        user_resp = supabase.table("users").select("id").eq("email", user_email).maybe_single().execute()
+        if not user_resp.data:
+            return JsonResponse({"success": False, "error": "User not found"}, status=404)
+        user_id = user_resp.data["id"]
+        
+        # Get post and verify it's a forum post owned by this user
+        post_resp = supabase.table("posts").select("post_id, user_id, is_forum").eq("post_id", post_id).maybe_single().execute()
+        if not post_resp.data:
+            return JsonResponse({"success": False, "error": "Post not found"}, status=404)
+        
+        post = post_resp.data
+        if not post.get("is_forum"):
+            return JsonResponse({"success": False, "error": "Not a forum post"}, status=400)
+        
+        if post["user_id"] != user_id:
+            return JsonResponse({"success": False, "error": "Only post author can mark best answer"}, status=403)
+        
+        # Verify comment exists and belongs to this post
+        comment_resp = supabase.table("comments").select("comment_id, post_id").eq("comment_id", comment_id).maybe_single().execute()
+        if not comment_resp.data:
+            return JsonResponse({"success": False, "error": "Comment not found"}, status=404)
+        
+        if comment_resp.data["post_id"] != post_id:
+            return JsonResponse({"success": False, "error": "Comment does not belong to this post"}, status=400)
+        
+        # Update post with best_answer_id and status
+        supabase.table("posts").update({
+            "best_answer_id": comment_id,
+            "status": "solved"
+        }).eq("post_id", post_id).execute()
+        
+        return JsonResponse({"success": True})
+        
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)

@@ -86,6 +86,9 @@ class Post(models.Model):
     updated_at = models.DateTimeField(null=True, blank=True)
     course = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    is_forum = models.BooleanField(default=False)
+    best_answer_id = models.IntegerField(null=True, blank=True)
+    status = models.CharField(max_length=20, default='open')
 
     class Meta:
         managed = False

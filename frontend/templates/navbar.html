@@ -8,7 +8,15 @@
   </div>
 
   <div class="nav-center">
-    <input type="text" class="search-bar" placeholder="Search Course Companion...">
+    <form action="{% url 'home' %}" method="get" class="search-form">
+      <input type="text" name="search" class="search-bar" placeholder="Search posts by title..." value="{{ search_query|default:'' }}">
+      <button type="submit" class="search-btn" aria-label="Search">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+      </button>
+    </form>
   </div>
 
   <div class="nav-right">
