@@ -35,6 +35,10 @@
         <input type="hidden" name="subject" value="{{ selected_subject }}">
       {% endif %}
       <textarea name="comment" placeholder="{% if post.is_forum %}Add an answer...{% else %}Add a comment...{% endif %}" required></textarea>
+      <div class="comment-input-wrapper">
+        <textarea name="comment" class="comment-textarea" placeholder="Add a comment..." maxlength="600" required oninput="updateCharCount(this, 'char-count-{{ post.id }}')" onkeyup="updateCharCount(this, 'char-count-{{ post.id }}')" onchange="updateCharCount(this, 'char-count-{{ post.id }}')" onfocus="updateCharCount(this, 'char-count-{{ post.id }}')"></textarea>
+        <div class="char-counter" id="char-count-{{ post.id }}">0/600</div>
+      </div>
       <button type="submit">Post</button>
     </form>
     {% endif %}

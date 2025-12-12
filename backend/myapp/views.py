@@ -15,6 +15,7 @@ import json
 import time
 import secrets
 import os
+import re
 
 # --------------------------
 # Initialize Supabase client (use service role if available)
@@ -152,16 +153,31 @@ def register_page(request):
     if request.method == "POST":
         MAX_EMAIL_LENGTH = 50
         MAX_PASSWORD_LENGTH = 30
+        USERNAME_MIN_LENGTH = 3
+        USERNAME_MAX_LENGTH = 20
 
         email = request.POST.get("email", "").strip()
+        username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "").strip()
         confirm = request.POST.get("confirmPassword", "").strip()
 
         # Validation
-        if not email or not password or not confirm:
+        if not email or not username or not password or not confirm:
             return render(request, "register.html", {"error": "All fields are required."})
         if len(email) > MAX_EMAIL_LENGTH:
             return render(request, "register.html", {"error": "Email is too long."})
+        if len(username) < USERNAME_MIN_LENGTH or len(username) > USERNAME_MAX_LENGTH:
+            return render(
+                request,
+                "register.html",
+                {"error": f"Username must be {USERNAME_MIN_LENGTH}-{USERNAME_MAX_LENGTH} characters long."}
+            )
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", username):
+            return render(
+                request,
+                "register.html",
+                {"error": "Username can only contain letters, numbers, underscores, and hyphens."}
+            )
         if len(password) > MAX_PASSWORD_LENGTH:
             return render(request, "register.html", {"error": "Password is too long."})
         if password != confirm:
@@ -171,18 +187,18 @@ def register_page(request):
         try:
             existing = safe_execute(lambda: supabase.table("users").select("*").eq("email", email).execute())
             if existing.data:
-                return render(request, "register.html", {"error": "Account already exists. Please login."})
+                return render(request, "register.html", {"error": "Account already exists with that email. Please login."})
         except Exception as e:
             return render(request, "register.html", {"error": f"Database error: {str(e)}"})
 
-        # Insert User
+        # Insert User (username stored; DB enforces unique email/username and lower(username) index)
         password_hash = make_password(password)
         date_joined = datetime.now(timezone.utc).isoformat()
         try:
             response = safe_execute(lambda: supabase.table("users").insert({
                 "email": email,
                 "password_hash": password_hash,
-                "username": None,
+                "username": username,
                 "role": "student",
                 "profile_picture": None,
                 "bio": None,
@@ -190,8 +206,20 @@ def register_page(request):
                 "date_joined": date_joined
             }).execute())
             if getattr(response, "error", None):
+                err_text = str(response.error)
+                if "users_email_key" in err_text:
+                    return render(request, "register.html", {"error": "Email is already in use."})
+                if "users_username_key" in err_text or "users_username_lower_idx" in err_text:
+                    return render(request, "register.html", {"error": "Username is already taken."})
                 return render(request, "register.html", {"error": f"Error registering: {response.error}"})
         except Exception as e:
+            err = str(e)
+            if "duplicate key value" in err or "23505" in err:
+                if "users_email_key" in err:
+                    return render(request, "register.html", {"error": "Email is already in use."})
+                if "users_username_key" in err or "users_username_lower_idx" in err:
+                    return render(request, "register.html", {"error": "Username is already taken."})
+                return render(request, "register.html", {"error": "Email or username already exists."})
             return render(request, "register.html", {"error": f"Error registering: {str(e)}"})
 
         return redirect("/login/")
@@ -360,10 +388,20 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
     for c in comments:
         if c.get("parent_id") == parent_id_val:
             # Get author info (retry on transient disconnects)
-            user_resp = safe_execute(lambda: supabase.table("users").select("email, role").eq("id", c["user_id"]).maybe_single().execute())
-            author_email = user_resp.data["email"] if user_resp.data and "email" in user_resp.data else "anonymous@example.com"
-            author_role = (user_resp.data.get("role") if user_resp and user_resp.data else None) or None
+            user_resp = safe_execute(lambda: supabase.table("users").select("email, role, username").eq("id", c["user_id"]).maybe_single().execute())
+            author_email = user_resp.data["email"] if user_resp and getattr(user_resp, "data", None) and "email" in user_resp.data else "anonymous@example.com"
+            author_role = (user_resp.data.get("role") if user_resp and getattr(user_resp, "data", None) else None) or None
             is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
+
+            # Determine display name: prefer username; otherwise show email
+            author_username = None
+            author_display = author_email
+            if user_resp and getattr(user_resp, "data", None):
+                raw_username = user_resp.data.get("username")
+                if isinstance(raw_username, str):
+                    author_username = raw_username.strip()
+                if author_username:
+                    author_display = author_username
 
             # Fetch votes (retry on transient disconnects)
             votes_resp = safe_execute(lambda: supabase.table("comment_votes").select("*").eq("comment_id", c["comment_id"]).execute())
@@ -385,7 +423,9 @@ def build_comment_tree(comments, parent_id_val=None, user_id=None):
             # Build comment object
             comment_obj = {
                 "comment_id": c["comment_id"],
-                "author": author_email,
+                "user_id": c.get("user_id"),
+                "author": author_display,
+                "author_email": author_email,
                 "author_role": author_role,
                 "is_verified": is_verified,
                 "text": c["text"],
@@ -427,8 +467,23 @@ def home_page(request):
     # -----------------------------
     if request.method == "POST":
         post_id = request.POST.get("post_id")
-        comment_text = request.POST.get("comment")
+        raw_comment = (request.POST.get("comment") or "")
+        comment_text = raw_comment.strip()
         parent_id = request.POST.get("parent_id")
+
+        # Safely cast IDs to integers to match Supabase schema
+        try:
+            post_id_int = int(post_id) if post_id else None
+        except (TypeError, ValueError):
+            post_id_int = None
+
+        if parent_id:
+            try:
+                parent_id_int = int(parent_id)
+            except (TypeError, ValueError):
+                parent_id_int = None
+        else:
+            parent_id_int = None
 
         # Get user_id
         user_resp = safe_execute(lambda: supabase.table("users").select("id").eq("email", user_email).maybe_single().execute())
@@ -441,13 +496,17 @@ def home_page(request):
                 # Optionally set an error message
                 request.session["error_message"] = "This question has been solved and is now locked for new comments."
             else:
-                safe_execute(lambda: supabase.table("comments").insert({
+                resp = safe_execute(lambda: supabase.table("comments").insert({
                     "post_id": post_id,
                     "user_id": user_id,
                     "parent_id": parent_id,
                     "text": comment_text,
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }).execute())
+
+                # Simple success flag so we know the insert path ran
+                if resp and not getattr(resp, "error", None):
+                    request.session["success_message"] = "Comment posted successfully."
 
         # Redirect back to the same subject view if available
         if selected_subject:
@@ -527,6 +586,7 @@ def home_page(request):
         description = post.get("description", "")
         post_id = post.get("post_id")
         author_id = post.get("user_id")
+        updated_at = post.get("updated_at")
 
         # Check if content is a JSON array (multiple images)
         import json
@@ -549,6 +609,8 @@ def home_page(request):
         author_email = None
         author_role = None
         is_verified = False
+        author_username = None
+        author_display = None
         if author_id:
             author_resp = safe_execute(lambda: supabase.table("users").select("username, email, role").eq("id", author_id).maybe_single().execute())
             if author_resp.data:
@@ -590,7 +652,9 @@ def home_page(request):
             "url": url,
             "description": description,
             "created_at": time_since(post.get("created_at")),
-            "author": author_display,
+            "edited": bool(updated_at),
+            "author": author_email,
+            "author_name": author_display,
             "author_role": author_role,
             "is_verified": is_verified,
             "post_type": post.get("post_type") or "",
@@ -696,10 +760,10 @@ def comments_for_post(request, post_id):
     html = render_to_string(
         "comments.html",
         {
-            "post": post_ctx, 
-            "selected_subject": selected_subject, 
+            "post": post_ctx,
+            "selected_subject": selected_subject,
             "user_email": user_email,
-            "current_user_id": user_id,  # Current logged-in user
+            "current_user_id": user_id,
         },
         request=request,
     )

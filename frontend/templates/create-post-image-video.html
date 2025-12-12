@@ -1,10 +1,10 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Create Post · Media</title>
+  <title>Create Post Â· Media</title>
   <link rel="stylesheet" href="{% static 'css/layout.css' %}?v=20251211">
   <link rel="stylesheet" href="{% static 'css/navbar.css' %}?v=20251211">
   <link rel="stylesheet" href="{% static 'css/post-create.css' %}?v=20251211">
@@ -577,6 +577,32 @@
   updateCount();
 })();
 </script>
+  <div id="cc-success-overlay" class="cc-success-modal-overlay">
+    <div class="cc-success-modal">
+      <div class="cc-success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="16 8 11 13 8 10"/>
+        </svg>
+      </div>
+      <h3>Post created</h3>
+      <p>{% if success %}{{ success }}{% else %}Your post has been created successfully.{% endif %}</p>
+      <button type="button" id="cc-success-close" class="cc-success-btn">Got it</button>
+    </div>
+  </div>
+<script>
+(function(){
+  var hasSuccess = "{% if success %}1{% else %}0{% endif %}" === "1";
+  if (!hasSuccess) return;
+  document.body.classList.add('cc-success-open');
+  var overlay = document.getElementById('cc-success-overlay');
+  if (overlay) overlay.style.display = 'flex';
+  var btn = document.getElementById('cc-success-close');
+  function hide(){ if(overlay){overlay.style.display='none'}; document.body.classList.remove('cc-success-open'); }
+  if (btn) btn.addEventListener('click', hide);
+  if (overlay) overlay.addEventListener('click', function(e){ if(e.target === overlay) hide(); });
+  setTimeout(hide, 1800);
+})();
+</script>
 </body>
 </html>
-

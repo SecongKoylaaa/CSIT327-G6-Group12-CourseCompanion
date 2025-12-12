@@ -277,25 +277,28 @@ function applyCommentTimes(root) {
 }
 
 /* ========================================================================
-   APPLY MANILA TIME + TEXTAREA VALIDATION + VOTE BUTTON FIXES
+   APPLY MANILA TIME + COMMENT TEXTAREA VALIDATION + VOTE BUTTON FIXES
 ========================================================================= */
 document.addEventListener("DOMContentLoaded", () => {
   // Manila time for any comments present on initial load
   applyCommentTimes(document);
 
-  // Textarea limit + autosize
-  document.querySelectorAll("textarea").forEach(t => {
+  // Comment textarea min length (600) + autosize + counter
+  const MIN_COMMENT_LENGTH = 600;
+
+  document.querySelectorAll(".comment-textarea").forEach(t => {
     const counter = document.createElement("div");
     counter.className = "comment-error";
     t.after(counter);
 
+    const form = t.closest("form");
+
     const update = () => {
-      if (t.value.length > 300) t.value = t.value.slice(0, 300);
+      const len = t.value.length;
+      counter.textContent = `${len} / ${MIN_COMMENT_LENGTH}` +
+        (len < MIN_COMMENT_LENGTH ? " - Minimum 600 characters required" : "");
 
-      counter.textContent = `${t.value.length} / 300` +
-        (t.value.length === 300 ? " - Maximum reached" : "");
-
-      counter.classList.toggle("maxed", t.value.length === 300);
+      counter.classList.toggle("too-short", len < MIN_COMMENT_LENGTH);
 
       t.style.height = "auto";
       t.style.height = t.scrollHeight + "px";
@@ -303,6 +306,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     t.addEventListener("input", update);
     update();
+
+    if (form) {
+      form.addEventListener("submit", e => {
+        const len = t.value.trim().length;
+        if (len < MIN_COMMENT_LENGTH) {
+          e.preventDefault();
+          update();
+          t.focus();
+        }
+      });
+    }
   });
 
   // Prevent button-submit issues
@@ -460,4 +474,29 @@ function markBestAnswer(postId, commentId) {
         console.error('Error:', error);
         alert('Failed to mark best answer');
     });
+}
+// CHARACTER COUNTER
+// =========================
+function updateCharCount(textarea, counterId) {
+    const counter = document.getElementById(counterId);
+    if (!counter) return;
+    
+    const currentLength = textarea.value.length;
+    const maxLength = 600;
+    
+    counter.textContent = `${currentLength}/${maxLength}`;
+    
+    // Add warning class when approaching limit
+    if (currentLength > maxLength * 0.9) {
+        counter.classList.add('warning');
+    } else {
+        counter.classList.remove('warning');
+    }
+    
+    // Add danger class when at limit
+    if (currentLength >= maxLength) {
+        counter.classList.add('danger');
+    } else {
+        counter.classList.remove('danger');
+    }
 }

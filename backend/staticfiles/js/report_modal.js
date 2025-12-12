@@ -13,6 +13,74 @@ function reportPost(postId) {
     });
 }
 
+// ======================= COMMENT REPORTING =======================
+function openReportCommentModal(commentId) {
+    // Set the comment ID in the hidden field
+    const input = document.getElementById('report_comment_id');
+    if (input) {
+        input.value = commentId;
+    }
+
+    const modal = document.getElementById('reportCommentModal');
+    if (modal) {
+        modal.classList.add('active');
+    }
+}
+
+function closeReportCommentModal() {
+    const modal = document.getElementById('reportCommentModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+
+    const form = document.getElementById('reportCommentForm');
+    if (form) {
+        form.reset();
+    }
+
+    const input = document.getElementById('report_comment_id');
+    if (input) {
+        input.value = '';
+    }
+}
+
+function submitCommentReport() {
+    const form = document.getElementById('reportCommentForm');
+    if (!form) return false;
+
+    const formData = new FormData(form);
+
+    // Validate reason
+    const violationType = formData.get('violation_type');
+    if (!violationType) {
+        alert('Please select a reason for reporting.');
+        return false;
+    }
+
+    fetch('/report_comment/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Comment reported successfully. Thank you for helping keep our community safe.');
+            closeReportCommentModal();
+        } else {
+            alert(data.error || 'Failed to submit comment report. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Error submitting comment report:', error);
+        alert('An error occurred while submitting the comment report. Please try again.');
+    });
+
+    return false;
+}
+
 function closeReportModal() {
     const modal = document.getElementById('reportPostModal');
     modal.classList.remove('active');

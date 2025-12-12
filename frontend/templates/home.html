@@ -89,7 +89,7 @@
           {% endif %}
 
           {% if post.description %}
-            <p class="post-description">{{ post.description }}</p>
+            <p class="post-description">{{ post.description|safe }}</p>
           {% endif %}
 
           {% if post.is_multiple_images %}
