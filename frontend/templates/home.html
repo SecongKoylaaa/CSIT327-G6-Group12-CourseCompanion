@@ -47,7 +47,7 @@
             <div>
               <p>
                 <span class="subject-tag subject-{{ post.course|slugify }}">{{ post.course }}</span>
-                • {{ post.author }} • {{ post.created_at }}
+                • {{ post.author_name }} • {{ post.created_at }}
                 {% if post.is_forum %}
                   {% if post.status == 'open' %}
                     <span class="status-badge status-open">🟢 Open</span>

@@ -604,13 +604,11 @@ def home_page(request):
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
 
         # Fetch author username and email for display
-        author_display = "anonymous"
         author_username = None
         author_email = None
         author_role = None
         is_verified = False
-        author_username = None
-        author_display = None
+        author_display = "anonymous"
         if author_id:
             author_resp = safe_execute(lambda: supabase.table("users").select("username, email, role").eq("id", author_id).maybe_single().execute())
             if author_resp.data:
@@ -1155,7 +1153,8 @@ def create_post_text(request):
                 "title": title,
                 "description": description,
                 "post_type": post_type,
-                "subject": subject
+                "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
         # Insert post
@@ -1179,7 +1178,8 @@ def create_post_text(request):
                 "title": "",
                 "description": "",
                 "post_type": "",
-                "subject": ""
+                "subject": "",
+                "profile_picture_url": profile_picture_url
             })
 
         except Exception as e:
@@ -1188,7 +1188,8 @@ def create_post_text(request):
                 "title": title,
                 "description": description,
                 "post_type": post_type,
-                "subject": subject
+                "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
     return render(request, "create-post-text.html", {
@@ -1228,6 +1229,7 @@ def create_post_image(request):
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
         # Check file types: either images OR video (mutually exclusive)
@@ -1242,6 +1244,7 @@ def create_post_image(request):
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
         
         # Validate video: only 1 allowed
@@ -1252,6 +1255,7 @@ def create_post_image(request):
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
         
         # Validate images: max 10
@@ -1262,6 +1266,7 @@ def create_post_image(request):
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
         # Upload files to Supabase Storage
@@ -1297,6 +1302,7 @@ def create_post_image(request):
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
         # Insert post record - store multiple URLs as JSON array string
@@ -1324,7 +1330,8 @@ def create_post_image(request):
                 "title": "",
                 "description": "",
                 "post_type": "",
-                "subject": ""
+                "subject": "",
+                "profile_picture_url": profile_picture_url
             })
 
         except Exception as e:
@@ -1334,6 +1341,7 @@ def create_post_image(request):
                 "description": description,
                 "post_type": post_type,
                 "subject": subject,
+                "profile_picture_url": profile_picture_url
             })
 
     # GET
@@ -1374,7 +1382,8 @@ def create_post_link(request):
                     "title": title,
                     "post_type": post_type,
                     "subject": subject,
-                    "url": url
+                    "url": url,
+                    "profile_picture_url": profile_picture_url
                 }
             )
 
@@ -1642,9 +1651,39 @@ def profile_page(request):
         course_name = post.get("subject") or "General"
         description = post.get("description", "")
         post_id = post.get("post_id")
+        author_id = post.get("user_id")
+        updated_at = post.get("updated_at")
+
+        # Check if content is a JSON array (multiple images)
+        import json
+        is_multiple_images = False
+        image_urls = []
+        try:
+            if url.startswith("["):
+                image_urls = json.loads(url)
+                is_multiple_images = True
+                url = image_urls[0] if image_urls else ""  # Use first image as primary
+        except:
+            pass
 
         is_image = url.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"))
         is_video = url.lower().endswith((".mp4", ".webm", ".ogg"))
+
+        # Fetch author username and email for display
+        author_username = None
+        author_email = None
+        author_role = None
+        is_verified = False
+        author_display = "anonymous"
+        if author_id:
+            author_resp = safe_execute(lambda: supabase.table("users").select("username, email, role").eq("id", author_id).maybe_single().execute())
+            if author_resp.data:
+                author_username = author_resp.data.get("username")
+                author_email = author_resp.data.get("email")
+                author_role = author_resp.data.get("role")
+                is_verified = str(author_role).lower() in ["teacher", "professional"] if author_role else False
+                # Use username if available, otherwise use email
+                author_display = author_username if author_username else (author_email or "anonymous")
 
         votes = post_votes.get(post_id, [])
         upvotes = len([v for v in votes if v.get("vote_type") == "up"])
@@ -1658,6 +1697,8 @@ def profile_page(request):
                 user_vote = "upvote"
             elif uv == "down":
                 user_vote = "downvote"
+            else:
+                user_vote = None
 
         formatted_posts.append({
             "id": post_id,
@@ -1665,14 +1706,29 @@ def profile_page(request):
             "url": url,
             "description": description,
             "created_at": time_since(post.get("created_at")),
-            "author": post.get("author", "Unknown"),
+            "edited": bool(updated_at),
+            "author": author_email,
+            "author_name": author_display,
+            "author_role": author_role,
+            "is_verified": is_verified,
+            "post_type": post.get("post_type") or "",
             "course": course_name,
             "is_image": is_image,
             "is_video": is_video,
+            "is_multiple_images": is_multiple_images,
+            "image_urls": image_urls,
+            "comments": [],
             "upvote_count": upvotes,
-            "downvote_count": downvotes,
             "vote_count": net_votes,
             "user_vote": user_vote,
+            # comment_count fetched lazily (approximate from table)
+            "comment_count": safe_execute(lambda: supabase.table("comments").select("comment_id", count="exact").eq("post_id", post_id).execute()).count or 0,
+            # owner of the post, used to control author-only UI (3-dots menu)
+            "user_id": author_id,
+            # Forum Q&A fields
+            "is_forum": post.get("is_forum", False),
+            "status": post.get("status"),
+            "best_answer_id": post.get("best_answer_id"),
         })
 
     # --------------------------

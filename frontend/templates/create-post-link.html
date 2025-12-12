@@ -13,6 +13,14 @@
 
   {% include "navbar.html" %}
 
+  <!-- Success message at top -->
+  {% if success %}
+  <div class="profile-success" id="successMessage" style="margin: 20px auto; max-width: 800px;">
+    <span>{{ success }}</span>
+    <button type="button" class="success-close" aria-label="Close" onclick="document.getElementById('successMessage').style.display='none'">✖</button>
+  </div>
+  {% endif %}
+
   <div class="create-container">
     <div class="create-wrapper">
       
@@ -203,16 +211,6 @@
             </div>
           {% endif %}
 
-          {% if success %}
-            <div class="alert alert-success">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-              <span>{{ success }}</span>
-            </div>
-          {% endif %}
-
           <!-- Action Buttons -->
           <div class="form-actions">
             <a href="/" class="btn-cancel">Cancel</a>
@@ -335,32 +333,6 @@
   updateCount();
 })();
 </script>
-  <div id="cc-success-overlay" class="cc-success-modal-overlay">
-    <div class="cc-success-modal">
-      <div class="cc-success-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="16 8 11 13 8 10"/>
-        </svg>
-      </div>
-      <h3>Post created</h3>
-      <p>{% if success %}{{ success }}{% else %}Your post has been created successfully.{% endif %}</p>
-      <button type="button" id="cc-success-close" class="cc-success-btn">Got it</button>
-    </div>
-  </div>
-<script>
-(function(){
-  var hasSuccess = "{% if success %}1{% else %}0{% endif %}" === "1";
-  if (!hasSuccess) return;
-  document.body.classList.add('cc-success-open');
-  var overlay = document.getElementById('cc-success-overlay');
-  if (overlay) overlay.style.display = 'flex';
-  var btn = document.getElementById('cc-success-close');
-  function hide(){ if(overlay){overlay.style.display='none'}; document.body.classList.remove('cc-success-open'); }
-  if (btn) btn.addEventListener('click', hide);
-  if (overlay) overlay.addEventListener('click', function(e){ if(e.target === overlay) hide(); });
-  setTimeout(hide, 1800);
-})();
-</script>
+
 </body>
 </html>
